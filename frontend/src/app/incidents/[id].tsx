@@ -3,6 +3,8 @@ import { Redirect, useLocalSearchParams, useRouter, type Href } from 'expo-route
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -33,8 +35,11 @@ function formatDateTime(value: string) {
   }
 
   return date.toLocaleString(undefined, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    month: 'short',
+    year: 'numeric',
   });
 }
 
@@ -43,6 +48,15 @@ function DetailRow({ label, value }: { label: string; value: string }) {
     <View style={styles.detailRow}>
       <Text style={styles.detailLabel}>{label}</Text>
       <Text style={styles.detailValue}>{value}</Text>
+    </View>
+  );
+}
+
+function SummaryItem({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.summaryItem}>
+      <Text style={styles.summaryLabel}>{label}</Text>
+      <Text style={styles.summaryValue}>{value}</Text>
     </View>
   );
 }
@@ -62,14 +76,20 @@ export default function IncidentDetailsScreen() {
   const { isLoading, token, user } = useAuth();
   const [incident, setIncident] = useState<Incident | null>(null);
   const [loadingIncident, setLoadingIncident] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const loadIncident = useCallback(async () => {
+  const loadIncident = useCallback(async (refresh = false) => {
     if (!token || !incidentId) {
       return;
     }
 
-    setLoadingIncident(true);
+    if (refresh) {
+      setRefreshing(true);
+    } else {
+      setLoadingIncident(true);
+    }
+
     setErrorMessage(null);
 
     try {
@@ -83,6 +103,7 @@ export default function IncidentDetailsScreen() {
       setErrorMessage('Unable to load this incident report.');
     } finally {
       setLoadingIncident(false);
+      setRefreshing(false);
     }
   }, [incidentId, token]);
 
@@ -116,8 +137,29 @@ export default function IncidentDetailsScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar style="dark" />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            tintColor={BrandColors.red}
+            onRefresh={() => void loadIncident(true)}
+          />
+        }
+        showsVerticalScrollIndicator={false}>
         <BackButton onPress={() => router.replace('/incidents' as Href)} />
+
+        <View style={styles.header}>
+          <Text style={styles.eyebrow}>Incident Details</Text>
+          <Text style={styles.title}>Incident Details</Text>
+          <Text style={styles.subtitle}>{incident ? `Report #${incident.id}` : 'Report details'}</Text>
+        </View>
+
+        {errorMessage && incident ? (
+          <View style={styles.inlineError}>
+            <Text style={styles.inlineErrorText}>{errorMessage}</Text>
+          </View>
+        ) : null}
 
         {showInitialLoading ? (
           <View style={styles.centerState}>
@@ -129,7 +171,7 @@ export default function IncidentDetailsScreen() {
         {showError ? (
           <View style={styles.centerState}>
             <Text style={styles.emptyTitle}>Unable to load this incident report.</Text>
-            <Text style={styles.stateText}>The report may be unavailable or your session may need to be refreshed.</Text>
+            <Text style={styles.stateText}>Check your connection and try again.</Text>
             <AuthButton
               style={styles.stateButton}
               title="Retry"
@@ -141,32 +183,60 @@ export default function IncidentDetailsScreen() {
 
         {incident ? (
           <>
-            <View style={styles.header}>
-              <Text style={styles.eyebrow}>Incident Details</Text>
-              <Text style={styles.title}>{incident.title}</Text>
-              <Text style={styles.subtitle}>{incident.location}</Text>
-            </View>
-
             <View style={styles.summaryPanel}>
-              <View style={styles.badgeRow}>
-                <StatusBadge status={incident.status} />
-                <SeverityBadge severity={incident.severity} />
+              <View style={styles.summaryHeader}>
+                <Text style={styles.incidentTitle}>{incident.title}</Text>
+                <View style={styles.badgeRow}>
+                  <StatusBadge status={incident.status} />
+                  <SeverityBadge severity={incident.severity} />
+                </View>
               </View>
-              <Text style={styles.description}>{incident.description}</Text>
+
+              <View style={styles.summaryGrid}>
+                <SummaryItem label="Incident Type" value={incident.incidentType} />
+                <SummaryItem label="Location" value={incident.location} />
+                <SummaryItem label="Reported" value={formatDateTime(incident.createdAt)} />
+                <SummaryItem label="Last Updated" value={formatDateTime(incident.updatedAt)} />
+              </View>
             </View>
 
             <View style={styles.panel}>
-              <Text style={styles.sectionTitle}>Report Information</Text>
-              <DetailRow label="Incident type" value={incident.incidentType} />
-              <DetailRow label="Location" value={incident.location} />
-              <DetailRow label="Reported" value={formatDateTime(incident.createdAt)} />
-              <DetailRow label="Last updated" value={formatDateTime(incident.updatedAt)} />
-              {coordinates ? <DetailRow label="Coordinates" value={coordinates} /> : null}
-            </View>
-
-            <View style={styles.panel}>
-              <Text style={styles.sectionTitle}>Status Progress</Text>
+              <View style={styles.panelHeader}>
+                <View style={styles.panelTitleBlock}>
+                  <Text style={styles.sectionTitle}>Response Status Tracker</Text>
+                  <Text style={styles.sectionCopy}>Refresh to check the latest status from Neon.</Text>
+                </View>
+                <Pressable
+                  accessibilityRole="button"
+                  disabled={refreshing}
+                  onPress={() => void loadIncident(true)}
+                  style={({ pressed }) => [
+                    styles.refreshButton,
+                    refreshing && styles.refreshButtonDisabled,
+                    pressed && !refreshing && styles.pressed,
+                  ]}>
+                  {refreshing ? (
+                    <ActivityIndicator color={BrandColors.deepBlue} size="small" />
+                  ) : (
+                    <Text style={styles.refreshButtonText}>Refresh Status</Text>
+                  )}
+                </Pressable>
+              </View>
               <StatusTimeline currentStatus={incident.status} />
+            </View>
+
+            <View style={styles.panel}>
+              <Text style={styles.sectionTitle}>Incident Information</Text>
+              <View style={styles.descriptionBlock}>
+                <Text style={styles.detailLabel}>Description</Text>
+                <Text style={styles.description}>{incident.description}</Text>
+              </View>
+              <DetailRow label="Location" value={incident.location} />
+              {coordinates ? <DetailRow label="Coordinates" value={coordinates} /> : null}
+              <DetailRow label="Incident Type" value={incident.incidentType} />
+              <DetailRow label="Severity" value={incident.severity} />
+              <DetailRow label="Submitted Date" value={formatDateTime(incident.createdAt)} />
+              <DetailRow label="Last Updated" value={formatDateTime(incident.updatedAt)} />
             </View>
           </>
         ) : null}
@@ -187,30 +257,30 @@ const styles = StyleSheet.create({
   },
   content: {
     flexGrow: 1,
-    gap: 20,
-    paddingHorizontal: 22,
+    gap: 18,
+    paddingHorizontal: 20,
     paddingVertical: 18,
   },
   header: {
-    gap: 8,
+    gap: 6,
   },
   eyebrow: {
     color: BrandColors.red,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '900',
     textTransform: 'uppercase',
   },
   title: {
     color: BrandColors.navy,
-    fontSize: 30,
+    fontSize: 28,
     fontWeight: '900',
-    lineHeight: 36,
+    lineHeight: 34,
   },
   subtitle: {
     color: BrandColors.deepBlue,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '800',
-    lineHeight: 22,
+    lineHeight: 21,
   },
   summaryPanel: {
     backgroundColor: BrandColors.white,
@@ -225,17 +295,46 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 2,
   },
+  summaryHeader: {
+    gap: 12,
+  },
+  incidentTitle: {
+    color: BrandColors.navy,
+    fontSize: 21,
+    fontWeight: '900',
+    lineHeight: 27,
+  },
   badgeRow: {
     alignItems: 'center',
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
   },
-  description: {
+  summaryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  summaryItem: {
+    backgroundColor: BrandColors.lightBlue,
+    borderRadius: 8,
+    flexGrow: 1,
+    minWidth: '47%',
+    padding: 12,
+  },
+  summaryLabel: {
+    color: BrandColors.muted,
+    fontSize: 11,
+    fontWeight: '900',
+    lineHeight: 15,
+    textTransform: 'uppercase',
+  },
+  summaryValue: {
     color: BrandColors.text,
-    fontSize: 16,
-    fontWeight: '600',
-    lineHeight: 24,
+    fontSize: 14,
+    fontWeight: '800',
+    lineHeight: 20,
+    marginTop: 4,
   },
   panel: {
     backgroundColor: BrandColors.white,
@@ -245,11 +344,59 @@ const styles = StyleSheet.create({
     gap: 14,
     padding: 16,
   },
+  panelHeader: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'space-between',
+  },
+  panelTitleBlock: {
+    flex: 1,
+    gap: 3,
+  },
   sectionTitle: {
     color: BrandColors.navy,
     fontSize: 18,
     fontWeight: '900',
     lineHeight: 24,
+  },
+  sectionCopy: {
+    color: BrandColors.muted,
+    fontSize: 13,
+    fontWeight: '600',
+    lineHeight: 18,
+  },
+  refreshButton: {
+    alignItems: 'center',
+    backgroundColor: BrandColors.lightBlue,
+    borderColor: BrandColors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    justifyContent: 'center',
+    minHeight: 42,
+    minWidth: 118,
+    paddingHorizontal: 10,
+  },
+  refreshButtonDisabled: {
+    opacity: 0.7,
+  },
+  refreshButtonText: {
+    color: BrandColors.deepBlue,
+    fontSize: 12,
+    fontWeight: '900',
+    lineHeight: 16,
+  },
+  descriptionBlock: {
+    backgroundColor: BrandColors.lightBlue,
+    borderRadius: 8,
+    gap: 5,
+    padding: 12,
+  },
+  description: {
+    color: BrandColors.text,
+    fontSize: 15,
+    fontWeight: '600',
+    lineHeight: 22,
   },
   detailRow: {
     borderTopColor: BrandColors.border,
@@ -261,6 +408,7 @@ const styles = StyleSheet.create({
     color: BrandColors.muted,
     fontSize: 12,
     fontWeight: '900',
+    lineHeight: 16,
     textTransform: 'uppercase',
   },
   detailValue: {
@@ -298,5 +446,22 @@ const styles = StyleSheet.create({
   stateButton: {
     marginTop: 4,
     width: '100%',
+  },
+  inlineError: {
+    backgroundColor: BrandColors.redSoft,
+    borderColor: BrandColors.red,
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  inlineErrorText: {
+    color: BrandColors.red,
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 20,
+  },
+  pressed: {
+    opacity: 0.72,
   },
 });

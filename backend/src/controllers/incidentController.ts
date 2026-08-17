@@ -5,6 +5,7 @@ import {
   getIncidentById,
   getMyIncidents,
   IncidentServiceError,
+  updateIncidentStatus,
 } from '../services/incidentService.js';
 
 function sendIncidentError(error: unknown, res: Response) {
@@ -30,6 +31,16 @@ function requireAuthenticatedUser(req: Request) {
   }
 
   return req.authUser;
+}
+
+function requireIncidentManager(req: Request) {
+  const user = requireAuthenticatedUser(req);
+
+  if (user.role !== 'admin' && user.role !== 'authority') {
+    throw new IncidentServiceError(403, 'You are not authorized to update incident status.');
+  }
+
+  return user;
 }
 
 export async function createIncidentReport(req: Request, res: Response) {
@@ -74,6 +85,27 @@ export async function getMyIncidentReport(req: Request, res: Response) {
 
     return res.status(200).json({
       success: true,
+      incident,
+    });
+  } catch (error) {
+    return sendIncidentError(error, res);
+  }
+}
+
+export async function updateIncidentReportStatus(req: Request, res: Response) {
+  try {
+    requireIncidentManager(req);
+    const incidentId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+
+    if (!incidentId) {
+      throw new IncidentServiceError(400, 'Invalid incident id.');
+    }
+
+    const incident = await updateIncidentStatus(incidentId, req.body);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Incident status updated successfully.',
       incident,
     });
   } catch (error) {

@@ -7,6 +7,8 @@ import {
   type IncidentStatus,
 } from '@/types/incident';
 
+type TrackerStageState = 'completed' | 'current' | 'pending';
+
 const severityStyles: Record<IncidentSeverity, { backgroundColor: string; borderColor: string; color: string }> = {
   Low: {
     backgroundColor: BrandColors.lightBlue,
@@ -53,6 +55,13 @@ const statusStyles: Record<IncidentStatus, { backgroundColor: string; borderColo
   },
 };
 
+const statusDescriptions: Record<IncidentStatus, string> = {
+  Reported: 'Your incident report has been received.',
+  'Under Review': 'Authorities are reviewing the submitted information.',
+  'In Progress': 'Emergency response action is underway.',
+  Resolved: 'The incident has been marked as resolved.',
+};
+
 export function SeverityBadge({ severity }: { severity: IncidentSeverity }) {
   const tone = severityStyles[severity];
 
@@ -74,26 +83,66 @@ export function StatusBadge({ status }: { status: IncidentStatus }) {
 }
 
 export function StatusTimeline({ currentStatus }: { currentStatus: IncidentStatus }) {
-  const currentIndex = incidentStatusWorkflow.indexOf(currentStatus);
+  const currentIndex = Math.max(0, incidentStatusWorkflow.indexOf(currentStatus));
 
   return (
     <View style={styles.timeline}>
       {incidentStatusWorkflow.map((status, index) => {
-        const reached = index <= currentIndex;
+        const state: TrackerStageState = index < currentIndex
+          ? 'completed'
+          : index === currentIndex
+            ? 'current'
+            : 'pending';
+        const completed = state === 'completed';
         const current = index === currentIndex;
+        const pending = state === 'pending';
 
         return (
           <View key={status} style={styles.timelineRow}>
             <View style={styles.timelineRail}>
-              <View style={[styles.timelineDot, reached && styles.timelineDotActive, current && styles.timelineDotCurrent]} />
+              <View
+                style={[
+                  styles.timelineDot,
+                  completed && styles.timelineDotCompleted,
+                  current && styles.timelineDotCurrent,
+                  pending && styles.timelineDotPending,
+                ]}>
+                {completed ? <View style={styles.timelineDotCenter} /> : null}
+              </View>
               {index < incidentStatusWorkflow.length - 1 ? (
                 <View style={[styles.timelineLine, index < currentIndex && styles.timelineLineActive]} />
               ) : null}
             </View>
             <View style={styles.timelineTextBlock}>
-              <Text style={[styles.timelineTitle, reached && styles.timelineTitleActive]}>{status}</Text>
-              <Text style={styles.timelineCopy}>
-                {current ? 'Current status' : reached ? 'Completed stage' : 'Next stage'}
+              <View style={styles.timelineTitleRow}>
+                <Text
+                  style={[
+                    styles.timelineTitle,
+                    !pending && styles.timelineTitleActive,
+                    current && styles.timelineTitleCurrent,
+                  ]}>
+                  {status}
+                </Text>
+                <View
+                  style={[
+                    styles.stageBadge,
+                    completed && styles.stageBadgeCompleted,
+                    current && styles.stageBadgeCurrent,
+                    pending && styles.stageBadgePending,
+                  ]}>
+                  <Text
+                    style={[
+                      styles.stageBadgeText,
+                      completed && styles.stageBadgeTextCompleted,
+                      current && styles.stageBadgeTextCurrent,
+                      pending && styles.stageBadgeTextPending,
+                    ]}>
+                    {completed ? 'Completed' : current ? 'Current' : 'Pending'}
+                  </Text>
+                </View>
+              </View>
+              <Text style={[styles.timelineCopy, pending && styles.timelineCopyPending]}>
+                {statusDescriptions[status]}
               </Text>
             </View>
           </View>
@@ -121,7 +170,7 @@ const styles = StyleSheet.create({
   },
   timelineRow: {
     flexDirection: 'row',
-    minHeight: 58,
+    minHeight: 72,
   },
   timelineRail: {
     alignItems: 'center',
@@ -133,16 +182,27 @@ const styles = StyleSheet.create({
     borderColor: BrandColors.border,
     borderRadius: 8,
     borderWidth: 2,
-    height: 16,
-    width: 16,
+    height: 18,
+    justifyContent: 'center',
+    width: 18,
   },
-  timelineDotActive: {
+  timelineDotCompleted: {
     backgroundColor: BrandColors.deepBlue,
     borderColor: BrandColors.deepBlue,
   },
   timelineDotCurrent: {
-    backgroundColor: BrandColors.red,
+    backgroundColor: BrandColors.white,
     borderColor: BrandColors.red,
+    borderWidth: 4,
+  },
+  timelineDotPending: {
+    backgroundColor: BrandColors.white,
+  },
+  timelineDotCenter: {
+    backgroundColor: BrandColors.white,
+    borderRadius: 3,
+    height: 6,
+    width: 6,
   },
   timelineLine: {
     backgroundColor: BrandColors.border,
@@ -155,7 +215,13 @@ const styles = StyleSheet.create({
   },
   timelineTextBlock: {
     flex: 1,
-    paddingBottom: 18,
+    paddingBottom: 16,
+  },
+  timelineTitleRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
   },
   timelineTitle: {
     color: BrandColors.muted,
@@ -166,11 +232,50 @@ const styles = StyleSheet.create({
   timelineTitleActive: {
     color: BrandColors.navy,
   },
+  timelineTitleCurrent: {
+    color: BrandColors.red,
+  },
   timelineCopy: {
     color: BrandColors.muted,
     fontSize: 13,
     fontWeight: '600',
     lineHeight: 18,
     marginTop: 2,
+  },
+  timelineCopyPending: {
+    color: '#7A8798',
+  },
+  stageBadge: {
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  stageBadgeCompleted: {
+    backgroundColor: BrandColors.lightBlue,
+    borderColor: BrandColors.blue,
+  },
+  stageBadgeCurrent: {
+    backgroundColor: BrandColors.redSoft,
+    borderColor: BrandColors.red,
+  },
+  stageBadgePending: {
+    backgroundColor: BrandColors.white,
+    borderColor: BrandColors.border,
+  },
+  stageBadgeText: {
+    fontSize: 11,
+    fontWeight: '900',
+    lineHeight: 14,
+    textTransform: 'uppercase',
+  },
+  stageBadgeTextCompleted: {
+    color: BrandColors.deepBlue,
+  },
+  stageBadgeTextCurrent: {
+    color: BrandColors.red,
+  },
+  stageBadgeTextPending: {
+    color: BrandColors.muted,
   },
 });

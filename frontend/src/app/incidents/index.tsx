@@ -31,9 +31,21 @@ function formatDateTime(value: string) {
   }
 
   return date.toLocaleString(undefined, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    month: 'short',
+    year: 'numeric',
   });
+}
+
+function CardDetail({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.cardDetailItem}>
+      <Text style={styles.cardLabel}>{label}</Text>
+      <Text style={styles.cardValue}>{value}</Text>
+    </View>
+  );
 }
 
 function IncidentCard({ incident, onPress }: { incident: Incident; onPress: () => void }) {
@@ -42,22 +54,33 @@ function IncidentCard({ incident, onPress }: { incident: Incident; onPress: () =
       accessibilityRole="button"
       onPress={onPress}
       style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
-      <View style={styles.cardHeader}>
-        <View style={styles.cardTitleBlock}>
-          <Text style={styles.cardTitle}>{incident.title}</Text>
-          <Text style={styles.cardMeta}>{incident.incidentType} incident</Text>
-        </View>
-        <StatusBadge status={incident.status} />
+      <View style={styles.cardTitleBlock}>
+        <Text style={styles.cardTitle}>{incident.title}</Text>
+        <Text style={styles.cardMeta}>Report #{incident.id}</Text>
       </View>
 
-      <View style={styles.cardDetailRow}>
-        <Text style={styles.cardLabel}>Location</Text>
-        <Text style={styles.cardValue}>{incident.location}</Text>
+      <View style={styles.cardDetailsGrid}>
+        <CardDetail label="Incident Type" value={incident.incidentType} />
+        <CardDetail label="Location" value={incident.location} />
+      </View>
+
+      <View style={styles.badgeSection}>
+        <View style={styles.badgeGroup}>
+          <Text style={styles.badgeLabel}>Severity</Text>
+          <SeverityBadge severity={incident.severity} />
+        </View>
+        <View style={styles.badgeGroup}>
+          <Text style={styles.badgeLabel}>Status</Text>
+          <StatusBadge status={incident.status} />
+        </View>
       </View>
 
       <View style={styles.cardFooter}>
-        <SeverityBadge severity={incident.severity} />
-        <Text style={styles.submittedText}>{formatDateTime(incident.createdAt)}</Text>
+        <View>
+          <Text style={styles.cardLabel}>Reported</Text>
+          <Text style={styles.submittedText}>{formatDateTime(incident.createdAt)}</Text>
+        </View>
+        <Text style={styles.cardArrow}>{'>'}</Text>
       </View>
     </Pressable>
   );
@@ -175,8 +198,8 @@ export default function MyIncidentsScreen() {
 
         {showEmpty ? (
           <View style={styles.centerState}>
-            <Text style={styles.emptyTitle}>No incident reports yet.</Text>
-            <Text style={styles.stateText}>Report verified flood conditions in your area when it is safe to do so.</Text>
+            <Text style={styles.emptyTitle}>No incident reports yet</Text>
+            <Text style={styles.stateText}>When you report a flood incident, you can track its response status here.</Text>
             <AuthButton
               style={styles.stateButton}
               title="Report an Incident"
@@ -258,14 +281,7 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 2,
   },
-  cardHeader: {
-    alignItems: 'flex-start',
-    flexDirection: 'row',
-    gap: 12,
-    justifyContent: 'space-between',
-  },
   cardTitleBlock: {
-    flex: 1,
     gap: 4,
   },
   cardTitle: {
@@ -281,9 +297,14 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     textTransform: 'uppercase',
   },
-  cardDetailRow: {
+  cardDetailsGrid: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  cardDetailItem: {
     backgroundColor: BrandColors.lightBlue,
     borderRadius: 8,
+    flex: 1,
     gap: 4,
     padding: 12,
   },
@@ -299,6 +320,22 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     lineHeight: 21,
   },
+  badgeSection: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  badgeGroup: {
+    gap: 6,
+    minWidth: '45%',
+  },
+  badgeLabel: {
+    color: BrandColors.muted,
+    fontSize: 11,
+    fontWeight: '900',
+    lineHeight: 14,
+    textTransform: 'uppercase',
+  },
   cardFooter: {
     alignItems: 'center',
     flexDirection: 'row',
@@ -306,12 +343,17 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   submittedText: {
-    color: BrandColors.muted,
-    flex: 1,
+    color: BrandColors.text,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '800',
     lineHeight: 17,
-    textAlign: 'right',
+    marginTop: 3,
+  },
+  cardArrow: {
+    color: BrandColors.deepBlue,
+    fontSize: 24,
+    fontWeight: '900',
+    lineHeight: 28,
   },
   centerState: {
     alignItems: 'center',

@@ -6,11 +6,18 @@ import type {
   IncidentSeverity,
   IncidentStatus,
   IncidentType,
+  UpdateIncidentStatusInput,
   ValidatedIncidentInput,
 } from '../types/incident.js';
 
 const INCIDENT_TYPES = new Set<IncidentType>(['Flood']);
 const INCIDENT_SEVERITIES = new Set<IncidentSeverity>(['Low', 'Medium', 'High', 'Critical']);
+const INCIDENT_STATUSES = new Set<IncidentStatus>([
+  'Reported',
+  'Under Review',
+  'In Progress',
+  'Resolved',
+]);
 const DEFAULT_INCIDENT_STATUS: IncidentStatus = 'Reported';
 
 export class IncidentServiceError extends Error {
@@ -140,6 +147,34 @@ function validateCreateIncidentInput(input: CreateIncidentInput): ValidatedIncid
   };
 }
 
+function validateIncidentStatus(input: UpdateIncidentStatusInput) {
+  const status = trimmedText(input.status);
+
+  if (!status) {
+    throw new IncidentServiceError(400, 'Please provide an incident status.', {
+      status: 'Please provide an incident status.',
+    });
+  }
+
+  if (!INCIDENT_STATUSES.has(status as IncidentStatus)) {
+    throw new IncidentServiceError(400, 'Choose Reported, Under Review, In Progress, or Resolved.', {
+      status: 'Choose Reported, Under Review, In Progress, or Resolved.',
+    });
+  }
+
+  return status as IncidentStatus;
+}
+
+function numericIncidentId(incidentId: string) {
+  const numericValue = Number(incidentId);
+
+  if (!Number.isInteger(numericValue) || numericValue <= 0) {
+    throw new IncidentServiceError(400, 'Invalid incident id.');
+  }
+
+  return numericValue;
+}
+
 export async function createIncident(userId: number, input: CreateIncidentInput) {
   const incident = validateCreateIncidentInput(input);
 
@@ -192,18 +227,35 @@ export async function getMyIncidents(userId: number) {
 }
 
 export async function getIncidentById(userId: number, incidentId: string) {
-  const numericIncidentId = Number(incidentId);
-
-  if (!Number.isInteger(numericIncidentId) || numericIncidentId <= 0) {
-    throw new IncidentServiceError(400, 'Invalid incident id.');
-  }
+  const numericId = numericIncidentId(incidentId);
 
   const rows = await sql`
     SELECT id, incident_type, title, description, location, latitude, longitude, severity, photo_url, status, created_at, updated_at
     FROM incidents
-    WHERE id = ${numericIncidentId}
+    WHERE id = ${numericId}
       AND user_id = ${userId}
     LIMIT 1
+  `;
+
+  const incident = rows[0] as IncidentRow | undefined;
+
+  if (!incident) {
+    throw new IncidentServiceError(404, 'Incident report not found.');
+  }
+
+  return toIncident(incident);
+}
+
+export async function updateIncidentStatus(incidentId: string, input: UpdateIncidentStatusInput) {
+  const numericId = numericIncidentId(incidentId);
+  const status = validateIncidentStatus(input);
+
+  const rows = await sql`
+    UPDATE incidents
+    SET status = ${status},
+        updated_at = CURRENT_TIMESTAMP
+    WHERE id = ${numericId}
+    RETURNING id, incident_type, title, description, location, latitude, longitude, severity, photo_url, status, created_at, updated_at
   `;
 
   const incident = rows[0] as IncidentRow | undefined;

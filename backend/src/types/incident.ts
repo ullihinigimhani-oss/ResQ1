@@ -45,6 +45,10 @@ export interface CreateIncidentInput {
   photoUrl?: unknown;
 }
 
+export interface UpdateIncidentStatusInput {
+  status?: unknown;
+}
+
 export interface ValidatedIncidentInput {
   incidentType: IncidentType;
   title: string;
