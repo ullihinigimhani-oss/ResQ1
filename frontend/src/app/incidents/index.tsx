@@ -1,0 +1,349 @@
+import { StatusBar } from 'expo-status-bar';
+import { Redirect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { AuthButton, BackButton, StatusBanner } from '@/components/common/auth-components';
+import { SeverityBadge, StatusBadge } from '@/components/incidents/incident-badges';
+import { BrandColors } from '@/constants/brand';
+import { useAuth } from '@/context/auth-context';
+import { getMyIncidents, isIncidentApiError } from '@/services/incidentService';
+import type { Incident } from '@/types/incident';
+
+function firstParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function formatDateTime(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleString(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  });
+}
+
+function IncidentCard({ incident, onPress }: { incident: Incident; onPress: () => void }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
+      <View style={styles.cardHeader}>
+        <View style={styles.cardTitleBlock}>
+          <Text style={styles.cardTitle}>{incident.title}</Text>
+          <Text style={styles.cardMeta}>{incident.incidentType} incident</Text>
+        </View>
+        <StatusBadge status={incident.status} />
+      </View>
+
+      <View style={styles.cardDetailRow}>
+        <Text style={styles.cardLabel}>Location</Text>
+        <Text style={styles.cardValue}>{incident.location}</Text>
+      </View>
+
+      <View style={styles.cardFooter}>
+        <SeverityBadge severity={incident.severity} />
+        <Text style={styles.submittedText}>{formatDateTime(incident.createdAt)}</Text>
+      </View>
+    </Pressable>
+  );
+}
+
+export default function MyIncidentsScreen() {
+  const router = useRouter();
+  const params = useLocalSearchParams();
+  const { isLoading, token, user } = useAuth();
+  const [incidents, setIncidents] = useState<Incident[]>([]);
+  const [loadingIncidents, setLoadingIncidents] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const submitted = firstParam(params.submitted) === '1';
+  const successMessage = useMemo(
+    () => submitted ? 'Incident report submitted successfully.' : null,
+    [submitted],
+  );
+
+  const loadIncidents = useCallback(async (refresh = false) => {
+    if (!token) {
+      return;
+    }
+
+    if (refresh) {
+      setRefreshing(true);
+    } else {
+      setLoadingIncidents(true);
+    }
+
+    setErrorMessage(null);
+
+    try {
+      const reports = await getMyIncidents(token);
+      setIncidents(reports);
+    } catch (error) {
+      if (__DEV__ && !isIncidentApiError(error)) {
+        console.warn('Unexpected incident list error:', error);
+      }
+
+      setErrorMessage('Unable to load your incident reports.');
+    } finally {
+      setLoadingIncidents(false);
+      setRefreshing(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    if (token) {
+      void loadIncidents();
+    }
+  }, [loadIncidents, token]);
+
+  if (!isLoading && !user) {
+    return <Redirect href={'/auth/welcome' as Href} />;
+  }
+
+  if (isLoading || !user) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator color={BrandColors.red} size="large" />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const showInitialLoading = loadingIncidents && incidents.length === 0;
+  const showError = Boolean(errorMessage) && incidents.length === 0 && !showInitialLoading;
+  const showEmpty = !showInitialLoading && !showError && incidents.length === 0;
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar style="dark" />
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            tintColor={BrandColors.red}
+            onRefresh={() => void loadIncidents(true)}
+          />
+        }
+        showsVerticalScrollIndicator={false}>
+        <BackButton onPress={() => router.replace('/dashboard' as Href)} />
+
+        <View style={styles.header}>
+          <Text style={styles.eyebrow}>Resident Response Tracking</Text>
+          <Text style={styles.title}>My Incident Reports</Text>
+          <Text style={styles.subtitle}>Track the response status of incidents you have reported.</Text>
+        </View>
+
+        {successMessage ? <StatusBanner message={successMessage} type="success" /> : null}
+        {errorMessage && incidents.length > 0 ? <StatusBanner message={errorMessage} type="error" /> : null}
+
+        {showInitialLoading ? (
+          <View style={styles.centerState}>
+            <ActivityIndicator color={BrandColors.red} size="large" />
+            <Text style={styles.stateText}>Loading incident reports...</Text>
+          </View>
+        ) : null}
+
+        {showError ? (
+          <View style={styles.centerState}>
+            <Text style={styles.emptyTitle}>Unable to load your incident reports.</Text>
+            <Text style={styles.stateText}>Please check your connection and try again.</Text>
+            <AuthButton
+              style={styles.stateButton}
+              title="Retry"
+              variant="secondary"
+              onPress={() => void loadIncidents()}
+            />
+          </View>
+        ) : null}
+
+        {showEmpty ? (
+          <View style={styles.centerState}>
+            <Text style={styles.emptyTitle}>No incident reports yet.</Text>
+            <Text style={styles.stateText}>Report verified flood conditions in your area when it is safe to do so.</Text>
+            <AuthButton
+              style={styles.stateButton}
+              title="Report an Incident"
+              onPress={() => router.push('/incidents/report' as Href)}
+            />
+          </View>
+        ) : null}
+
+        {incidents.length > 0 ? (
+          <View style={styles.list}>
+            {incidents.map((incident) => (
+              <IncidentCard
+                incident={incident}
+                key={incident.id}
+                onPress={() => router.push({
+                  pathname: '/incidents/[id]',
+                  params: { id: String(incident.id) },
+                } as unknown as Href)}
+              />
+            ))}
+          </View>
+        ) : null}
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safeArea: {
+    backgroundColor: BrandColors.background,
+    flex: 1,
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center',
+  },
+  content: {
+    flexGrow: 1,
+    gap: 20,
+    paddingHorizontal: 22,
+    paddingVertical: 18,
+  },
+  header: {
+    gap: 8,
+  },
+  eyebrow: {
+    color: BrandColors.red,
+    fontSize: 13,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  title: {
+    color: BrandColors.navy,
+    fontSize: 32,
+    fontWeight: '900',
+    lineHeight: 38,
+  },
+  subtitle: {
+    color: BrandColors.muted,
+    fontSize: 16,
+    fontWeight: '600',
+    lineHeight: 23,
+  },
+  list: {
+    gap: 14,
+    paddingBottom: 10,
+  },
+  card: {
+    backgroundColor: BrandColors.white,
+    borderColor: BrandColors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 14,
+    padding: 16,
+    shadowColor: BrandColors.navy,
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.07,
+    shadowRadius: 12,
+    elevation: 2,
+  },
+  cardHeader: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'space-between',
+  },
+  cardTitleBlock: {
+    flex: 1,
+    gap: 4,
+  },
+  cardTitle: {
+    color: BrandColors.navy,
+    fontSize: 18,
+    fontWeight: '900',
+    lineHeight: 24,
+  },
+  cardMeta: {
+    color: BrandColors.muted,
+    fontSize: 13,
+    fontWeight: '800',
+    lineHeight: 18,
+    textTransform: 'uppercase',
+  },
+  cardDetailRow: {
+    backgroundColor: BrandColors.lightBlue,
+    borderRadius: 8,
+    gap: 4,
+    padding: 12,
+  },
+  cardLabel: {
+    color: BrandColors.muted,
+    fontSize: 12,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  cardValue: {
+    color: BrandColors.text,
+    fontSize: 15,
+    fontWeight: '800',
+    lineHeight: 21,
+  },
+  cardFooter: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 10,
+    justifyContent: 'space-between',
+  },
+  submittedText: {
+    color: BrandColors.muted,
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 17,
+    textAlign: 'right',
+  },
+  centerState: {
+    alignItems: 'center',
+    backgroundColor: BrandColors.white,
+    borderColor: BrandColors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 12,
+    justifyContent: 'center',
+    marginTop: 8,
+    minHeight: 230,
+    padding: 22,
+  },
+  emptyTitle: {
+    color: BrandColors.navy,
+    fontSize: 20,
+    fontWeight: '900',
+    lineHeight: 26,
+    textAlign: 'center',
+  },
+  stateText: {
+    color: BrandColors.muted,
+    fontSize: 15,
+    fontWeight: '600',
+    lineHeight: 22,
+    textAlign: 'center',
+  },
+  stateButton: {
+    marginTop: 4,
+    width: '100%',
+  },
+  pressed: {
+    opacity: 0.72,
+  },
+});

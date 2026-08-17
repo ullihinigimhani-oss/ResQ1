@@ -29,6 +29,10 @@ export default function RootLayout() {
           <Stack.Screen name="auth/register" />
           <Stack.Screen name="auth/login" />
           <Stack.Screen name="dashboard" />
+          <Stack.Screen name="profile" />
+          <Stack.Screen name="incidents/index" />
+          <Stack.Screen name="incidents/report" />
+          <Stack.Screen name="incidents/[id]" />
         </Stack>
       </AuthProvider>
     </ThemeProvider>

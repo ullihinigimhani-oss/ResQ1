@@ -25,6 +25,12 @@ export interface SafeUser {
   updatedAt: string;
 }
 
+export interface AuthenticatedUser {
+  id: number;
+  email: string;
+  role: UserRole | string;
+}
+
 export interface RegisterResidentInput {
   fullName?: unknown;
   email?: unknown;
