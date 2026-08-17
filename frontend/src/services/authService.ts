@@ -24,14 +24,38 @@ type ApiErrorBody = {
 
 const AUTH_TOKEN_KEY = 'resq1.auth.token';
 const AUTH_USER_KEY = 'resq1.auth.user';
+const BACKEND_PORT = '5000';
 
-const defaultApiBaseUrl =
-  Platform.OS === 'android' ? 'http://10.0.2.2:5000' : 'http://localhost:5000';
+function getExpoLanHost() {
+  const hostUri = Constants.expoConfig?.hostUri;
+
+  if (!hostUri) {
+    return undefined;
+  }
+
+  return hostUri.replace(/^https?:\/\//, '').replace(/^exp:\/\//, '').split(':')[0];
+}
+
+function resolveDefaultApiBaseUrl() {
+  if (Platform.OS === 'android') {
+    return `http://10.0.2.2:${BACKEND_PORT}`;
+  }
+
+  if (Platform.OS === 'ios') {
+    const lanHost = getExpoLanHost();
+
+    if (lanHost && lanHost !== 'localhost' && lanHost !== '127.0.0.1') {
+      return `http://${lanHost}:${BACKEND_PORT}`;
+    }
+  }
+
+  return `http://localhost:${BACKEND_PORT}`;
+}
 
 export const API_BASE_URL =
   process.env.EXPO_PUBLIC_API_BASE_URL?.trim() ||
   (Constants.expoConfig?.extra?.apiBaseUrl as string | undefined)?.trim() ||
-  defaultApiBaseUrl;
+  resolveDefaultApiBaseUrl();
 
 export class AuthApiError extends Error {
   constructor(
@@ -41,7 +65,12 @@ export class AuthApiError extends Error {
   ) {
     super(message);
     this.name = 'AuthApiError';
+    Object.setPrototypeOf(this, AuthApiError.prototype);
   }
+}
+
+export function isAuthApiError(error: unknown): error is AuthApiError {
+  return error instanceof AuthApiError || (error instanceof Error && error.name === 'AuthApiError');
 }
 
 async function parseJson(response: Response) {
@@ -53,14 +82,37 @@ async function parseJson(response: Response) {
 }
 
 async function authRequest(path: string, body: RegisterResidentPayload | LoginResidentPayload) {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
-  });
+  let response: Response;
+  const url = `${API_BASE_URL}${path}`;
+
+  if (__DEV__) {
+    console.log(`Auth request: ${url}`);
+  }
+
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+  } catch (error) {
+    if (__DEV__) {
+      console.warn(`Auth request failed: ${url}`, error);
+    }
+
+    throw new AuthApiError(
+      0,
+      'Unable to connect to the server. Please check your connection.',
+    );
+  }
+
   const data = await parseJson(response);
+
+  if (__DEV__) {
+    console.log(`Auth response: ${response.status} ${url}`);
+  }
 
   if (!response.ok) {
     throw new AuthApiError(

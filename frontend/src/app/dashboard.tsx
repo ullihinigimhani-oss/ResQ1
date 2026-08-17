@@ -5,6 +5,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AuthButton } from '@/components/common/auth-components';
+import resq1Logo from '@/assets/images/resq1-logo.jfif';
 import { BrandColors } from '@/constants/brand';
 import { useAuth } from '@/context/auth-context';
 
@@ -36,7 +37,7 @@ export default function DashboardScreen() {
         <View style={styles.hero}>
           <Image
             contentFit="contain"
-            source={require('@/assets/images/resq1-logo.jfif')}
+            source={resq1Logo}
             style={styles.logo}
           />
           <Text style={styles.heroTitle}>ResQ1</Text>

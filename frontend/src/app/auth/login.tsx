@@ -1,5 +1,4 @@
 import { StatusBar } from 'expo-status-bar';
-import { SymbolView } from 'expo-symbols';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useMemo, useState } from 'react';
 import {
@@ -23,7 +22,7 @@ import {
 } from '@/components/common/auth-components';
 import { BrandColors } from '@/constants/brand';
 import { useAuth } from '@/context/auth-context';
-import { AuthApiError, loginResident } from '@/services/authService';
+import { isAuthApiError, loginResident } from '@/services/authService';
 import type { FieldErrors } from '@/types/auth';
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -86,10 +85,14 @@ export default function LoginScreen() {
       await completeLogin(session, remember);
       router.replace('/dashboard' as Href);
     } catch (error) {
-      if (error instanceof AuthApiError) {
+      if (isAuthApiError(error)) {
         setFieldErrors(error.fieldErrors ?? {});
         setMessage(error.message);
       } else {
+        if (__DEV__) {
+          console.warn('Unexpected login error:', error);
+        }
+
         setMessage('Login could not be completed. Please try again.');
       }
     } finally {
@@ -156,16 +159,9 @@ export default function LoginScreen() {
               accessibilityState={{ checked: remember }}
               onPress={() => setRemember((current) => !current)}
               style={({ pressed }) => [styles.rememberRow, pressed && styles.pressed]}>
-              <SymbolView
-                name={{
-                  ios: remember ? 'checkmark.square.fill' : 'square',
-                  android: remember ? 'check_box' : 'check_box_outline_blank',
-                  web: remember ? 'check_box' : 'check_box_outline_blank',
-                }}
-                size={22}
-                tintColor={remember ? BrandColors.deepBlue : BrandColors.muted}
-                fallback={<Text style={styles.checkboxFallback}>{remember ? '[x]' : '[ ]'}</Text>}
-              />
+              <View style={[styles.checkbox, remember && styles.checkboxChecked]}>
+                <Text style={styles.checkboxMark}>{remember ? 'x' : ''}</Text>
+              </View>
               <Text style={styles.rememberText}>Remember login on this device</Text>
             </Pressable>
           </View>
@@ -238,10 +234,24 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
   },
-  checkboxFallback: {
-    color: BrandColors.deepBlue,
-    fontSize: 14,
+  checkbox: {
+    alignItems: 'center',
+    borderColor: BrandColors.muted,
+    borderRadius: 4,
+    borderWidth: 2,
+    height: 22,
+    justifyContent: 'center',
+    width: 22,
+  },
+  checkboxChecked: {
+    backgroundColor: BrandColors.deepBlue,
+    borderColor: BrandColors.deepBlue,
+  },
+  checkboxMark: {
+    color: BrandColors.white,
+    fontSize: 13,
     fontWeight: '900',
+    lineHeight: 16,
   },
   actions: {
     gap: 14,

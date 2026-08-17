@@ -21,7 +21,7 @@ import {
   StatusBanner,
 } from '@/components/common/auth-components';
 import { BrandColors } from '@/constants/brand';
-import { AuthApiError, registerResident } from '@/services/authService';
+import { isAuthApiError, registerResident } from '@/services/authService';
 import type { FieldErrors, PreferredLanguage, RegisterResidentPayload } from '@/types/auth';
 
 type RegistrationForm = Omit<RegisterResidentPayload, 'preferredLanguage'> & {
@@ -120,10 +120,14 @@ export default function RegisterScreen() {
         },
       } as unknown as Href);
     } catch (error) {
-      if (error instanceof AuthApiError) {
+      if (isAuthApiError(error)) {
         setFieldErrors(error.fieldErrors ?? {});
         setMessage(error.message);
       } else {
+        if (__DEV__) {
+          console.warn('Unexpected registration error:', error);
+        }
+
         setMessage('Registration could not be completed. Please try again.');
       }
     } finally {

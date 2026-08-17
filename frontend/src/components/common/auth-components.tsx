@@ -1,4 +1,3 @@
-import { SymbolView } from 'expo-symbols';
 import type { ReactNode } from 'react';
 import {
   ActivityIndicator,
@@ -72,16 +71,7 @@ export function PasswordField({
           hitSlop={8}
           onPress={onToggleVisible}
           style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}>
-          <SymbolView
-            name={{
-              ios: visible ? 'eye.slash' : 'eye',
-              android: visible ? 'visibility_off' : 'visibility',
-              web: visible ? 'visibility_off' : 'visibility',
-            }}
-            size={21}
-            tintColor={BrandColors.muted}
-            fallback={<Text style={styles.iconFallback}>{visible ? 'Hide' : 'Show'}</Text>}
-          />
+          <Text style={styles.iconFallback}>{visible ? 'Hide' : 'Show'}</Text>
         </Pressable>
       }
     />
@@ -207,12 +197,7 @@ export function BackButton({ onPress }: { onPress: () => void }) {
       hitSlop={8}
       onPress={onPress}
       style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
-      <SymbolView
-        name={{ ios: 'chevron.left', android: 'arrow_back', web: 'arrow_back' }}
-        size={22}
-        tintColor={BrandColors.navy}
-        fallback={<Text style={styles.backFallback}>Back</Text>}
-      />
+      <Text style={styles.backFallback}>Back</Text>
     </Pressable>
   );
 }
@@ -373,7 +358,7 @@ const styles = StyleSheet.create({
   },
   backFallback: {
     color: BrandColors.navy,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '800',
   },
   pressed: {
