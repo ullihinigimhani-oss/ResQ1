@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { sql } from './config/database.js';
 import authRoutes from './routes/authRoutes.js';
+import incidentRoutes from './routes/incidentRoutes.js';
 
 dotenv.config();
 
@@ -15,6 +16,7 @@ app.use(cors());
 app.use(express.json());
 
 app.use('/api/auth', authRoutes);
+app.use('/api/incidents', incidentRoutes);
 
 // Basic API test
 app.get('/', (_req, res) => {
