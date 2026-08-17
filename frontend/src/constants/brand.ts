@@ -1,0 +1,17 @@
+export const BrandColors = {
+  navy: '#071A35',
+  deepBlue: '#0A376D',
+  blue: '#0B74C4',
+  lightBlue: '#EAF4FF',
+  sky: '#D8ECFF',
+  red: '#D71920',
+  redSoft: '#FDECEC',
+  success: '#0F766E',
+  successSoft: '#E8F7F4',
+  warningSoft: '#FFF8E5',
+  border: '#CBD9E8',
+  muted: '#5F6F86',
+  text: '#102033',
+  background: '#F6F9FC',
+  white: '#FFFFFF',
+} as const;
