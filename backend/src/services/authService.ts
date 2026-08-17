@@ -1,0 +1,221 @@
+import bcrypt from 'bcrypt';
+import jwt, { type SignOptions } from 'jsonwebtoken';
+
+import { sql } from '../config/database.js';
+import type {
+  AuthResult,
+  LoginResidentInput,
+  PreferredLanguage,
+  RegisterResidentInput,
+  SafeUser,
+  UserRow,
+} from '../types/auth.js';
+
+const PASSWORD_SALT_ROUNDS = 12;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PREFERRED_LANGUAGES = new Set<PreferredLanguage>(['English', 'Sinhala', 'Tamil']);
+
+export class AuthServiceError extends Error {
+  constructor(
+    public readonly statusCode: number,
+    message: string,
+    public readonly fieldErrors?: Record<string, string>,
+  ) {
+    super(message);
+    this.name = 'AuthServiceError';
+  }
+}
+
+function trimmedText(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function passwordText(value: unknown): string {
+  return typeof value === 'string' ? value : '';
+}
+
+function normalizeEmail(value: unknown): string {
+  return trimmedText(value).toLowerCase();
+}
+
+function formatTimestamp(value: Date | string): string {
+  return value instanceof Date ? value.toISOString() : String(value);
+}
+
+function toSafeUser(row: UserRow): SafeUser {
+  return {
+    id: row.id,
+    fullName: row.full_name,
+    email: row.email,
+    role: row.role,
+    location: row.location,
+    preferredLanguage: row.preferred_language,
+    createdAt: formatTimestamp(row.created_at),
+    updatedAt: formatTimestamp(row.updated_at),
+  };
+}
+
+function validateRegistrationInput(input: RegisterResidentInput) {
+  const fullName = trimmedText(input.fullName);
+  const email = normalizeEmail(input.email);
+  const password = passwordText(input.password);
+  const location = trimmedText(input.location);
+  const preferredLanguage = trimmedText(input.preferredLanguage);
+  const fieldErrors: Record<string, string> = {};
+
+  if (!fullName) {
+    fieldErrors.fullName = 'Full name is required.';
+  }
+
+  if (!email) {
+    fieldErrors.email = 'Email address is required.';
+  } else if (!EMAIL_PATTERN.test(email)) {
+    fieldErrors.email = 'Enter a valid email address.';
+  }
+
+  if (!password) {
+    fieldErrors.password = 'Password is required.';
+  } else if (password.length < 8) {
+    fieldErrors.password = 'Password must be at least 8 characters.';
+  }
+
+  if (!location) {
+    fieldErrors.location = 'Location or area is required.';
+  }
+
+  if (!preferredLanguage) {
+    fieldErrors.preferredLanguage = 'Preferred language is required.';
+  } else if (!PREFERRED_LANGUAGES.has(preferredLanguage as PreferredLanguage)) {
+    fieldErrors.preferredLanguage = 'Choose English, Sinhala, or Tamil.';
+  }
+
+  if (Object.keys(fieldErrors).length > 0) {
+    throw new AuthServiceError(400, 'Please correct the highlighted fields.', fieldErrors);
+  }
+
+  return {
+    fullName,
+    email,
+    password,
+    location,
+    preferredLanguage: preferredLanguage as PreferredLanguage,
+  };
+}
+
+function validateLoginInput(input: LoginResidentInput) {
+  const email = normalizeEmail(input.email);
+  const password = passwordText(input.password);
+  const fieldErrors: Record<string, string> = {};
+
+  if (!email) {
+    fieldErrors.email = 'Email address is required.';
+  } else if (!EMAIL_PATTERN.test(email)) {
+    fieldErrors.email = 'Enter a valid email address.';
+  }
+
+  if (!password) {
+    fieldErrors.password = 'Password is required.';
+  }
+
+  if (Object.keys(fieldErrors).length > 0) {
+    throw new AuthServiceError(400, 'Please correct the highlighted fields.', fieldErrors);
+  }
+
+  return { email, password };
+}
+
+function createAuthToken(user: SafeUser): string {
+  const jwtSecret = process.env.JWT_SECRET?.trim();
+
+  if (!jwtSecret) {
+    throw new AuthServiceError(500, 'Authentication is not configured.');
+  }
+
+  const signOptions: SignOptions = {
+    expiresIn: (process.env.JWT_EXPIRES_IN?.trim() || '7d') as SignOptions['expiresIn'],
+  };
+
+  return jwt.sign(
+    {
+      sub: String(user.id),
+      email: user.email,
+      role: user.role,
+    },
+    jwtSecret,
+    signOptions,
+  );
+}
+
+function invalidCredentialsError() {
+  return new AuthServiceError(401, 'Invalid email or password.');
+}
+
+export async function registerResident(input: RegisterResidentInput): Promise<AuthResult> {
+  const resident = validateRegistrationInput(input);
+
+  const existingUsers = await sql`
+    SELECT id
+    FROM users
+    WHERE email = ${resident.email}
+    LIMIT 1
+  `;
+
+  if (existingUsers.length > 0) {
+    throw new AuthServiceError(409, 'An account with this email already exists.', {
+      email: 'An account with this email already exists.',
+    });
+  }
+
+  const passwordHash = await bcrypt.hash(resident.password, PASSWORD_SALT_ROUNDS);
+
+  const rows = await sql`
+    INSERT INTO users (full_name, email, password_hash, role, location, preferred_language)
+    VALUES (
+      ${resident.fullName},
+      ${resident.email},
+      ${passwordHash},
+      'resident',
+      ${resident.location},
+      ${resident.preferredLanguage}
+    )
+    RETURNING id, full_name, email, role, location, preferred_language, created_at, updated_at
+  `;
+
+  const createdUser = rows[0] as UserRow | undefined;
+
+  if (!createdUser) {
+    throw new AuthServiceError(500, 'Registration could not be completed.');
+  }
+
+  return { user: toSafeUser(createdUser) };
+}
+
+export async function loginResident(input: LoginResidentInput): Promise<AuthResult> {
+  const credentials = validateLoginInput(input);
+
+  const rows = await sql`
+    SELECT id, full_name, email, password_hash, role, location, preferred_language, created_at, updated_at
+    FROM users
+    WHERE email = ${credentials.email}
+    LIMIT 1
+  `;
+
+  const user = rows[0] as UserRow | undefined;
+
+  if (!user?.password_hash) {
+    throw invalidCredentialsError();
+  }
+
+  const passwordMatches = await bcrypt.compare(credentials.password, user.password_hash);
+
+  if (!passwordMatches) {
+    throw invalidCredentialsError();
+  }
+
+  const safeUser = toSafeUser(user);
+
+  return {
+    user: safeUser,
+    token: createAuthToken(safeUser),
+  };
+}
