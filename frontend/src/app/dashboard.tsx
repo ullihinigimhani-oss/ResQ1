@@ -2,12 +2,15 @@ import { StatusBar } from 'expo-status-bar';
 import { Image } from 'expo-image';
 import { SymbolView } from 'expo-symbols';
 import { Redirect, useRouter, type Href } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import resq1Logo from '@/assets/images/resq1-logo.jfif';
 import { BrandColors } from '@/constants/brand';
 import { useAuth } from '@/context/auth-context';
+import { getActiveAlerts, isAlertApiError } from '@/services/alertService';
+import type { Alert } from '@/types/alert';
 
 function firstName(fullName: string) {
   return fullName.trim().split(/\s+/)[0] || 'Resident';
@@ -25,6 +28,14 @@ function initials(fullName: string) {
     .map((part) => part[0])
     .join('')
     .toUpperCase();
+}
+
+function plural(value: number, singular: string, pluralValue: string) {
+  return value === 1 ? singular : pluralValue;
+}
+
+function canPublishAlerts(role: string) {
+  return role === 'admin' || role === 'authority';
 }
 
 function DashboardAction({
@@ -80,9 +91,116 @@ function DashboardAction({
   );
 }
 
+function EmergencyStatusPanel({
+  alerts,
+  canPublish,
+  error,
+  loading,
+  onCreateAlert,
+  onViewAlerts,
+}: {
+  alerts: Alert[];
+  canPublish: boolean;
+  error: boolean;
+  loading: boolean;
+  onCreateAlert: () => void;
+  onViewAlerts: () => void;
+}) {
+  const criticalAlerts = alerts.filter((alert) => alert.riskLevel === 'Critical');
+  const nearCriticalAlert = criticalAlerts.find((alert) => alert.isRelevantToResident);
+  const topCriticalAlert = nearCriticalAlert ?? criticalAlerts[0];
+  const critical = criticalAlerts.length > 0;
+  const title = loading
+    ? 'Checking emergency alerts'
+    : error
+      ? 'Unable to check alerts'
+      : critical
+        ? `${criticalAlerts.length} Critical ${plural(criticalAlerts.length, 'Alert', 'Alerts')}${topCriticalAlert?.isRelevantToResident ? ' Near You' : ''}`
+        : alerts.length > 0
+          ? `${alerts.length} Active ${plural(alerts.length, 'Alert', 'Alerts')}`
+          : 'No active emergency alerts';
+  const copy = loading
+    ? 'Monitoring latest verified disaster warnings.'
+    : error
+      ? 'Open the alert center to retry loading verified warnings.'
+      : critical && topCriticalAlert
+        ? `${topCriticalAlert.affectedArea}: review the safety instructions now.`
+        : alerts.length > 0
+          ? 'Latest verified disaster alerts are available in the alert center.'
+          : 'There are currently no verified warnings for your area.';
+
+  return (
+    <View style={[styles.alertPanel, critical && styles.alertPanelCritical]}>
+      <View style={styles.alertPanelHeader}>
+        <View style={styles.alertPanelTitleBlock}>
+          <Text style={styles.sectionEyebrow}>Emergency Status</Text>
+          <Text style={[styles.alertPanelTitle, critical && styles.alertPanelTitleCritical]}>{title}</Text>
+          <Text style={styles.alertPanelCopy}>{copy}</Text>
+        </View>
+        {loading ? <ActivityIndicator color={BrandColors.red} size="small" /> : null}
+      </View>
+
+      <View style={styles.alertPanelActions}>
+        <Pressable
+          accessibilityLabel="View emergency alerts"
+          accessibilityRole="button"
+          onPress={onViewAlerts}
+          style={({ pressed }) => [
+            styles.alertActionButton,
+            critical && styles.alertActionButtonCritical,
+            pressed && styles.pressed,
+          ]}>
+          <Text style={[styles.alertActionText, critical && styles.alertActionTextCritical]}>View Alerts</Text>
+        </Pressable>
+
+        {canPublish ? (
+          <Pressable
+            accessibilityLabel="Send emergency alert"
+            accessibilityRole="button"
+            onPress={onCreateAlert}
+            style={({ pressed }) => [styles.alertSecondaryButton, pressed && styles.pressed]}>
+            <Text style={styles.alertSecondaryText}>Send Alert</Text>
+          </Pressable>
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
 export default function DashboardScreen() {
   const router = useRouter();
-  const { isLoading, user } = useAuth();
+  const { isLoading, token, user } = useAuth();
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [loadingAlerts, setLoadingAlerts] = useState(true);
+  const [alertLoadFailed, setAlertLoadFailed] = useState(false);
+
+  const loadDashboardAlerts = useCallback(async () => {
+    if (!token) {
+      return;
+    }
+
+    setLoadingAlerts(true);
+    setAlertLoadFailed(false);
+
+    try {
+      const activeAlerts = await getActiveAlerts(token);
+      setAlerts(activeAlerts);
+    } catch (error) {
+      if (__DEV__ && !isAlertApiError(error)) {
+        console.warn('Unexpected dashboard alert summary error:', error);
+      }
+
+      setAlertLoadFailed(true);
+    } finally {
+      setLoadingAlerts(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    if (token) {
+      void loadDashboardAlerts();
+    }
+  }, [loadDashboardAlerts, token]);
 
   if (!isLoading && !user) {
     return <Redirect href={'/auth/welcome' as Href} />;
@@ -97,6 +215,7 @@ export default function DashboardScreen() {
   }
 
   const residentFirstName = firstName(user.fullName);
+  const userCanPublishAlerts = canPublishAlerts(user.role);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -127,6 +246,15 @@ export default function DashboardScreen() {
             Stay informed, report local flood incidents, and track emergency response progress.
           </Text>
         </View>
+
+        <EmergencyStatusPanel
+          alerts={alerts}
+          canPublish={userCanPublishAlerts}
+          error={alertLoadFailed}
+          loading={loadingAlerts}
+          onCreateAlert={() => router.push('/alerts/create' as Href)}
+          onViewAlerts={() => router.push('/alerts' as Href)}
+        />
 
         <View style={styles.panel}>
           <Text style={styles.sectionEyebrow}>Incident Management</Text>
@@ -235,6 +363,90 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: 12,
     padding: 18,
+  },
+  alertPanel: {
+    backgroundColor: BrandColors.white,
+    borderColor: BrandColors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 14,
+    padding: 16,
+  },
+  alertPanelCritical: {
+    borderColor: BrandColors.red,
+    borderLeftColor: BrandColors.red,
+    borderLeftWidth: 6,
+  },
+  alertPanelHeader: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: 10,
+    justifyContent: 'space-between',
+  },
+  alertPanelTitleBlock: {
+    flex: 1,
+    gap: 5,
+  },
+  alertPanelTitle: {
+    color: BrandColors.navy,
+    fontSize: 19,
+    fontWeight: '900',
+    lineHeight: 25,
+  },
+  alertPanelTitleCritical: {
+    color: BrandColors.red,
+  },
+  alertPanelCopy: {
+    color: BrandColors.muted,
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 20,
+  },
+  alertPanelActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  alertActionButton: {
+    alignItems: 'center',
+    backgroundColor: BrandColors.navy,
+    borderColor: BrandColors.navy,
+    borderRadius: 8,
+    borderWidth: 1,
+    flexGrow: 1,
+    justifyContent: 'center',
+    minHeight: 46,
+    paddingHorizontal: 14,
+  },
+  alertActionButtonCritical: {
+    backgroundColor: BrandColors.red,
+    borderColor: BrandColors.red,
+  },
+  alertActionText: {
+    color: BrandColors.white,
+    fontSize: 14,
+    fontWeight: '900',
+    lineHeight: 19,
+  },
+  alertActionTextCritical: {
+    color: BrandColors.white,
+  },
+  alertSecondaryButton: {
+    alignItems: 'center',
+    backgroundColor: BrandColors.lightBlue,
+    borderColor: BrandColors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    flexGrow: 1,
+    justifyContent: 'center',
+    minHeight: 46,
+    paddingHorizontal: 14,
+  },
+  alertSecondaryText: {
+    color: BrandColors.deepBlue,
+    fontSize: 14,
+    fontWeight: '900',
+    lineHeight: 19,
   },
   eyebrow: {
     color: BrandColors.red,
