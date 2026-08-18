@@ -19,6 +19,7 @@ import {
   BackButton,
   StatusBanner,
 } from '@/components/common/auth-components';
+import { BottomNavigation } from '@/components/ui/app-components';
 import { BrandColors } from '@/constants/brand';
 import { useAuth } from '@/context/auth-context';
 import { createIncident, isIncidentApiError } from '@/services/incidentService';
@@ -331,6 +332,11 @@ export default function ReportIncidentScreen() {
               </View>
               <Text style={styles.photoBadge}>Not attached</Text>
             </View>
+            <AuthButton
+              title="Add Photo Evidence"
+              variant="secondary"
+              onPress={() => router.push('/incidents/photo-evidence' as Href)}
+            />
           </View>
 
           <AuthButton
@@ -341,6 +347,7 @@ export default function ReportIncidentScreen() {
           />
         </ScrollView>
       </KeyboardAvoidingView>
+      <BottomNavigation />
     </SafeAreaView>
   );
 }
@@ -362,7 +369,8 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     gap: 20,
     paddingHorizontal: 22,
-    paddingVertical: 18,
+    paddingBottom: 96,
+    paddingTop: 18,
   },
   header: {
     gap: 8,

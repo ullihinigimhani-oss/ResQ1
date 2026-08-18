@@ -289,11 +289,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: 14,
     padding: 16,
-    shadowColor: BrandColors.navy,
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.07,
-    shadowRadius: 12,
-    elevation: 2,
   },
   summaryHeader: {
     gap: 12,

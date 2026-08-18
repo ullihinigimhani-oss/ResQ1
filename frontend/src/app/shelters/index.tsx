@@ -14,15 +14,16 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AuthButton, BackButton, StatusBanner } from '@/components/common/auth-components';
+import { BottomNavigation } from '@/components/ui/app-components';
 import { CapacityIndicator, ShelterStatusBadge } from '@/components/shelters/shelter-ui';
 import { BrandColors } from '@/constants/brand';
 import { useAuth } from '@/context/auth-context';
 import { getShelters, isShelterApiError } from '@/services/shelterService';
 import type { Shelter } from '@/types/shelter';
 
-type FilterKey = 'All' | 'Open' | 'Available' | 'Area';
+type FilterKey = 'Nearest' | 'Available' | 'Medical Support' | 'Family Friendly' | 'Area';
 
-const baseFilters: FilterKey[] = ['All', 'Open', 'Available'];
+const baseFilters: FilterKey[] = ['Nearest', 'Available', 'Medical Support', 'Family Friendly'];
 
 function normalizedText(value: string | null | undefined) {
   return value?.trim().toLowerCase() ?? '';
@@ -33,10 +34,6 @@ function areaMatches(shelterArea: string, residentArea: string | null | undefine
   const resident = normalizedText(residentArea);
 
   return Boolean(resident && (shelter === resident || shelter.includes(resident) || resident.includes(shelter)));
-}
-
-function statusIs(status: string, expectedStatus: string) {
-  return normalizedText(status) === normalizedText(expectedStatus);
 }
 
 function isAvailableShelter(shelter: Shelter) {
@@ -133,7 +130,7 @@ export default function NearbySheltersScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filter, setFilter] = useState<FilterKey>('All');
+  const [filter, setFilter] = useState<FilterKey>('Nearest');
 
   const loadShelters = useCallback(async (refresh = false) => {
     if (!token) {
@@ -187,12 +184,19 @@ export default function NearbySheltersScreen() {
         return false;
       }
 
-      if (filter === 'Open') {
-        return statusIs(shelter.status, 'Open');
-      }
-
       if (filter === 'Available') {
         return isAvailableShelter(shelter);
+      }
+
+      if (filter === 'Medical Support') {
+        return shelter.facilities.some((facility) => {
+          const normalizedFacility = normalizedText(facility);
+          return normalizedFacility.includes('medical') || normalizedFacility.includes('first aid');
+        });
+      }
+
+      if (filter === 'Family Friendly') {
+        return shelter.facilities.some((facility) => normalizedText(facility).includes('family'));
       }
 
       if (filter === 'Area') {
@@ -288,6 +292,13 @@ export default function NearbySheltersScreen() {
           </Text>
         </View>
 
+        <View style={styles.mapSummary}>
+          <View style={styles.mapPoint} />
+          <View style={styles.mapConnector} />
+          <View style={[styles.mapPoint, styles.mapPointSafe]} />
+          <Text style={styles.mapSummaryText}>Map-ready shelter summary using verified Neon shelter records.</Text>
+        </View>
+
         {errorMessage && shelters.length > 0 ? (
           <StatusBanner message={errorMessage} type="error" />
         ) : null}
@@ -336,6 +347,7 @@ export default function NearbySheltersScreen() {
           </View>
         ) : null}
       </ScrollView>
+      <BottomNavigation />
     </SafeAreaView>
   );
 }
@@ -354,7 +366,8 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     gap: 18,
     paddingHorizontal: 18,
-    paddingVertical: 18,
+    paddingBottom: 96,
+    paddingTop: 18,
   },
   header: {
     gap: 7,
@@ -446,6 +459,39 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     lineHeight: 17,
   },
+  mapSummary: {
+    alignItems: 'center',
+    backgroundColor: BrandColors.white,
+    borderColor: BrandColors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 0,
+    minHeight: 94,
+    padding: 16,
+  },
+  mapPoint: {
+    backgroundColor: BrandColors.deepBlue,
+    borderRadius: 8,
+    height: 16,
+    width: 16,
+  },
+  mapPointSafe: {
+    backgroundColor: BrandColors.success,
+  },
+  mapConnector: {
+    backgroundColor: BrandColors.sky,
+    flex: 1,
+    height: 5,
+  },
+  mapSummaryText: {
+    color: BrandColors.muted,
+    fontSize: 12,
+    fontWeight: '800',
+    lineHeight: 17,
+    marginLeft: 12,
+    maxWidth: 120,
+  },
   list: {
     gap: 14,
     paddingBottom: 12,
@@ -457,11 +503,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: 13,
     padding: 15,
-    shadowColor: BrandColors.navy,
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.07,
-    shadowRadius: 12,
-    elevation: 2,
   },
   cardHeader: {
     alignItems: 'flex-start',

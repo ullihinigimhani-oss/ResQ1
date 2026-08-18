@@ -240,6 +240,7 @@ export default function ShelterRouteScreen() {
   const [loadingRoute, setLoadingRoute] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [routeActionMessage, setRouteActionMessage] = useState<string | null>(null);
 
   const loadRouteData = useCallback(async (refresh = false) => {
     if (!token || !shelterId) {
@@ -319,6 +320,18 @@ export default function ShelterRouteScreen() {
   const residentAreaMatches =
     selectedRoute ? selectedRoute.isAreaMatch || routeMatchesResidentArea(selectedRoute, user.location) : false;
   const fromLabel = user.location?.trim() || officialFrom;
+  const selectAlternativeRoute = () => {
+    if (!selectedRoute || routes.length < 2) {
+      return;
+    }
+
+    const currentIndex = routes.findIndex((route) => route.id === selectedRoute.id);
+    const nextRoute = routes[(currentIndex + 1) % routes.length];
+
+    if (nextRoute) {
+      setSelectedRouteId(nextRoute.id);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -349,6 +362,7 @@ export default function ShelterRouteScreen() {
         </View>
 
         {errorMessage && shelter ? <StatusBanner message={errorMessage} type="error" /> : null}
+        {routeActionMessage ? <StatusBanner message={routeActionMessage} type="success" /> : null}
 
         {showInitialLoading ? (
           <View style={styles.centerState}>
@@ -485,6 +499,34 @@ export default function ShelterRouteScreen() {
               <RouteField label="Start Area" value={officialFrom} />
               <RouteField label="Destination" value={shelter.name} />
               <RouteField label="Destination Coordinates" value={coordinatesText(shelter)} />
+            </View>
+
+            <View style={styles.panel}>
+              <Text style={styles.sectionTitle}>Route Actions</Text>
+              <Text style={styles.sectionCopy}>
+                Real-time turn-by-turn navigation is not enabled; use verified route instructions.
+              </Text>
+              <View style={styles.actionButtons}>
+                <AuthButton
+                  title="View Route Instructions"
+                  onPress={() => setRouteActionMessage('Verified route instructions are displayed on this screen. Real-time navigation is not enabled.')}
+                />
+                <AuthButton
+                  title="View Alternative Route"
+                  variant="secondary"
+                  onPress={selectAlternativeRoute}
+                />
+                <AuthButton
+                  title="Call Emergency Services"
+                  variant="secondary"
+                  onPress={() => router.push('/contacts' as Href)}
+                />
+                <AuthButton
+                  title="Refresh Route"
+                  variant="secondary"
+                  onPress={() => void loadRouteData(true)}
+                />
+              </View>
             </View>
 
             <View style={styles.safetyPanel}>
@@ -656,11 +698,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: 14,
     padding: 15,
-    shadowColor: BrandColors.navy,
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.07,
-    shadowRadius: 12,
-    elevation: 2,
   },
   routeTitleRow: {
     alignItems: 'flex-start',
@@ -922,6 +959,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: 6,
     padding: 14,
+  },
+  actionButtons: {
+    gap: 10,
   },
   safetyTitle: {
     color: BrandColors.white,

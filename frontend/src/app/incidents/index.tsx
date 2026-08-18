@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AuthButton, BackButton, StatusBanner } from '@/components/common/auth-components';
+import { BottomNavigation } from '@/components/ui/app-components';
 import { SeverityBadge, StatusBadge } from '@/components/incidents/incident-badges';
 import { BrandColors } from '@/constants/brand';
 import { useAuth } from '@/context/auth-context';
@@ -173,6 +174,20 @@ export default function MyIncidentsScreen() {
           <Text style={styles.subtitle}>Track the response status of incidents you have reported.</Text>
         </View>
 
+        <View style={styles.actionRow}>
+          <AuthButton
+            title="Report Incident"
+            onPress={() => router.push('/incidents/report' as Href)}
+            style={styles.actionButton}
+          />
+          <AuthButton
+            title="Nearby Incidents"
+            variant="secondary"
+            onPress={() => router.push('/incidents/nearby' as Href)}
+            style={styles.actionButton}
+          />
+        </View>
+
         {successMessage ? <StatusBanner message={successMessage} type="success" /> : null}
         {errorMessage && incidents.length > 0 ? <StatusBanner message={errorMessage} type="error" /> : null}
 
@@ -223,6 +238,7 @@ export default function MyIncidentsScreen() {
           </View>
         ) : null}
       </ScrollView>
+      <BottomNavigation />
     </SafeAreaView>
   );
 }
@@ -241,7 +257,8 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     gap: 20,
     paddingHorizontal: 22,
-    paddingVertical: 18,
+    paddingBottom: 96,
+    paddingTop: 18,
   },
   header: {
     gap: 8,
@@ -268,6 +285,15 @@ const styles = StyleSheet.create({
     gap: 14,
     paddingBottom: 10,
   },
+  actionRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  actionButton: {
+    flex: 1,
+    minWidth: '47%',
+  },
   card: {
     backgroundColor: BrandColors.white,
     borderColor: BrandColors.border,
@@ -275,11 +301,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: 14,
     padding: 16,
-    shadowColor: BrandColors.navy,
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.07,
-    shadowRadius: 12,
-    elevation: 2,
   },
   cardTitleBlock: {
     gap: 4,

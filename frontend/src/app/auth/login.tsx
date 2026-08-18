@@ -174,6 +174,10 @@ export default function LoginScreen() {
               onPress={handleLogin}
             />
             <LinkButton
+              title="Forgot Password?"
+              onPress={() => router.push('/auth/forgot-password' as Href)}
+            />
+            <LinkButton
               title="Don't have an account? Create Account"
               onPress={() => router.replace('/auth/register' as Href)}
             />

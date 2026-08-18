@@ -1,124 +1,78 @@
-import { StatusBar } from 'expo-status-bar';
-import { SymbolView } from 'expo-symbols';
 import { Redirect, useRouter, type Href } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 
-import { AuthButton, BackButton, StatusBanner } from '@/components/common/auth-components';
-import { AlertStatusBadge, LocationMatchBadge, RiskBadge } from '@/components/alerts/alert-badges';
-import { BrandColors } from '@/constants/brand';
+import { AlertStatusBadge, RiskBadge } from '@/components/alerts/alert-badges';
+import {
+  BottomNavigation,
+  DemoNotice,
+  EmptyState,
+  FilterChip,
+  IconButton,
+  LoadingState,
+  PrimaryButton,
+  QuickActionCard,
+  SectionCard,
+  StatusBadge,
+} from '@/components/ui/app-components';
+import { colors, radius, spacing, typography } from '@/constants/design';
 import { useAuth } from '@/context/auth-context';
-import { getActiveAlerts, isAlertApiError } from '@/services/alertService';
-import type { Alert } from '@/types/alert';
+import { getActiveAlerts } from '@/services/alertService';
+import type { Alert, AlertRiskLevel } from '@/types/alert';
+import { formatDateTime, isAuthorityRole, plural, userArea } from '@/utils/format';
 
-function formatDateTime(value: string) {
-  const date = new Date(value);
+const riskRank: Record<AlertRiskLevel | string, number> = {
+  Critical: 4,
+  High: 3,
+  Moderate: 2,
+  Low: 1,
+};
 
-  if (Number.isNaN(date.getTime())) {
-    return value;
+function topAlert(alerts: Alert[]) {
+  return [...alerts].sort((left, right) => {
+    const riskDelta = (riskRank[right.riskLevel] ?? 0) - (riskRank[left.riskLevel] ?? 0);
+
+    if (riskDelta !== 0) {
+      return riskDelta;
+    }
+
+    return new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime();
+  })[0] ?? null;
+}
+
+function riskTone(riskLevel: AlertRiskLevel | string | null) {
+  if (riskLevel === 'Critical' || riskLevel === 'High') {
+    return 'red' as const;
   }
 
-  return date.toLocaleString(undefined, {
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
-}
-
-function previewText(value: string) {
-  const trimmedValue = value.trim();
-
-  if (trimmedValue.length <= 116) {
-    return trimmedValue;
+  if (riskLevel === 'Moderate') {
+    return 'amber' as const;
   }
 
-  return `${trimmedValue.slice(0, 113).trim()}...`;
-}
-
-function plural(value: number, singular: string, pluralValue: string) {
-  return value === 1 ? singular : pluralValue;
-}
-
-function canPublishAlerts(role: string) {
-  return role === 'admin' || role === 'authority';
+  return 'green' as const;
 }
 
 function AlertCard({ alert, onPress }: { alert: Alert; onPress: () => void }) {
-  const critical = alert.riskLevel === 'Critical';
-
   return (
     <Pressable
-      accessibilityLabel={`View alert: ${alert.title}`}
       accessibilityRole="button"
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.card,
-        critical && styles.criticalCard,
-        pressed && styles.pressed,
-      ]}>
-      <View style={styles.cardTopRow}>
-        <View style={[styles.alertIcon, critical && styles.criticalIcon]}>
-          <SymbolView
-            fallback={<Text style={[styles.alertIconText, critical && styles.criticalIconText]}>!</Text>}
-            name="exclamationmark.triangle.fill"
-            size={24}
-            tintColor={critical ? BrandColors.white : BrandColors.deepBlue}
-            type="monochrome"
-            weight="bold"
-          />
+      style={({ pressed }) => [styles.alertCard, pressed && styles.pressed]}>
+      <View style={styles.alertCardHeader}>
+        <View style={styles.alertCardTitleBlock}>
+          <Text style={styles.alertCardTitle}>{alert.title}</Text>
+          <Text style={styles.alertCardMeta}>{alert.affectedArea} | {formatDateTime(alert.createdAt)}</Text>
         </View>
-        <View style={styles.cardTitleBlock}>
-          <Text style={[styles.cardTitle, critical && styles.criticalTitle]}>{alert.title}</Text>
-          <Text style={styles.cardArea}>{alert.affectedArea}</Text>
-        </View>
-      </View>
-
-      <Text style={styles.cardMessage}>{previewText(alert.message)}</Text>
-
-      <View style={styles.badgeRow}>
         <RiskBadge riskLevel={alert.riskLevel} />
+      </View>
+      <Text style={styles.alertMessage}>{alert.message}</Text>
+      <View style={styles.badgeRow}>
         <AlertStatusBadge status={alert.status} />
-        {alert.isRelevantToResident ? <LocationMatchBadge /> : null}
-      </View>
-
-      <View style={styles.cardDetailGrid}>
-        <View style={styles.detailTile}>
-          <Text style={styles.detailLabel}>Disaster Type</Text>
-          <Text style={styles.detailValue}>{alert.disasterType}</Text>
-        </View>
-        <View style={styles.detailTile}>
-          <Text style={styles.detailLabel}>Published</Text>
-          <Text style={styles.detailValue}>{formatDateTime(alert.createdAt)}</Text>
-        </View>
-      </View>
-
-      <View style={styles.cardFooter}>
-        <Text style={styles.footerText}>Latest verified warning</Text>
-        <View style={[styles.viewButton, critical && styles.criticalViewButton]}>
-          <Text style={[styles.viewButtonText, critical && styles.criticalViewButtonText]}>View Alert</Text>
-        </View>
+        {alert.isRelevantToResident ? <StatusBadge label="Near You" tone="blue" /> : null}
       </View>
     </Pressable>
-  );
-}
-
-function SectionHeader({ count, title }: { count: number; title: string }) {
-  return (
-    <View style={styles.sectionHeader}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      <Text style={styles.sectionCount}>{count}</Text>
-    </View>
   );
 }
 
@@ -129,6 +83,7 @@ export default function AlertsScreen() {
   const [loadingAlerts, setLoadingAlerts] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [filter, setFilter] = useState<'All' | 'Near Me' | 'Critical'>('All');
 
   const loadAlerts = useCallback(async (refresh = false) => {
     if (!token) {
@@ -144,14 +99,9 @@ export default function AlertsScreen() {
     setErrorMessage(null);
 
     try {
-      const activeAlerts = await getActiveAlerts(token);
-      setAlerts(activeAlerts);
-    } catch (error) {
-      if (__DEV__ && !isAlertApiError(error)) {
-        console.warn('Unexpected alert list error:', error);
-      }
-
-      setErrorMessage('Unable to load emergency alerts.');
+      setAlerts(await getActiveAlerts(token));
+    } catch {
+      setErrorMessage('Unable to load active emergency alerts.');
     } finally {
       setLoadingAlerts(false);
       setRefreshing(false);
@@ -164,19 +114,18 @@ export default function AlertsScreen() {
     }
   }, [loadAlerts, token]);
 
-  const nearAlerts = useMemo(
-    () => alerts.filter((alert) => alert.isRelevantToResident),
-    [alerts],
-  );
-  const otherAlerts = useMemo(
-    () => alerts.filter((alert) => !alert.isRelevantToResident),
-    [alerts],
-  );
-  const criticalAlerts = useMemo(
-    () => alerts.filter((alert) => alert.riskLevel === 'Critical'),
-    [alerts],
-  );
-  const canPublish = Boolean(user && canPublishAlerts(user.role));
+  const activeAlert = useMemo(() => topAlert(alerts), [alerts]);
+  const filteredAlerts = useMemo(() => {
+    if (filter === 'Near Me') {
+      return alerts.filter((alert) => alert.isRelevantToResident);
+    }
+
+    if (filter === 'Critical') {
+      return alerts.filter((alert) => alert.riskLevel === 'Critical');
+    }
+
+    return alerts;
+  }, [alerts, filter]);
 
   if (!isLoading && !user) {
     return <Redirect href={'/auth/welcome' as Href} />;
@@ -185,27 +134,13 @@ export default function AlertsScreen() {
   if (isLoading || !user) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator color={BrandColors.red} size="large" />
-        </View>
+        <LoadingState message="Loading alert center..." />
       </SafeAreaView>
     );
   }
 
-  const showInitialLoading = loadingAlerts && alerts.length === 0;
-  const showError = Boolean(errorMessage) && alerts.length === 0 && !showInitialLoading;
-  const showEmpty = !showInitialLoading && !showError && alerts.length === 0;
-  const areaLabel = user.location?.trim() || 'your area';
-  const summaryTitle = criticalAlerts.length > 0
-    ? `${criticalAlerts.length} Critical ${plural(criticalAlerts.length, 'Alert', 'Alerts')}`
-    : alerts.length > 0
-      ? `${alerts.length} Active ${plural(alerts.length, 'Alert', 'Alerts')}`
-      : 'No active emergency alerts';
-  const summaryCopy = criticalAlerts.length > 0
-    ? `Critical warning active for ${criticalAlerts[0]?.affectedArea || areaLabel}. Review safety instructions immediately.`
-    : alerts.length > 0
-      ? `Verified warnings are being monitored for ${areaLabel}.`
-      : 'No active emergency alerts';
+  const canPublish = isAuthorityRole(user.role);
+  const area = userArea(user);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -213,449 +148,252 @@ export default function AlertsScreen() {
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            tintColor={BrandColors.red}
-            onRefresh={() => void loadAlerts(true)}
-          />
+          <RefreshControl refreshing={refreshing} tintColor={colors.red} onRefresh={() => void loadAlerts(true)} />
         }
         showsVerticalScrollIndicator={false}>
-        <View style={styles.headerRow}>
-          <BackButton onPress={() => router.replace('/dashboard' as Href)} />
+        <View style={styles.topBar}>
+          <IconButton
+            accessibilityLabel="Back to dashboard"
+            fallback="<"
+            name="chevron.left"
+            onPress={() => router.replace('/dashboard' as Href)}
+          />
           {canPublish ? (
-            <Pressable
-              accessibilityLabel="Send emergency alert"
-              accessibilityRole="button"
-              onPress={() => router.push('/alerts/create' as Href)}
-              style={({ pressed }) => [styles.publishHeaderButton, pressed && styles.pressed]}>
-              <Text style={styles.publishHeaderButtonText}>Send Alert</Text>
-            </Pressable>
+            <PrimaryButton title="Send Alert" onPress={() => router.push('/alerts/create' as Href)} />
           ) : null}
         </View>
 
         <View style={styles.header}>
-          <View style={styles.statusPill}>
-            <View style={styles.statusDot} />
-            <Text style={styles.statusPillText}>Monitoring active warnings</Text>
-          </View>
+          <Text style={styles.eyebrow}>Early Warning</Text>
           <Text style={styles.title}>Emergency Alerts</Text>
-          <Text style={styles.subtitle}>
-            Stay informed about active disaster warnings and safety instructions in your area.
-          </Text>
+          <Text style={styles.subtitle}>Location: {area}</Text>
         </View>
 
-        <View style={[styles.summaryPanel, criticalAlerts.length > 0 && styles.criticalSummaryPanel]}>
-          <Text style={styles.summaryEyebrow}>Emergency Status</Text>
-          <Text style={[styles.summaryTitle, criticalAlerts.length > 0 && styles.criticalSummaryTitle]}>
-            {summaryTitle}
-          </Text>
-          <Text style={styles.summaryCopy}>{summaryCopy}</Text>
-          {nearAlerts.length > 0 ? (
-            <Text style={styles.nearCopy}>{nearAlerts.length} matched {areaLabel}</Text>
-          ) : null}
-        </View>
-
-        {errorMessage && alerts.length > 0 ? <StatusBanner message={errorMessage} type="error" /> : null}
-
-        {showInitialLoading ? (
-          <View style={styles.centerState}>
-            <ActivityIndicator color={BrandColors.red} size="large" />
-            <Text style={styles.stateTitle}>Loading emergency alerts...</Text>
-            <Text style={styles.stateText}>Checking verified disaster warnings from ResQ1.</Text>
+        <SectionCard tone={activeAlert ? (riskTone(activeAlert.riskLevel) === 'red' ? 'danger' : 'white') : 'blue'}>
+          <View style={styles.riskHeader}>
+            <View style={styles.riskTextBlock}>
+              <Text style={styles.heroEyebrow}>Current Risk Level</Text>
+              <Text style={styles.heroTitle}>{activeAlert ? activeAlert.riskLevel : 'Low'}</Text>
+              <Text style={styles.heroText}>
+                {activeAlert
+                  ? `${activeAlert.title} is active for ${activeAlert.affectedArea}.`
+                  : 'No active emergency alerts are verified for your area.'}
+              </Text>
+            </View>
+            {loadingAlerts ? <ActivityIndicator color={colors.red} /> : null}
           </View>
-        ) : null}
-
-        {showError ? (
-          <View style={styles.centerState}>
-            <Text style={styles.emptyTitle}>Unable to load emergency alerts.</Text>
-            <Text style={styles.stateText}>Check your connection and try again.</Text>
-            <AuthButton
-              style={styles.stateButton}
-              title="Retry"
-              variant="secondary"
-              onPress={() => void loadAlerts()}
+          <View style={styles.badgeRow}>
+            <StatusBadge
+              label={`${alerts.length} active ${plural(alerts.length, 'alert', 'alerts')}`}
+              tone={activeAlert ? riskTone(activeAlert.riskLevel) : 'green'}
             />
+            <StatusBadge label="Verified feed" tone="blue" />
           </View>
-        ) : null}
+        </SectionCard>
 
-        {showEmpty ? (
-          <View style={styles.centerState}>
-            <Text style={styles.emptyTitle}>No active emergency alerts</Text>
-            <Text style={styles.stateText}>
-              There are currently no verified disaster warnings for your area.
-            </Text>
-            <Text style={styles.reassuranceText}>Continue to monitor official updates during severe weather.</Text>
+        <SectionCard title="Active Alert Card">
+          {activeAlert ? (
+            <AlertCard
+              alert={activeAlert}
+              onPress={() => router.push({
+                pathname: '/alerts/[id]',
+                params: { id: String(activeAlert.id) },
+              } as unknown as Href)}
+            />
+          ) : (
+            <Text style={styles.mutedText}>No active emergency alert.</Text>
+          )}
+        </SectionCard>
+
+        <SectionCard title="Current Conditions" subtitle="Only verified app data is shown.">
+          <DemoNotice text="Rainfall, water-level, and weather sensors are not exposed by the Sprint 1 backend. ResQ1 is showing verified alert records instead of sample sensor values." />
+        </SectionCard>
+
+        <View style={styles.quickGrid}>
+          <QuickActionCard
+            body="Understand the current risk"
+            fallback="R"
+            name="gauge.with.dots.needle.67percent"
+            title="Flood Risk Level"
+            tone="amber"
+            onPress={() => router.push('/alerts/risk-level' as Href)}
+          />
+          <QuickActionCard
+            body="Review available records"
+            fallback="H"
+            name="clock.arrow.circlepath"
+            title="Alert History"
+            tone="blue"
+            onPress={() => router.push('/alerts/history' as Href)}
+          />
+          <QuickActionCard
+            body="Configure local alert UI"
+            fallback="P"
+            name="slider.horizontal.3"
+            title="Preferences"
+            tone="green"
+            onPress={() => router.push('/alerts/preferences' as Href)}
+          />
+          <QuickActionCard
+            body="Send verified local info"
+            fallback="I"
+            name="exclamationmark.triangle.fill"
+            title="Report Incident"
+            tone="red"
+            onPress={() => router.push('/incidents/report' as Href)}
+          />
+        </View>
+
+        <SectionCard title="Recent Alerts">
+          <View style={styles.filterRow}>
+            {(['All', 'Near Me', 'Critical'] as const).map((item) => (
+              <FilterChip key={item} selected={filter === item} title={item} onPress={() => setFilter(item)} />
+            ))}
           </View>
-        ) : null}
 
-        {!showInitialLoading && !showError && alerts.length > 0 ? (
-          <View style={styles.list}>
-            {nearAlerts.length > 0 ? (
-              <>
-                <SectionHeader count={nearAlerts.length} title="Alerts Near Me" />
-                {nearAlerts.map((alert) => (
-                  <AlertCard
-                    alert={alert}
-                    key={alert.id}
-                    onPress={() => router.push({
-                      pathname: '/alerts/[id]',
-                      params: { id: String(alert.id) },
-                    } as unknown as Href)}
-                  />
-                ))}
-              </>
-            ) : null}
+          {loadingAlerts && alerts.length === 0 ? <LoadingState message="Checking verified alerts..." /> : null}
 
-            {otherAlerts.length > 0 ? (
-              <>
-                <SectionHeader
-                  count={otherAlerts.length}
-                  title="All Active Alerts"
-                />
-                {otherAlerts.map((alert) => (
-                  <AlertCard
-                    alert={alert}
-                    key={alert.id}
-                    onPress={() => router.push({
-                      pathname: '/alerts/[id]',
-                      params: { id: String(alert.id) },
-                    } as unknown as Href)}
-                  />
-                ))}
-              </>
-            ) : null}
-          </View>
-        ) : null}
+          {errorMessage && alerts.length === 0 ? (
+            <EmptyState
+              body="Check your connection and try again."
+              title="Unable to load emergency alerts"
+              action={<PrimaryButton title="Retry" onPress={() => void loadAlerts()} />}
+            />
+          ) : null}
+
+          {!loadingAlerts && !errorMessage && filteredAlerts.length === 0 ? (
+            <Text style={styles.mutedText}>No alert records match this view.</Text>
+          ) : null}
+
+          {filteredAlerts.map((alert) => (
+            <AlertCard
+              alert={alert}
+              key={alert.id}
+              onPress={() => router.push({
+                pathname: '/alerts/[id]',
+                params: { id: String(alert.id) },
+              } as unknown as Href)}
+            />
+          ))}
+        </SectionCard>
       </ScrollView>
+      <BottomNavigation />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: {
-    backgroundColor: BrandColors.background,
+    backgroundColor: colors.background,
     flex: 1,
-  },
-  loadingContainer: {
-    alignItems: 'center',
-    flex: 1,
-    justifyContent: 'center',
   },
   content: {
     flexGrow: 1,
-    gap: 18,
-    paddingHorizontal: 20,
-    paddingVertical: 18,
+    gap: spacing.lg,
+    paddingBottom: 96,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.lg,
   },
-  headerRow: {
+  topBar: {
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
-  publishHeaderButton: {
-    alignItems: 'center',
-    backgroundColor: BrandColors.navy,
-    borderRadius: 8,
-    justifyContent: 'center',
-    minHeight: 44,
-    paddingHorizontal: 14,
-  },
-  publishHeaderButtonText: {
-    color: BrandColors.white,
-    fontSize: 13,
-    fontWeight: '900',
-    lineHeight: 18,
-  },
   header: {
-    gap: 9,
+    gap: spacing.xs,
   },
-  statusPill: {
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    backgroundColor: BrandColors.white,
-    borderColor: BrandColors.border,
-    borderRadius: 8,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-  },
-  statusDot: {
-    backgroundColor: BrandColors.success,
-    borderRadius: 5,
-    height: 9,
-    width: 9,
-  },
-  statusPillText: {
-    color: BrandColors.deepBlue,
-    fontSize: 12,
-    fontWeight: '900',
-    lineHeight: 16,
+  eyebrow: {
+    color: colors.red,
+    ...typography.label,
     textTransform: 'uppercase',
   },
   title: {
-    color: BrandColors.navy,
-    fontSize: 30,
-    fontWeight: '900',
-    lineHeight: 36,
+    color: colors.navy,
+    ...typography.title,
   },
   subtitle: {
-    color: BrandColors.muted,
-    fontSize: 15,
-    fontWeight: '600',
-    lineHeight: 22,
+    color: colors.muted,
+    ...typography.body,
   },
-  summaryPanel: {
-    backgroundColor: BrandColors.navy,
-    borderColor: BrandColors.deepBlue,
-    borderRadius: 8,
-    borderWidth: 1,
-    gap: 7,
-    padding: 16,
-  },
-  criticalSummaryPanel: {
-    borderColor: BrandColors.red,
-    borderLeftColor: BrandColors.red,
-    borderLeftWidth: 6,
-  },
-  summaryEyebrow: {
-    color: BrandColors.sky,
-    fontSize: 12,
-    fontWeight: '900',
-    lineHeight: 16,
-    textTransform: 'uppercase',
-  },
-  summaryTitle: {
-    color: BrandColors.white,
-    fontSize: 22,
-    fontWeight: '900',
-    lineHeight: 28,
-  },
-  criticalSummaryTitle: {
-    color: BrandColors.white,
-  },
-  summaryCopy: {
-    color: BrandColors.sky,
-    fontSize: 14,
-    fontWeight: '700',
-    lineHeight: 20,
-  },
-  nearCopy: {
-    color: BrandColors.white,
-    fontSize: 12,
-    fontWeight: '900',
-    lineHeight: 16,
-    textTransform: 'uppercase',
-  },
-  list: {
-    gap: 12,
-    paddingBottom: 10,
-  },
-  sectionHeader: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 4,
-  },
-  sectionTitle: {
-    color: BrandColors.navy,
-    fontSize: 16,
-    fontWeight: '900',
-    lineHeight: 22,
-  },
-  sectionCount: {
-    color: BrandColors.muted,
-    fontSize: 12,
-    fontWeight: '900',
-    lineHeight: 16,
-  },
-  card: {
-    backgroundColor: BrandColors.white,
-    borderColor: BrandColors.border,
-    borderRadius: 8,
-    borderWidth: 1,
-    gap: 13,
-    padding: 16,
-    shadowColor: BrandColors.navy,
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.07,
-    shadowRadius: 12,
-    elevation: 2,
-  },
-  criticalCard: {
-    borderColor: BrandColors.red,
-    borderLeftColor: BrandColors.red,
-    borderLeftWidth: 6,
-  },
-  cardTopRow: {
+  riskHeader: {
     alignItems: 'flex-start',
     flexDirection: 'row',
-    gap: 12,
+    gap: spacing.sm,
+    justifyContent: 'space-between',
   },
-  alertIcon: {
-    alignItems: 'center',
-    backgroundColor: BrandColors.lightBlue,
-    borderColor: BrandColors.border,
-    borderRadius: 8,
-    borderWidth: 1,
-    height: 46,
-    justifyContent: 'center',
-    width: 46,
-  },
-  criticalIcon: {
-    backgroundColor: BrandColors.red,
-    borderColor: BrandColors.red,
-  },
-  alertIconText: {
-    color: BrandColors.deepBlue,
-    fontSize: 20,
-    fontWeight: '900',
-    lineHeight: 24,
-  },
-  criticalIconText: {
-    color: BrandColors.white,
-  },
-  cardTitleBlock: {
+  riskTextBlock: {
     flex: 1,
-    gap: 4,
+    gap: spacing.xs,
   },
-  cardTitle: {
-    color: BrandColors.navy,
-    fontSize: 18,
+  heroEyebrow: {
+    color: colors.red,
+    ...typography.label,
+    textTransform: 'uppercase',
+  },
+  heroTitle: {
+    color: colors.navy,
+    fontSize: 26,
     fontWeight: '900',
-    lineHeight: 24,
+    lineHeight: 32,
   },
-  criticalTitle: {
-    color: BrandColors.red,
-  },
-  cardArea: {
-    color: BrandColors.deepBlue,
-    fontSize: 14,
-    fontWeight: '900',
-    lineHeight: 19,
-  },
-  cardMessage: {
-    color: BrandColors.text,
-    fontSize: 15,
-    fontWeight: '600',
-    lineHeight: 22,
+  heroText: {
+    color: colors.text,
+    ...typography.body,
   },
   badgeRow: {
-    alignItems: 'center',
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: spacing.sm,
   },
-  cardDetailGrid: {
+  quickGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
+    gap: spacing.sm,
   },
-  detailTile: {
-    backgroundColor: BrandColors.lightBlue,
-    borderRadius: 8,
-    flexGrow: 1,
-    minWidth: '47%',
-    padding: 12,
-  },
-  detailLabel: {
-    color: BrandColors.muted,
-    fontSize: 11,
-    fontWeight: '900',
-    lineHeight: 15,
-    textTransform: 'uppercase',
-  },
-  detailValue: {
-    color: BrandColors.text,
-    fontSize: 13,
-    fontWeight: '800',
-    lineHeight: 18,
-    marginTop: 4,
-  },
-  cardFooter: {
-    alignItems: 'center',
-    borderTopColor: BrandColors.border,
-    borderTopWidth: 1,
+  filterRow: {
     flexDirection: 'row',
-    gap: 10,
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  alertCard: {
+    backgroundColor: colors.background,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    gap: spacing.sm,
+    padding: spacing.md,
+  },
+  alertCardHeader: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: spacing.sm,
     justifyContent: 'space-between',
-    paddingTop: 12,
   },
-  footerText: {
-    color: BrandColors.muted,
+  alertCardTitleBlock: {
     flex: 1,
+    gap: 3,
+  },
+  alertCardTitle: {
+    color: colors.navy,
+    fontSize: 16,
+    fontWeight: '900',
+    lineHeight: 21,
+  },
+  alertCardMeta: {
+    color: colors.muted,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '700',
     lineHeight: 17,
-    textTransform: 'uppercase',
   },
-  viewButton: {
-    alignItems: 'center',
-    backgroundColor: BrandColors.lightBlue,
-    borderColor: BrandColors.border,
-    borderRadius: 8,
-    borderWidth: 1,
-    justifyContent: 'center',
-    minHeight: 40,
-    paddingHorizontal: 12,
-  },
-  criticalViewButton: {
-    backgroundColor: BrandColors.red,
-    borderColor: BrandColors.red,
-  },
-  viewButtonText: {
-    color: BrandColors.deepBlue,
-    fontSize: 12,
-    fontWeight: '900',
-    lineHeight: 16,
-  },
-  criticalViewButtonText: {
-    color: BrandColors.white,
-  },
-  centerState: {
-    alignItems: 'center',
-    backgroundColor: BrandColors.white,
-    borderColor: BrandColors.border,
-    borderRadius: 8,
-    borderWidth: 1,
-    gap: 12,
-    justifyContent: 'center',
-    marginTop: 4,
-    minHeight: 250,
-    padding: 22,
-  },
-  stateTitle: {
-    color: BrandColors.navy,
-    fontSize: 18,
-    fontWeight: '900',
-    lineHeight: 24,
-    textAlign: 'center',
-  },
-  emptyTitle: {
-    color: BrandColors.navy,
-    fontSize: 20,
-    fontWeight: '900',
-    lineHeight: 26,
-    textAlign: 'center',
-  },
-  stateText: {
-    color: BrandColors.muted,
-    fontSize: 15,
+  alertMessage: {
+    color: colors.text,
+    fontSize: 14,
     fontWeight: '600',
-    lineHeight: 22,
-    textAlign: 'center',
+    lineHeight: 20,
   },
-  reassuranceText: {
-    color: BrandColors.deepBlue,
-    fontSize: 13,
-    fontWeight: '800',
-    lineHeight: 19,
-    textAlign: 'center',
-  },
-  stateButton: {
-    marginTop: 4,
-    width: '100%',
+  mutedText: {
+    color: colors.muted,
+    ...typography.body,
   },
   pressed: {
     opacity: 0.72,
