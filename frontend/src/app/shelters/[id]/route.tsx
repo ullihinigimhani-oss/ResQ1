@@ -1,0 +1,791 @@
+import { StatusBar } from 'expo-status-bar';
+import { Redirect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { AuthButton, BackButton, StatusBanner } from '@/components/common/auth-components';
+import { RoadStatusBadge, ShelterStatusBadge } from '@/components/shelters/shelter-ui';
+import { BrandColors } from '@/constants/brand';
+import { useAuth } from '@/context/auth-context';
+import {
+  getShelterById,
+  getShelterRoutes,
+  isShelterApiError,
+} from '@/services/shelterService';
+import type { EvacuationRoute, Shelter } from '@/types/shelter';
+
+function firstParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function normalizedText(value: string | null | undefined) {
+  return value?.trim().toLowerCase() ?? '';
+}
+
+function routeMatchesResidentArea(route: EvacuationRoute, residentArea: string | null | undefined) {
+  const startArea = normalizedText(route.startArea);
+  const area = normalizedText(residentArea);
+
+  return Boolean(area && (startArea === area || startArea.includes(area) || area.includes(startArea)));
+}
+
+function formatDistance(value: number | null) {
+  if (value === null) {
+    return 'Not specified';
+  }
+
+  return `${Number.isInteger(value) ? value.toFixed(0) : value.toFixed(1)} km`;
+}
+
+function formatTime(value: number | null) {
+  if (value === null) {
+    return 'Not specified';
+  }
+
+  return `${value} min`;
+}
+
+function routeTitle(route: EvacuationRoute, index: number) {
+  return route.routeName?.trim() || `Route ${index + 1}`;
+}
+
+function cleanInstructionPart(value: string) {
+  return value.replace(/^\s*(?:\d+[\).:-]\s*|[-*]\s*)/, '').trim();
+}
+
+function parseInstructionSteps(instructions: string) {
+  const text = instructions.trim();
+
+  if (!text) {
+    return [];
+  }
+
+  const lineSteps = text
+    .split(/\r?\n/)
+    .map(cleanInstructionPart)
+    .filter(Boolean);
+
+  if (lineSteps.length > 1) {
+    return lineSteps;
+  }
+
+  const delimitedSteps = text
+    .split(/\s*[;|]\s*/)
+    .map(cleanInstructionPart)
+    .filter(Boolean);
+
+  if (delimitedSteps.length > 1) {
+    return delimitedSteps;
+  }
+
+  return [text];
+}
+
+function coordinatesText(shelter: Shelter) {
+  if (shelter.latitude === null || shelter.longitude === null) {
+    return 'Coordinates unavailable';
+  }
+
+  return `${shelter.latitude.toFixed(6)}, ${shelter.longitude.toFixed(6)}`;
+}
+
+function RouteMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.metricItem}>
+      <Text style={styles.metricLabel}>{label}</Text>
+      <Text style={styles.metricValue}>{value}</Text>
+    </View>
+  );
+}
+
+function RouteOptionCard({
+  index,
+  onPress,
+  route,
+  selected,
+  shelterName,
+}: {
+  index: number;
+  onPress: () => void;
+  route: EvacuationRoute;
+  selected: boolean;
+  shelterName: string;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.routeOption,
+        selected && styles.routeOptionSelected,
+        pressed && styles.pressed,
+      ]}>
+      <View style={styles.routeOptionHeader}>
+        <View style={styles.routeOptionTitleBlock}>
+          <Text style={styles.routeOptionTitle}>{routeTitle(route, index)}</Text>
+          <Text style={styles.routeOptionSubtitle}>{route.startArea} {'>'} {shelterName}</Text>
+        </View>
+        <RoadStatusBadge status={route.roadStatus} />
+      </View>
+      {route.isAreaMatch ? (
+        <View style={styles.areaMatchBadge}>
+          <Text style={styles.areaMatchText}>AREA MATCH</Text>
+        </View>
+      ) : null}
+      <View style={styles.routeOptionMetrics}>
+        <RouteMetric label="Distance" value={formatDistance(route.distanceKm)} />
+        <RouteMetric label="Estimated Time" value={formatTime(route.estimatedTimeMinutes)} />
+      </View>
+    </Pressable>
+  );
+}
+
+function RouteField({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.routeField}>
+      <Text style={styles.routeFieldLabel}>{label}</Text>
+      <Text style={styles.routeFieldValue}>{value}</Text>
+    </View>
+  );
+}
+
+export default function ShelterRouteScreen() {
+  const router = useRouter();
+  const params = useLocalSearchParams();
+  const shelterId = firstParam(params.id);
+  const { isLoading, token, user } = useAuth();
+  const [shelter, setShelter] = useState<Shelter | null>(null);
+  const [routes, setRoutes] = useState<EvacuationRoute[]>([]);
+  const [selectedRouteId, setSelectedRouteId] = useState<number | null>(null);
+  const [loadingRoute, setLoadingRoute] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const loadRouteData = useCallback(async (refresh = false) => {
+    if (!token || !shelterId) {
+      return;
+    }
+
+    if (refresh) {
+      setRefreshing(true);
+    } else {
+      setLoadingRoute(true);
+    }
+
+    setErrorMessage(null);
+
+    try {
+      const [safeShelter, safeRoutes] = await Promise.all([
+        getShelterById(shelterId, token),
+        getShelterRoutes(shelterId, token),
+      ]);
+
+      setShelter(safeShelter);
+      setRoutes(safeRoutes);
+      setSelectedRouteId((currentRouteId) => {
+        const routeStillExists = safeRoutes.some((route) => route.id === currentRouteId);
+
+        return routeStillExists ? currentRouteId : safeRoutes[0]?.id ?? null;
+      });
+    } catch (error) {
+      if (__DEV__ && !isShelterApiError(error)) {
+        console.warn('Unexpected evacuation route error:', error);
+      }
+
+      setErrorMessage('Unable to load evacuation route.');
+    } finally {
+      setLoadingRoute(false);
+      setRefreshing(false);
+    }
+  }, [shelterId, token]);
+
+  useEffect(() => {
+    if (token && shelterId) {
+      void loadRouteData();
+    } else if (!shelterId) {
+      setLoadingRoute(false);
+      setErrorMessage('Unable to load evacuation route.');
+    }
+  }, [loadRouteData, shelterId, token]);
+
+  const selectedRoute = useMemo(
+    () => routes.find((route) => route.id === selectedRouteId) ?? routes[0] ?? null,
+    [routes, selectedRouteId],
+  );
+  const instructionSteps = useMemo(
+    () => selectedRoute ? parseInstructionSteps(selectedRoute.routeInstructions) : [],
+    [selectedRoute],
+  );
+
+  if (!isLoading && !user) {
+    return <Redirect href={'/auth/welcome' as Href} />;
+  }
+
+  if (isLoading || !user) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator color={BrandColors.red} size="large" />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const showInitialLoading = loadingRoute && !shelter && routes.length === 0;
+  const showError = Boolean(errorMessage) && !shelter && !showInitialLoading;
+  const showMissingRoute = !showInitialLoading && !showError && shelter && routes.length === 0;
+  const officialFrom = selectedRoute?.startArea ?? 'Route start pending verification';
+  const residentAreaMatches =
+    selectedRoute ? selectedRoute.isAreaMatch || routeMatchesResidentArea(selectedRoute, user.location) : false;
+  const fromLabel = user.location?.trim() || officialFrom;
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar style="dark" />
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            tintColor={BrandColors.red}
+            onRefresh={() => void loadRouteData(true)}
+          />
+        }
+        showsVerticalScrollIndicator={false}>
+        <BackButton
+          onPress={() => router.replace({
+            pathname: '/shelters/[id]',
+            params: { id: shelterId ?? '' },
+          } as unknown as Href)}
+        />
+
+        <View style={styles.header}>
+          <Text style={styles.eyebrow}>Emergency Routing</Text>
+          <Text style={styles.title}>Safe Evacuation Route</Text>
+          <Text style={styles.subtitle}>
+            Follow the verified route to your selected emergency shelter.
+          </Text>
+        </View>
+
+        {errorMessage && shelter ? <StatusBanner message={errorMessage} type="error" /> : null}
+
+        {showInitialLoading ? (
+          <View style={styles.centerState}>
+            <ActivityIndicator color={BrandColors.red} size="large" />
+            <Text style={styles.stateText}>Loading verified evacuation route...</Text>
+          </View>
+        ) : null}
+
+        {showError ? (
+          <View style={styles.centerState}>
+            <Text style={styles.emptyTitle}>Unable to load evacuation route.</Text>
+            <Text style={styles.stateText}>Please check your connection and try again.</Text>
+            <AuthButton
+              style={styles.stateButton}
+              title="Retry"
+              variant="secondary"
+              onPress={() => void loadRouteData()}
+            />
+          </View>
+        ) : null}
+
+        {showMissingRoute ? (
+          <View style={styles.centerState}>
+            <Text style={styles.emptyTitle}>No verified evacuation route is linked to this shelter yet.</Text>
+            <Text style={styles.stateText}>Follow official emergency instructions while routes are updated.</Text>
+            <AuthButton
+              style={styles.stateButton}
+              title="Retry"
+              variant="secondary"
+              onPress={() => void loadRouteData()}
+            />
+          </View>
+        ) : null}
+
+        {shelter && selectedRoute ? (
+          <>
+            <View style={styles.shelterStrip}>
+              <View style={styles.shelterStripTitleBlock}>
+                <Text style={styles.shelterStripLabel}>Selected Shelter</Text>
+                <Text style={styles.shelterStripTitle}>{shelter.name}</Text>
+                <Text style={styles.shelterStripArea}>{shelter.area}</Text>
+              </View>
+              <ShelterStatusBadge status={shelter.status} />
+            </View>
+
+            {routes.length > 1 ? (
+              <View style={styles.panel}>
+                <View style={styles.panelTitleBlock}>
+                  <Text style={styles.sectionTitle}>Route Options</Text>
+                  <Text style={styles.sectionCopy}>
+                    Area-matched routes are listed first when your resident area is available.
+                  </Text>
+                </View>
+                <View style={styles.routeOptionsList}>
+                  {routes.map((route, index) => (
+                    <RouteOptionCard
+                      index={index}
+                      key={route.id}
+                      route={route}
+                      selected={route.id === selectedRoute.id}
+                      shelterName={shelter.name}
+                      onPress={() => setSelectedRouteId(route.id)}
+                    />
+                  ))}
+                </View>
+              </View>
+            ) : null}
+
+            <View style={styles.routeSummaryPanel}>
+              <View style={styles.routeTitleRow}>
+                <View style={styles.routeTitleBlock}>
+                  <Text style={styles.routeName}>{routeTitle(selectedRoute, 0)}</Text>
+                  <Text style={styles.routeMeta}>{officialFrom} {'>'} {shelter.name}</Text>
+                </View>
+                <RoadStatusBadge status={selectedRoute.roadStatus} />
+              </View>
+
+              <View style={styles.fieldGrid}>
+                <RouteField label="From" value={fromLabel} />
+                <RouteField label="Official Start" value={officialFrom} />
+                <RouteField label="To" value={shelter.name} />
+                <RouteField label="Resident Area Match" value={residentAreaMatches ? 'Yes' : 'Not matched'} />
+              </View>
+
+              <View style={styles.metricGrid}>
+                <RouteMetric label="Distance" value={formatDistance(selectedRoute.distanceKm)} />
+                <RouteMetric label="Estimated Time" value={formatTime(selectedRoute.estimatedTimeMinutes)} />
+              </View>
+
+              {selectedRoute.warningMessage ? (
+                <View
+                  style={[
+                    styles.warningPanel,
+                    normalizedText(selectedRoute.roadStatus) === 'blocked' && styles.warningPanelBlocked,
+                  ]}>
+                  <Text style={styles.warningTitle}>{selectedRoute.roadStatus.toUpperCase()}</Text>
+                  <Text style={styles.warningText}>{selectedRoute.warningMessage}</Text>
+                </View>
+              ) : null}
+            </View>
+
+            <View style={styles.panel}>
+              <Text style={styles.sectionTitle}>Route Instructions</Text>
+              {instructionSteps.length > 1 ? (
+                <View style={styles.stepsList}>
+                  {instructionSteps.map((step, index) => (
+                    <View key={`${step}-${index}`} style={styles.stepRow}>
+                      <View style={styles.stepNumber}>
+                        <Text style={styles.stepNumberText}>{index + 1}</Text>
+                      </View>
+                      <Text style={styles.stepText}>{step}</Text>
+                    </View>
+                  ))}
+                </View>
+              ) : (
+                <View style={styles.officialInstructions}>
+                  <Text style={styles.officialInstructionsText}>
+                    {instructionSteps[0] ?? 'Official route instructions are pending verification.'}
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            <View style={styles.mapSummaryPanel}>
+              <Text style={styles.sectionTitle}>Route Summary</Text>
+              <View style={styles.mapLine}>
+                <View style={styles.mapPointStart} />
+                <View style={styles.mapConnector} />
+                <View style={styles.mapPointEnd} />
+              </View>
+              <RouteField label="Start Area" value={officialFrom} />
+              <RouteField label="Destination" value={shelter.name} />
+              <RouteField label="Destination Coordinates" value={coordinatesText(shelter)} />
+            </View>
+          </>
+        ) : null}
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safeArea: {
+    backgroundColor: BrandColors.background,
+    flex: 1,
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center',
+  },
+  content: {
+    flexGrow: 1,
+    gap: 18,
+    paddingHorizontal: 18,
+    paddingVertical: 18,
+  },
+  header: {
+    gap: 6,
+  },
+  eyebrow: {
+    color: BrandColors.red,
+    fontSize: 12,
+    fontWeight: '900',
+    lineHeight: 16,
+    textTransform: 'uppercase',
+  },
+  title: {
+    color: BrandColors.navy,
+    fontSize: 28,
+    fontWeight: '900',
+    lineHeight: 34,
+  },
+  subtitle: {
+    color: BrandColors.muted,
+    fontSize: 15,
+    fontWeight: '600',
+    lineHeight: 22,
+  },
+  shelterStrip: {
+    alignItems: 'flex-start',
+    backgroundColor: BrandColors.lightBlue,
+    borderColor: BrandColors.sky,
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 10,
+    justifyContent: 'space-between',
+    padding: 14,
+  },
+  shelterStripTitleBlock: {
+    flex: 1,
+    gap: 3,
+  },
+  shelterStripLabel: {
+    color: BrandColors.deepBlue,
+    fontSize: 11,
+    fontWeight: '900',
+    lineHeight: 15,
+    textTransform: 'uppercase',
+  },
+  shelterStripTitle: {
+    color: BrandColors.navy,
+    fontSize: 17,
+    fontWeight: '900',
+    lineHeight: 23,
+  },
+  shelterStripArea: {
+    color: BrandColors.muted,
+    fontSize: 13,
+    fontWeight: '800',
+    lineHeight: 18,
+  },
+  panel: {
+    backgroundColor: BrandColors.white,
+    borderColor: BrandColors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 14,
+    padding: 15,
+  },
+  panelTitleBlock: {
+    gap: 4,
+  },
+  sectionTitle: {
+    color: BrandColors.navy,
+    fontSize: 18,
+    fontWeight: '900',
+    lineHeight: 24,
+  },
+  sectionCopy: {
+    color: BrandColors.muted,
+    fontSize: 13,
+    fontWeight: '600',
+    lineHeight: 18,
+  },
+  routeOptionsList: {
+    gap: 10,
+  },
+  routeOption: {
+    backgroundColor: BrandColors.background,
+    borderColor: BrandColors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 11,
+    padding: 12,
+  },
+  routeOptionSelected: {
+    backgroundColor: BrandColors.lightBlue,
+    borderColor: BrandColors.deepBlue,
+  },
+  routeOptionHeader: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: 10,
+    justifyContent: 'space-between',
+  },
+  routeOptionTitleBlock: {
+    flex: 1,
+    gap: 4,
+  },
+  routeOptionTitle: {
+    color: BrandColors.navy,
+    fontSize: 16,
+    fontWeight: '900',
+    lineHeight: 21,
+  },
+  routeOptionSubtitle: {
+    color: BrandColors.muted,
+    fontSize: 12,
+    fontWeight: '800',
+    lineHeight: 17,
+  },
+  areaMatchBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: BrandColors.navy,
+    borderRadius: 8,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+  },
+  areaMatchText: {
+    color: BrandColors.white,
+    fontSize: 11,
+    fontWeight: '900',
+    lineHeight: 15,
+  },
+  routeOptionMetrics: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  routeSummaryPanel: {
+    backgroundColor: BrandColors.white,
+    borderColor: BrandColors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 14,
+    padding: 15,
+    shadowColor: BrandColors.navy,
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.07,
+    shadowRadius: 12,
+    elevation: 2,
+  },
+  routeTitleRow: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: 10,
+    justifyContent: 'space-between',
+  },
+  routeTitleBlock: {
+    flex: 1,
+    gap: 4,
+  },
+  routeName: {
+    color: BrandColors.navy,
+    fontSize: 21,
+    fontWeight: '900',
+    lineHeight: 27,
+  },
+  routeMeta: {
+    color: BrandColors.deepBlue,
+    fontSize: 13,
+    fontWeight: '900',
+    lineHeight: 18,
+  },
+  fieldGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  routeField: {
+    backgroundColor: BrandColors.lightBlue,
+    borderRadius: 8,
+    flexGrow: 1,
+    gap: 4,
+    minWidth: '45%',
+    padding: 11,
+  },
+  routeFieldLabel: {
+    color: BrandColors.muted,
+    fontSize: 11,
+    fontWeight: '900',
+    lineHeight: 15,
+    textTransform: 'uppercase',
+  },
+  routeFieldValue: {
+    color: BrandColors.text,
+    fontSize: 14,
+    fontWeight: '900',
+    lineHeight: 20,
+  },
+  metricGrid: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  metricItem: {
+    backgroundColor: BrandColors.background,
+    borderColor: BrandColors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    flex: 1,
+    gap: 4,
+    padding: 11,
+  },
+  metricLabel: {
+    color: BrandColors.muted,
+    fontSize: 11,
+    fontWeight: '900',
+    lineHeight: 15,
+    textTransform: 'uppercase',
+  },
+  metricValue: {
+    color: BrandColors.text,
+    fontSize: 15,
+    fontWeight: '900',
+    lineHeight: 20,
+  },
+  warningPanel: {
+    backgroundColor: BrandColors.warningSoft,
+    borderColor: '#D69E2E',
+    borderLeftColor: '#D69E2E',
+    borderLeftWidth: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 5,
+    padding: 12,
+  },
+  warningPanelBlocked: {
+    backgroundColor: BrandColors.redSoft,
+    borderColor: BrandColors.red,
+    borderLeftColor: BrandColors.red,
+  },
+  warningTitle: {
+    color: BrandColors.navy,
+    fontSize: 12,
+    fontWeight: '900',
+    lineHeight: 16,
+    textTransform: 'uppercase',
+  },
+  warningText: {
+    color: BrandColors.text,
+    fontSize: 14,
+    fontWeight: '800',
+    lineHeight: 20,
+  },
+  stepsList: {
+    gap: 12,
+  },
+  stepRow: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: 11,
+  },
+  stepNumber: {
+    alignItems: 'center',
+    backgroundColor: BrandColors.navy,
+    borderRadius: 8,
+    height: 30,
+    justifyContent: 'center',
+    width: 30,
+  },
+  stepNumberText: {
+    color: BrandColors.white,
+    fontSize: 13,
+    fontWeight: '900',
+    lineHeight: 17,
+  },
+  stepText: {
+    color: BrandColors.text,
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '700',
+    lineHeight: 22,
+  },
+  officialInstructions: {
+    backgroundColor: BrandColors.lightBlue,
+    borderColor: BrandColors.sky,
+    borderRadius: 8,
+    borderWidth: 1,
+    padding: 12,
+  },
+  officialInstructionsText: {
+    color: BrandColors.text,
+    fontSize: 15,
+    fontWeight: '700',
+    lineHeight: 22,
+  },
+  mapSummaryPanel: {
+    backgroundColor: BrandColors.white,
+    borderColor: BrandColors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 13,
+    padding: 15,
+  },
+  mapLine: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    height: 34,
+    paddingHorizontal: 10,
+  },
+  mapPointStart: {
+    backgroundColor: BrandColors.deepBlue,
+    borderRadius: 8,
+    height: 16,
+    width: 16,
+  },
+  mapConnector: {
+    backgroundColor: BrandColors.sky,
+    flex: 1,
+    height: 5,
+  },
+  mapPointEnd: {
+    backgroundColor: BrandColors.success,
+    borderRadius: 8,
+    height: 16,
+    width: 16,
+  },
+  centerState: {
+    alignItems: 'center',
+    backgroundColor: BrandColors.white,
+    borderColor: BrandColors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 12,
+    justifyContent: 'center',
+    marginTop: 8,
+    minHeight: 250,
+    padding: 22,
+  },
+  emptyTitle: {
+    color: BrandColors.navy,
+    fontSize: 20,
+    fontWeight: '900',
+    lineHeight: 26,
+    textAlign: 'center',
+  },
+  stateText: {
+    color: BrandColors.muted,
+    fontSize: 15,
+    fontWeight: '600',
+    lineHeight: 22,
+    textAlign: 'center',
+  },
+  stateButton: {
+    marginTop: 4,
+    width: '100%',
+  },
+  pressed: {
+    opacity: 0.72,
+  },
+});
