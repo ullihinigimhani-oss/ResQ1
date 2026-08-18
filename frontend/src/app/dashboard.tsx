@@ -51,7 +51,7 @@ function DashboardAction({
   description: string;
   mark: string;
   onPress: () => void;
-  symbolName: 'exclamationmark.triangle.fill' | 'clock.arrow.circlepath';
+  symbolName: 'exclamationmark.triangle.fill' | 'clock.arrow.circlepath' | 'house.fill';
   title: string;
   variant: 'primary' | 'secondary';
 }) {
@@ -255,6 +255,25 @@ export default function DashboardScreen() {
           onCreateAlert={() => router.push('/alerts/create' as Href)}
           onViewAlerts={() => router.push('/alerts' as Href)}
         />
+
+        <View style={styles.panel}>
+          <Text style={styles.sectionEyebrow}>Emergency Response</Text>
+          <Text style={styles.panelTitle}>Shelter and route guidance</Text>
+          <Text style={styles.copy}>
+            Find verified safe shelters and follow official evacuation route information.
+          </Text>
+          <View style={styles.dashboardActions}>
+            <DashboardAction
+              accent="secondary"
+              description="Check current shelter availability and open safe route guidance."
+              mark="S"
+              symbolName="house.fill"
+              title="Find Safe Shelter"
+              variant="primary"
+              onPress={() => router.push('/shelters' as Href)}
+            />
+          </View>
+        </View>
 
         <View style={styles.panel}>
           <Text style={styles.sectionEyebrow}>Incident Management</Text>

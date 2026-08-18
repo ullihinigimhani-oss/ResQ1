@@ -31,6 +31,9 @@ export default function RootLayout() {
         <Stack.Screen name="incidents/index" />
         <Stack.Screen name="incidents/report" />
         <Stack.Screen name="incidents/[id]" />
+        <Stack.Screen name="shelters/index" />
+        <Stack.Screen name="shelters/[id]" />
+        <Stack.Screen name="shelters/[id]/route" />
       </Stack>
     </AuthProvider>
   );
