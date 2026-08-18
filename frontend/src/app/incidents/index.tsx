@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AuthButton, BackButton, StatusBanner } from '@/components/common/auth-components';
-import { BottomNavigation } from '@/components/ui/app-components';
+import { AppIcon, BottomNavigation } from '@/components/ui/app-components';
 import { SeverityBadge, StatusBadge } from '@/components/incidents/incident-badges';
 import { BrandColors } from '@/constants/brand';
 import { useAuth } from '@/context/auth-context';
@@ -46,6 +46,44 @@ function CardDetail({ label, value }: { label: string; value: string }) {
       <Text style={styles.cardLabel}>{label}</Text>
       <Text style={styles.cardValue}>{value}</Text>
     </View>
+  );
+}
+
+function ReportAction({
+  body,
+  fallback,
+  icon,
+  onPress,
+  title,
+  tone = 'blue',
+}: {
+  body: string;
+  fallback: string;
+  icon: string;
+  onPress: () => void;
+  title: string;
+  tone?: 'blue' | 'red';
+}) {
+  const tintColor = tone === 'red' ? BrandColors.red : BrandColors.deepBlue;
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.reportAction,
+        tone === 'red' && styles.reportActionPrimary,
+        pressed && styles.pressed,
+      ]}>
+      <View style={styles.reportActionIcon}>
+        <AppIcon fallback={fallback} name={icon} size={22} tintColor={tintColor} />
+      </View>
+      <View style={styles.reportActionText}>
+        <Text style={styles.reportActionTitle}>{title}</Text>
+        <Text style={styles.reportActionBody}>{body}</Text>
+      </View>
+      <Text style={styles.reportActionArrow}>{'>'}</Text>
+    </Pressable>
   );
 }
 
@@ -170,21 +208,32 @@ export default function MyIncidentsScreen() {
 
         <View style={styles.header}>
           <Text style={styles.eyebrow}>Resident Response Tracking</Text>
-          <Text style={styles.title}>My Incident Reports</Text>
-          <Text style={styles.subtitle}>Track the response status of incidents you have reported.</Text>
+          <Text style={styles.title}>Report Center</Text>
+          <Text style={styles.subtitle}>Submit a new incident or track the response status of your existing reports.</Text>
         </View>
 
-        <View style={styles.actionRow}>
-          <AuthButton
-            title="Report Incident"
+        <View style={styles.reportActions}>
+          <ReportAction
+            body="Share a verified flood report with response teams."
+            fallback="!"
+            icon="exclamationmark.triangle.fill"
+            title="Report New Incident"
+            tone="red"
             onPress={() => router.push('/incidents/report' as Href)}
-            style={styles.actionButton}
           />
-          <AuthButton
+          <ReportAction
+            body="Review your submitted reports and response progress."
+            fallback="M"
+            icon="clock.fill"
+            title="My Incident Reports"
+            onPress={() => router.push('/incidents' as Href)}
+          />
+          <ReportAction
+            body="Check recent reports around your area."
+            fallback="N"
+            icon="magnifyingglass"
             title="Nearby Incidents"
-            variant="secondary"
             onPress={() => router.push('/incidents/nearby' as Href)}
-            style={styles.actionButton}
           />
         </View>
 
@@ -225,6 +274,10 @@ export default function MyIncidentsScreen() {
 
         {incidents.length > 0 ? (
           <View style={styles.list}>
+            <View style={styles.listHeader}>
+              <Text style={styles.listTitle}>My Incident Reports</Text>
+              <Text style={styles.listMeta}>{incidents.length} submitted report{incidents.length === 1 ? '' : 's'}</Text>
+            </View>
             {incidents.map((incident) => (
               <IncidentCard
                 incident={incident}
@@ -281,18 +334,76 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     lineHeight: 23,
   },
+  reportActions: {
+    gap: 10,
+  },
+  reportAction: {
+    alignItems: 'center',
+    backgroundColor: BrandColors.white,
+    borderColor: BrandColors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 12,
+    minHeight: 76,
+    padding: 13,
+  },
+  reportActionPrimary: {
+    backgroundColor: BrandColors.redSoft,
+    borderColor: BrandColors.red,
+  },
+  reportActionIcon: {
+    alignItems: 'center',
+    backgroundColor: BrandColors.white,
+    borderColor: BrandColors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    height: 40,
+    justifyContent: 'center',
+    width: 40,
+  },
+  reportActionText: {
+    flex: 1,
+    gap: 2,
+    minWidth: 0,
+  },
+  reportActionTitle: {
+    color: BrandColors.navy,
+    fontSize: 15,
+    fontWeight: '900',
+    lineHeight: 20,
+  },
+  reportActionBody: {
+    color: BrandColors.muted,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 17,
+  },
+  reportActionArrow: {
+    color: BrandColors.deepBlue,
+    fontSize: 20,
+    fontWeight: '900',
+    lineHeight: 24,
+  },
   list: {
     gap: 14,
     paddingBottom: 10,
   },
-  actionRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
+  listHeader: {
+    gap: 2,
   },
-  actionButton: {
-    flex: 1,
-    minWidth: '47%',
+  listTitle: {
+    color: BrandColors.navy,
+    fontSize: 18,
+    fontWeight: '900',
+    lineHeight: 24,
+  },
+  listMeta: {
+    color: BrandColors.muted,
+    fontSize: 12,
+    fontWeight: '800',
+    lineHeight: 17,
+    textTransform: 'uppercase',
   },
   card: {
     backgroundColor: BrandColors.white,

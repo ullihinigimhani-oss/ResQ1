@@ -10,6 +10,7 @@ import {
   QuickActionCard,
   ScreenContainer,
   SectionCard,
+  SecondaryButton,
   StatusBadge,
 } from '@/components/ui/app-components';
 import { colors, radius, spacing, typography } from '@/constants/design';
@@ -263,6 +264,10 @@ export default function DashboardScreen() {
         ) : (
           <Text style={styles.mutedText}>No incident reports submitted yet.</Text>
         )}
+        <SecondaryButton
+          title="My Incident Reports"
+          onPress={() => router.push('/incidents' as Href)}
+        />
       </SectionCard>
 
       <SectionCard title="Nearest Safe Shelter" subtitle="Verified shelter data from Neon.">

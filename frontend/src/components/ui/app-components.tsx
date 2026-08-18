@@ -703,7 +703,7 @@ const tabs = [
   },
   {
     label: 'Report',
-    route: '/incidents/report' as Href,
+    route: '/incidents' as Href,
     match: ['/incidents'],
     icon: 'exclamationmark.triangle.fill' as SymbolName,
     fallback: '!',

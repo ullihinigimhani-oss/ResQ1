@@ -204,7 +204,7 @@ export default function ReportIncidentScreen() {
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}>
-          <BackButton onPress={() => router.replace('/dashboard' as Href)} />
+          <BackButton onPress={() => router.replace('/incidents' as Href)} />
 
           <View style={styles.header}>
             <Text style={styles.eyebrow}>Resident Incident Report</Text>
