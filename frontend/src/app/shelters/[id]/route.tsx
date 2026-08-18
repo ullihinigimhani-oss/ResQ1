@@ -1,4 +1,5 @@
 import { StatusBar } from 'expo-status-bar';
+import { SymbolView } from 'expo-symbols';
 import { Redirect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -158,6 +159,76 @@ function RouteField({ label, value }: { label: string; value: string }) {
   );
 }
 
+function RouteIcon({
+  fallback,
+  name,
+  tintColor,
+}: {
+  fallback: string;
+  name: 'mappin.circle.fill' | 'arrow.down' | 'house.fill';
+  tintColor: string;
+}) {
+  return (
+    <SymbolView
+      fallback={<Text style={[styles.routeIconFallback, { color: tintColor }]}>{fallback}</Text>}
+      name={name}
+      size={22}
+      tintColor={tintColor}
+      type="monochrome"
+      weight="bold"
+    />
+  );
+}
+
+function RouteVisualization({
+  destination,
+  from,
+  routeName,
+  shelter,
+}: {
+  destination: string;
+  from: string;
+  routeName: string;
+  shelter: Shelter;
+}) {
+  return (
+    <View style={styles.visualCard}>
+      <Text style={styles.sectionTitle}>Route Visualization</Text>
+      <View style={styles.visualTimeline}>
+        <View style={styles.visualIconRail}>
+          <View style={styles.visualIconShell}>
+            <RouteIcon fallback="S" name="mappin.circle.fill" tintColor={BrandColors.deepBlue} />
+          </View>
+          <View style={styles.visualConnector} />
+          <View style={styles.visualIconShell}>
+            <RouteIcon fallback="R" name="arrow.down" tintColor={BrandColors.blue} />
+          </View>
+          <View style={styles.visualConnector} />
+          <View style={[styles.visualIconShell, styles.visualIconShellDestination]}>
+            <RouteIcon fallback="H" name="house.fill" tintColor={BrandColors.success} />
+          </View>
+        </View>
+
+        <View style={styles.visualContent}>
+          <View style={styles.visualNode}>
+            <Text style={styles.visualNodeLabel}>Start</Text>
+            <Text style={styles.visualNodeTitle}>{from}</Text>
+          </View>
+          <View style={styles.visualNode}>
+            <Text style={styles.visualNodeLabel}>Route</Text>
+            <Text style={styles.visualNodeTitle}>{routeName}</Text>
+          </View>
+          <View style={styles.visualNode}>
+            <Text style={styles.visualNodeLabel}>Safe Shelter</Text>
+            <Text style={styles.visualNodeTitle}>{destination}</Text>
+            <Text style={styles.visualNodeMeta}>{coordinatesText(shelter)}</Text>
+          </View>
+        </View>
+      </View>
+    </View>
+  );
+}
+
 export default function ShelterRouteScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -201,7 +272,7 @@ export default function ShelterRouteScreen() {
         console.warn('Unexpected evacuation route error:', error);
       }
 
-      setErrorMessage('Unable to load evacuation route.');
+      setErrorMessage('Unable to load the evacuation route.');
     } finally {
       setLoadingRoute(false);
       setRefreshing(false);
@@ -213,7 +284,7 @@ export default function ShelterRouteScreen() {
       void loadRouteData();
     } else if (!shelterId) {
       setLoadingRoute(false);
-      setErrorMessage('Unable to load evacuation route.');
+      setErrorMessage('Unable to load the evacuation route.');
     }
   }, [loadRouteData, shelterId, token]);
 
@@ -243,6 +314,7 @@ export default function ShelterRouteScreen() {
   const showInitialLoading = loadingRoute && !shelter && routes.length === 0;
   const showError = Boolean(errorMessage) && !shelter && !showInitialLoading;
   const showMissingRoute = !showInitialLoading && !showError && shelter && routes.length === 0;
+  const currentRouteTitle = selectedRoute ? routeTitle(selectedRoute, 0) : 'Route';
   const officialFrom = selectedRoute?.startArea ?? 'Route start pending verification';
   const residentAreaMatches =
     selectedRoute ? selectedRoute.isAreaMatch || routeMatchesResidentArea(selectedRoute, user.location) : false;
@@ -287,7 +359,7 @@ export default function ShelterRouteScreen() {
 
         {showError ? (
           <View style={styles.centerState}>
-            <Text style={styles.emptyTitle}>Unable to load evacuation route.</Text>
+            <Text style={styles.emptyTitle}>Unable to load the evacuation route.</Text>
             <Text style={styles.stateText}>Please check your connection and try again.</Text>
             <AuthButton
               style={styles.stateButton}
@@ -300,13 +372,12 @@ export default function ShelterRouteScreen() {
 
         {showMissingRoute ? (
           <View style={styles.centerState}>
-            <Text style={styles.emptyTitle}>No verified evacuation route is linked to this shelter yet.</Text>
-            <Text style={styles.stateText}>Follow official emergency instructions while routes are updated.</Text>
+            <Text style={styles.emptyTitle}>No verified evacuation route is currently available.</Text>
+            <Text style={styles.stateText}>Follow official emergency instructions and check again shortly.</Text>
             <AuthButton
               style={styles.stateButton}
-              title="Retry"
-              variant="secondary"
-              onPress={() => void loadRouteData()}
+              title="Back to Shelters"
+              onPress={() => router.replace('/shelters' as Href)}
             />
           </View>
         ) : null}
@@ -325,7 +396,7 @@ export default function ShelterRouteScreen() {
             {routes.length > 1 ? (
               <View style={styles.panel}>
                 <View style={styles.panelTitleBlock}>
-                  <Text style={styles.sectionTitle}>Route Options</Text>
+                  <Text style={styles.sectionTitle}>Alternative Routes</Text>
                   <Text style={styles.sectionCopy}>
                     Area-matched routes are listed first when your resident area is available.
                   </Text>
@@ -348,7 +419,7 @@ export default function ShelterRouteScreen() {
             <View style={styles.routeSummaryPanel}>
               <View style={styles.routeTitleRow}>
                 <View style={styles.routeTitleBlock}>
-                  <Text style={styles.routeName}>{routeTitle(selectedRoute, 0)}</Text>
+                  <Text style={styles.routeName}>{currentRouteTitle}</Text>
                   <Text style={styles.routeMeta}>{officialFrom} {'>'} {shelter.name}</Text>
                 </View>
                 <RoadStatusBadge status={selectedRoute.roadStatus} />
@@ -364,6 +435,8 @@ export default function ShelterRouteScreen() {
               <View style={styles.metricGrid}>
                 <RouteMetric label="Distance" value={formatDistance(selectedRoute.distanceKm)} />
                 <RouteMetric label="Estimated Time" value={formatTime(selectedRoute.estimatedTimeMinutes)} />
+                <RouteMetric label="Road Status" value={selectedRoute.roadStatus} />
+                <RouteMetric label="Shelter Status" value={shelter.status} />
               </View>
 
               {selectedRoute.warningMessage ? (
@@ -400,16 +473,25 @@ export default function ShelterRouteScreen() {
               )}
             </View>
 
+            <RouteVisualization
+              destination={shelter.name}
+              from={officialFrom}
+              routeName={currentRouteTitle}
+              shelter={shelter}
+            />
+
             <View style={styles.mapSummaryPanel}>
-              <Text style={styles.sectionTitle}>Route Summary</Text>
-              <View style={styles.mapLine}>
-                <View style={styles.mapPointStart} />
-                <View style={styles.mapConnector} />
-                <View style={styles.mapPointEnd} />
-              </View>
+              <Text style={styles.sectionTitle}>Map Foundation</Text>
               <RouteField label="Start Area" value={officialFrom} />
               <RouteField label="Destination" value={shelter.name} />
               <RouteField label="Destination Coordinates" value={coordinatesText(shelter)} />
+            </View>
+
+            <View style={styles.safetyPanel}>
+              <Text style={styles.safetyTitle}>Emergency Guidance</Text>
+              <Text style={styles.safetyText}>
+                Use only verified evacuation routes. Do not enter flooded or blocked roads. Follow official emergency instructions at all times.
+              </Text>
             </View>
           </>
         ) : null}
@@ -630,6 +712,7 @@ const styles = StyleSheet.create({
   },
   metricGrid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 10,
   },
   metricItem: {
@@ -637,8 +720,9 @@ const styles = StyleSheet.create({
     borderColor: BrandColors.border,
     borderRadius: 8,
     borderWidth: 1,
-    flex: 1,
+    flexGrow: 1,
     gap: 4,
+    minWidth: '45%',
     padding: 11,
   },
   metricLabel: {
@@ -724,6 +808,82 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     lineHeight: 22,
   },
+  visualCard: {
+    backgroundColor: BrandColors.white,
+    borderColor: BrandColors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 14,
+    padding: 15,
+  },
+  visualTimeline: {
+    alignItems: 'stretch',
+    flexDirection: 'row',
+    gap: 12,
+  },
+  visualIconRail: {
+    alignItems: 'center',
+    paddingVertical: 2,
+    width: 38,
+  },
+  visualIconShell: {
+    alignItems: 'center',
+    backgroundColor: BrandColors.lightBlue,
+    borderColor: BrandColors.sky,
+    borderRadius: 8,
+    borderWidth: 1,
+    height: 38,
+    justifyContent: 'center',
+    width: 38,
+  },
+  visualIconShellDestination: {
+    backgroundColor: BrandColors.successSoft,
+    borderColor: BrandColors.success,
+  },
+  visualConnector: {
+    backgroundColor: BrandColors.sky,
+    flex: 1,
+    minHeight: 30,
+    width: 3,
+  },
+  routeIconFallback: {
+    fontSize: 13,
+    fontWeight: '900',
+    lineHeight: 17,
+  },
+  visualContent: {
+    flex: 1,
+    gap: 12,
+  },
+  visualNode: {
+    backgroundColor: BrandColors.background,
+    borderColor: BrandColors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 3,
+    minHeight: 58,
+    paddingHorizontal: 11,
+    paddingVertical: 9,
+  },
+  visualNodeLabel: {
+    color: BrandColors.muted,
+    fontSize: 11,
+    fontWeight: '900',
+    lineHeight: 15,
+    textTransform: 'uppercase',
+  },
+  visualNodeTitle: {
+    color: BrandColors.text,
+    fontSize: 14,
+    fontWeight: '900',
+    lineHeight: 20,
+  },
+  visualNodeMeta: {
+    color: BrandColors.muted,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 17,
+  },
   mapSummaryPanel: {
     backgroundColor: BrandColors.white,
     borderColor: BrandColors.border,
@@ -754,6 +914,26 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     height: 16,
     width: 16,
+  },
+  safetyPanel: {
+    backgroundColor: BrandColors.navy,
+    borderColor: BrandColors.deepBlue,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 6,
+    padding: 14,
+  },
+  safetyTitle: {
+    color: BrandColors.white,
+    fontSize: 14,
+    fontWeight: '900',
+    lineHeight: 19,
+  },
+  safetyText: {
+    color: BrandColors.sky,
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 19,
   },
   centerState: {
     alignItems: 'center',

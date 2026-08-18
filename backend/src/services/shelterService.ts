@@ -242,6 +242,8 @@ export async function getShelterRoutes(shelterId: string, residentLocation: stri
   const numericId = numericShelterId(shelterId);
   const location = trimmedText(residentLocation);
 
+  await getShelterById(String(numericId), residentLocation);
+
   const rows = await sql`
     WITH resident_context AS (
       SELECT ${location}::text AS resident_area
@@ -282,7 +284,14 @@ export async function getShelterRoutes(shelterId: string, residentLocation: stri
         THEN 0
         ELSE 1
       END ASC,
-      evacuation_routes.id ASC
+      CASE LOWER(COALESCE(evacuation_routes.road_status, ''))
+        WHEN 'safe' THEN 0
+        WHEN 'caution' THEN 1
+        WHEN 'blocked' THEN 2
+        ELSE 3
+      END ASC,
+      COALESCE(evacuation_routes.updated_at, evacuation_routes.created_at) DESC NULLS LAST,
+      evacuation_routes.id DESC
   `;
 
   return (rows as EvacuationRouteRow[]).map(toEvacuationRoute);
