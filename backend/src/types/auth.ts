@@ -29,6 +29,8 @@ export interface AuthenticatedUser {
   id: number;
   email: string;
   role: UserRole | string;
+  location: string | null;
+  preferredLanguage: string;
 }
 
 export interface RegisterResidentInput {

@@ -2,12 +2,19 @@ import type { RequestHandler } from 'express';
 import jwt from 'jsonwebtoken';
 
 import { sql } from '../config/database.js';
-import type { AuthenticatedUser } from '../types/auth.js';
 
 type AuthTokenPayload = jwt.JwtPayload & {
   sub?: string;
   email?: string;
   role?: string;
+};
+
+type AuthenticatedUserRow = {
+  id: number;
+  email: string;
+  role: string;
+  location: string | null;
+  preferred_language: string | null;
 };
 
 function getBearerToken(authHeader: string | undefined) {
@@ -64,12 +71,12 @@ export const authenticateRequest: RequestHandler = async (req, res, next) => {
 
   try {
     const rows = await sql`
-      SELECT id, email, role
+      SELECT id, email, role, location, preferred_language
       FROM users
       WHERE id = ${userId}
       LIMIT 1
     `;
-    const user = rows[0] as AuthenticatedUser | undefined;
+    const user = rows[0] as AuthenticatedUserRow | undefined;
 
     if (!user) {
       res.status(404).json({
@@ -83,6 +90,8 @@ export const authenticateRequest: RequestHandler = async (req, res, next) => {
       id: user.id,
       email: user.email,
       role: user.role,
+      location: user.location,
+      preferredLanguage: user.preferred_language ?? 'English',
     };
 
     next();

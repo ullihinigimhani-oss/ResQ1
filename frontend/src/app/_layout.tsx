@@ -25,6 +25,9 @@ export default function RootLayout() {
         <Stack.Screen name="auth/login" />
         <Stack.Screen name="dashboard" />
         <Stack.Screen name="profile" />
+        <Stack.Screen name="alerts/index" />
+        <Stack.Screen name="alerts/[id]" />
+        <Stack.Screen name="alerts/create" />
         <Stack.Screen name="incidents/index" />
         <Stack.Screen name="incidents/report" />
         <Stack.Screen name="incidents/[id]" />
