@@ -21,6 +21,7 @@ import {
   BackButton,
   StatusBanner,
 } from '@/components/common/auth-components';
+import { RiskBadge } from '@/components/alerts/alert-badges';
 import { BrandColors } from '@/constants/brand';
 import { useAuth } from '@/context/auth-context';
 import { createAlert, isAlertApiError } from '@/services/alertService';
@@ -53,6 +54,42 @@ function canPublishAlerts(role: string) {
   return role === 'admin' || role === 'authority';
 }
 
+function formatExpiration(value: string) {
+  const trimmedValue = value.trim();
+
+  if (!trimmedValue) {
+    return 'No expiration set';
+  }
+
+  const date = new Date(trimmedValue);
+
+  if (Number.isNaN(date.getTime())) {
+    return trimmedValue;
+  }
+
+  return date.toLocaleString(undefined, {
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
+function previewText(value: string) {
+  const trimmedValue = value.trim();
+
+  if (!trimmedValue) {
+    return 'Not entered';
+  }
+
+  if (trimmedValue.length <= 118) {
+    return trimmedValue;
+  }
+
+  return `${trimmedValue.slice(0, 115).trim()}...`;
+}
+
 function validateForm(form: AlertForm) {
   const errors: AlertFieldErrors = {};
   const title = form.title.trim();
@@ -67,7 +104,7 @@ function validateForm(form: AlertForm) {
   }
 
   if (!affectedArea) {
-    errors.affectedArea = 'Please select an affected area.';
+    errors.affectedArea = 'Please enter the affected area.';
   }
 
   if (!form.riskLevel) {
@@ -148,6 +185,35 @@ function FormSection({
         {helper ? <Text style={styles.sectionHelper}>{helper}</Text> : null}
       </View>
       {children}
+    </View>
+  );
+}
+
+function SummaryRow({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.summaryRow}>
+      <Text style={styles.summaryLabel}>{label}</Text>
+      <Text style={styles.summaryValue}>{value}</Text>
+    </View>
+  );
+}
+
+function PrePublishSummary({ form }: { form: AlertForm }) {
+  return (
+    <View style={styles.reviewCard}>
+      <Text style={styles.reviewEyebrow}>Pre-Publish Summary</Text>
+      <SummaryRow label="Title" value={form.title.trim() || 'Not entered'} />
+      <SummaryRow label="Affected Area" value={form.affectedArea.trim() || 'Not entered'} />
+      <View style={styles.summaryRow}>
+        <Text style={styles.summaryLabel}>Risk Level</Text>
+        {form.riskLevel ? (
+          <RiskBadge riskLevel={form.riskLevel} />
+        ) : (
+          <Text style={styles.summaryValue}>Not selected</Text>
+        )}
+      </View>
+      <SummaryRow label="Message Preview" value={previewText(form.message)} />
+      <SummaryRow label="Expiration" value={formatExpiration(form.expiresAt)} />
     </View>
   );
 }
@@ -269,7 +335,7 @@ export default function CreateAlertScreen() {
           <View style={styles.header}>
             <Text style={styles.eyebrow}>Authority Warning Console</Text>
             <Text style={styles.title}>Send Emergency Alert</Text>
-            <Text style={styles.subtitle}>Create a verified disaster warning for affected communities.</Text>
+            <Text style={styles.subtitle}>Publish a verified warning for communities at risk.</Text>
           </View>
 
           <View style={styles.noticeCard}>
@@ -355,22 +421,26 @@ export default function CreateAlertScreen() {
               </View>
             </FormSection>
 
-            <FormSection helper="Keep the warning direct and action oriented." title="Public Warning Message">
+            <FormSection
+              helper="Provide a clear and concise description of the current danger."
+              title="Public Warning Message">
               <AuthTextField
                 autoCapitalize="sentences"
                 error={fieldErrors.message}
-                label="Alert Message"
+                label="Public Warning Message"
                 multiline
                 numberOfLines={5}
                 onChangeText={(value) => updateField('message', value)}
-                placeholder="Water levels are rising rapidly in low-lying areas."
+                placeholder="Water levels are rising rapidly in low-lying areas. Residents near the river should prepare to move to higher ground."
                 style={styles.textAreaInput}
                 textAlignVertical="top"
                 value={form.message}
               />
             </FormSection>
 
-            <FormSection helper="Use one instruction per line for the clearest resident display." title="Safety Instructions">
+            <FormSection
+              helper="Provide immediate actions residents should take."
+              title="Safety Instructions">
               <AuthTextField
                 autoCapitalize="sentences"
                 error={fieldErrors.safetyInstructions}
@@ -378,7 +448,7 @@ export default function CreateAlertScreen() {
                 multiline
                 numberOfLines={5}
                 onChangeText={(value) => updateField('safetyInstructions', value)}
-                placeholder={'Move to higher ground.\nAvoid flooded roads and bridges.\nFollow official evacuation instructions.'}
+                placeholder="Move to higher ground. Avoid flooded roads and bridges. Follow official evacuation instructions."
                 style={styles.textAreaInput}
                 textAlignVertical="top"
                 value={form.safetyInstructions}
@@ -404,6 +474,7 @@ export default function CreateAlertScreen() {
             <Text style={styles.publishCopy}>
               A confirmation will appear before this emergency alert is sent to residents.
             </Text>
+            <PrePublishSummary form={form} />
             <AuthButton
               disabled={submitting}
               loading={submitting}
@@ -641,6 +712,40 @@ const styles = StyleSheet.create({
     color: BrandColors.sky,
     fontSize: 14,
     fontWeight: '700',
+    lineHeight: 20,
+  },
+  reviewCard: {
+    backgroundColor: BrandColors.white,
+    borderColor: BrandColors.sky,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 10,
+    padding: 14,
+  },
+  reviewEyebrow: {
+    color: BrandColors.red,
+    fontSize: 12,
+    fontWeight: '900',
+    lineHeight: 16,
+    textTransform: 'uppercase',
+  },
+  summaryRow: {
+    borderTopColor: BrandColors.border,
+    borderTopWidth: 1,
+    gap: 5,
+    paddingTop: 9,
+  },
+  summaryLabel: {
+    color: BrandColors.muted,
+    fontSize: 11,
+    fontWeight: '900',
+    lineHeight: 15,
+    textTransform: 'uppercase',
+  },
+  summaryValue: {
+    color: BrandColors.text,
+    fontSize: 14,
+    fontWeight: '800',
     lineHeight: 20,
   },
   publishButton: {

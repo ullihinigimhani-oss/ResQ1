@@ -132,7 +132,7 @@ function validateCreateAlertInput(input: CreateAlertInput): ValidatedCreateAlert
   }
 
   if (!affectedArea) {
-    fieldErrors.affectedArea = 'Please select an affected area.';
+    fieldErrors.affectedArea = 'Please enter the affected area.';
   } else if (affectedArea.length > ALERT_AREA_MAX_LENGTH) {
     fieldErrors.affectedArea = `Affected area must be ${ALERT_AREA_MAX_LENGTH} characters or fewer.`;
   }

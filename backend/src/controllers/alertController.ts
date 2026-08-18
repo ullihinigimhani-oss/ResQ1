@@ -38,7 +38,7 @@ function requireAlertPublisher(req: Request) {
   const user = requireAuthenticatedUser(req);
 
   if (!AUTHORIZED_ALERT_ROLES.has(String(user.role).toLowerCase())) {
-    throw new AlertServiceError(403, 'Only authorized emergency officials can publish alerts.');
+    throw new AlertServiceError(403, 'You are not authorized to publish emergency alerts.');
   }
 
   return user;
