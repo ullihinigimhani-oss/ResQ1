@@ -1,348 +1,383 @@
-import { StatusBar } from 'expo-status-bar';
-import { Image } from 'expo-image';
-import { SymbolView } from 'expo-symbols';
 import { Redirect, useRouter, type Href } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import resq1Logo from '@/assets/images/resq1-logo.jfif';
-import { BrandColors } from '@/constants/brand';
+import {
+  DemoNotice,
+  HomeHeader,
+  LoadingState,
+  PrimaryButton,
+  QuickActionCard,
+  ScreenContainer,
+  SectionCard,
+  SecondaryButton,
+  StatusBadge,
+} from '@/components/ui/app-components';
+import { colors, radius, spacing, typography } from '@/constants/design';
 import { useAuth } from '@/context/auth-context';
+import { getActiveAlerts } from '@/services/alertService';
+import { getMyIncidents } from '@/services/incidentService';
+import { getShelters } from '@/services/shelterService';
+import type { Alert, AlertRiskLevel } from '@/types/alert';
+import type { Incident } from '@/types/incident';
+import type { Shelter } from '@/types/shelter';
+import { firstName, formatDateTime, isAuthorityRole, plural, userArea } from '@/utils/format';
 
-function firstName(fullName: string) {
-  return fullName.trim().split(/\s+/)[0] || 'Resident';
-}
+const riskRank: Record<AlertRiskLevel | string, number> = {
+  Critical: 4,
+  High: 3,
+  Moderate: 2,
+  Low: 1,
+};
 
-function initials(fullName: string) {
-  const parts = fullName.trim().split(/\s+/).filter(Boolean);
+function greeting() {
+  const hour = new Date().getHours();
 
-  if (parts.length === 0) {
-    return 'R';
+  if (hour < 12) {
+    return 'Good morning';
   }
 
-  return parts
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join('')
-    .toUpperCase();
+  if (hour < 18) {
+    return 'Good afternoon';
+  }
+
+  return 'Good evening';
 }
 
-function DashboardAction({
-  accent,
-  description,
-  mark,
-  onPress,
-  symbolName,
-  title,
-  variant,
-}: {
-  accent: 'primary' | 'secondary';
-  description: string;
-  mark: string;
-  onPress: () => void;
-  symbolName: 'exclamationmark.triangle.fill' | 'clock.arrow.circlepath';
-  title: string;
-  variant: 'primary' | 'secondary';
-}) {
-  const primary = variant === 'primary';
+function topAlert(alerts: Alert[]) {
+  return [...alerts].sort((left, right) => {
+    const riskDelta = (riskRank[right.riskLevel] ?? 0) - (riskRank[left.riskLevel] ?? 0);
 
-  return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.actionButton,
-        primary ? styles.primaryAction : styles.secondaryAction,
-        pressed && styles.pressed,
-      ]}>
-      <View style={[styles.actionMark, accent === 'primary' ? styles.actionMarkEmergency : styles.actionMarkStandard]}>
-        <SymbolView
-          fallback={
-            <Text style={[styles.actionMarkText, accent === 'primary' ? styles.actionMarkTextEmergency : styles.actionMarkTextStandard]}>
-              {mark}
-            </Text>
-          }
-          name={symbolName}
-          size={22}
-          tintColor={accent === 'primary' ? BrandColors.white : BrandColors.deepBlue}
-          type="monochrome"
-          weight="bold"
-        />
-      </View>
-      <View style={styles.actionTextBlock}>
-        <Text style={[styles.actionTitle, primary && styles.primaryActionTitle]}>{title}</Text>
-        <Text style={[styles.actionDescription, primary && styles.primaryActionDescription]}>
-          {description}
-        </Text>
-      </View>
-      <Text style={[styles.actionArrow, primary && styles.primaryActionArrow]}>{'>'}</Text>
-    </Pressable>
-  );
+    if (riskDelta !== 0) {
+      return riskDelta;
+    }
+
+    return new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime();
+  })[0] ?? null;
+}
+
+function riskTone(riskLevel: AlertRiskLevel | string | null) {
+  if (riskLevel === 'Critical' || riskLevel === 'High') {
+    return 'red' as const;
+  }
+
+  if (riskLevel === 'Moderate') {
+    return 'amber' as const;
+  }
+
+  return 'green' as const;
+}
+
+function availableSpaces(shelter: Shelter) {
+  if (shelter.availableSpaces !== null) {
+    return shelter.availableSpaces;
+  }
+
+  if (shelter.capacity !== null && shelter.currentOccupancy !== null) {
+    return Math.max(shelter.capacity - shelter.currentOccupancy, 0);
+  }
+
+  return null;
 }
 
 export default function DashboardScreen() {
   const router = useRouter();
-  const { isLoading, user } = useAuth();
+  const { isLoading, token, user } = useAuth();
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [incidents, setIncidents] = useState<Incident[]>([]);
+  const [shelters, setShelters] = useState<Shelter[]>([]);
+  const [loadingSummary, setLoadingSummary] = useState(true);
+  const [summaryWarning, setSummaryWarning] = useState<string | null>(null);
+
+  const loadSummary = useCallback(async () => {
+    if (!token) {
+      return;
+    }
+
+    setLoadingSummary(true);
+    setSummaryWarning(null);
+
+    const [alertResult, incidentResult, shelterResult] = await Promise.allSettled([
+      getActiveAlerts(token),
+      getMyIncidents(token),
+      getShelters(token),
+    ]);
+
+    if (alertResult.status === 'fulfilled') {
+      setAlerts(alertResult.value);
+    }
+
+    if (incidentResult.status === 'fulfilled') {
+      setIncidents(incidentResult.value);
+    }
+
+    if (shelterResult.status === 'fulfilled') {
+      setShelters(shelterResult.value);
+    }
+
+    const failed = [alertResult, incidentResult, shelterResult].some((result) => result.status === 'rejected');
+
+    if (failed) {
+      setSummaryWarning('Some live dashboard data could not be refreshed.');
+    }
+
+    setLoadingSummary(false);
+  }, [token]);
+
+  useEffect(() => {
+    if (token) {
+      void loadSummary();
+    }
+  }, [loadSummary, token]);
+
+  const currentAlert = useMemo(() => topAlert(alerts), [alerts]);
+  const latestIncident = incidents[0] ?? null;
+  const nearestShelter = shelters[0] ?? null;
 
   if (!isLoading && !user) {
     return <Redirect href={'/auth/welcome' as Href} />;
   }
 
-  if (!user) {
+  if (isLoading || !user) {
     return (
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.loadingContainer} />
-      </SafeAreaView>
+      <ScreenContainer bottomNav={false}>
+        <LoadingState message="Preparing your ResQ1 dashboard..." />
+      </ScreenContainer>
     );
   }
 
   const residentFirstName = firstName(user.fullName);
+  const canPublishAlerts = isAuthorityRole(user.role);
+  const alertCountLabel = `${alerts.length} active ${plural(alerts.length, 'alert', 'alerts')}`;
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="light" />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.topHeader}>
-          <View style={styles.brandBlock}>
-            <Image contentFit="contain" source={resq1Logo} style={styles.logo} />
-            <View>
-              <Text style={styles.brandName}>ResQ1</Text>
-              <Text style={styles.headerGreeting}>Hello, {residentFirstName}</Text>
-            </View>
+    <ScreenContainer>
+      <HomeHeader
+        greeting={`${greeting()}, ${residentFirstName}`}
+        userName={user.fullName}
+        onNotifications={() => router.push('/alerts/preferences' as Href)}
+        onProfile={() => router.push('/profile' as Href)}
+      />
+
+      <SectionCard tone={currentAlert ? (riskTone(currentAlert.riskLevel) === 'red' ? 'danger' : 'white') : 'blue'}>
+        <View style={styles.heroHeader}>
+          <View style={styles.heroTitleBlock}>
+            <Text style={styles.heroEyebrow}>Current Risk Level</Text>
+            <Text style={styles.heroTitle}>{currentAlert ? currentAlert.riskLevel : 'No Active Alerts'}</Text>
+            <Text style={styles.heroText}>
+              {currentAlert
+                ? `${currentAlert.title} for ${currentAlert.affectedArea}.`
+                : 'No active emergency alerts are verified for your area right now.'}
+            </Text>
           </View>
+          {loadingSummary ? <ActivityIndicator color={colors.red} /> : null}
+        </View>
+        <View style={styles.heroMetaRow}>
+          <StatusBadge
+            label={currentAlert ? alertCountLabel : 'All clear'}
+            tone={currentAlert ? riskTone(currentAlert.riskLevel) : 'green'}
+          />
+          <StatusBadge label={userArea(user)} tone="blue" />
+        </View>
+        <PrimaryButton
+          title={currentAlert ? 'View Risk Details' : 'Open Alert Center'}
+          onPress={() => router.push(currentAlert ? '/alerts/risk-level' as Href : '/alerts' as Href)}
+          tone={currentAlert && riskTone(currentAlert.riskLevel) === 'red' ? 'red' : 'navy'}
+        />
+      </SectionCard>
+
+      {summaryWarning ? <DemoNotice text={summaryWarning} /> : null}
+
+      <View style={styles.quickGrid}>
+        <QuickActionCard
+          body="Submit a verified flood report"
+          fallback="R"
+          name="exclamationmark.triangle.fill"
+          title="Report Incident"
+          tone="red"
+          onPress={() => router.push('/incidents/report' as Href)}
+        />
+        <QuickActionCard
+          body="Review live official warnings"
+          fallback="A"
+          name="bell.fill"
+          title="Emergency Alerts"
+          tone="blue"
+          onPress={() => router.push('/alerts' as Href)}
+        />
+        <QuickActionCard
+          body="Find shelter availability"
+          fallback="S"
+          name="house.and.flag.fill"
+          title="Find Safe Shelter"
+          tone="green"
+          onPress={() => router.push('/shelters' as Href)}
+        />
+        <QuickActionCard
+          body="Prepare a request for help"
+          fallback="H"
+          name="cross.case.fill"
+          title="Request Assistance"
+          tone="amber"
+          onPress={() => router.push('/assistance' as Href)}
+        />
+      </View>
+
+      <SectionCard title="Recent Alerts" subtitle="Real active alerts from the Sprint 1 backend.">
+        {currentAlert ? (
           <Pressable
-            accessibilityLabel="Open profile"
             accessibilityRole="button"
-            hitSlop={8}
-            onPress={() => router.push('/profile' as Href)}
-            style={({ pressed }) => [styles.avatarButton, pressed && styles.pressed]}>
-            <Text style={styles.avatarText}>{initials(user.fullName)}</Text>
+            onPress={() => router.push({
+              pathname: '/alerts/[id]',
+              params: { id: String(currentAlert.id) },
+            } as unknown as Href)}
+            style={({ pressed }) => [styles.compactRow, pressed && styles.pressed]}>
+            <View style={styles.compactTextBlock}>
+              <Text style={styles.compactTitle}>{currentAlert.title}</Text>
+              <Text style={styles.compactMeta}>{currentAlert.affectedArea}</Text>
+            </View>
+            <StatusBadge label={currentAlert.riskLevel} tone={riskTone(currentAlert.riskLevel)} />
           </Pressable>
-        </View>
+        ) : (
+          <Text style={styles.mutedText}>No active emergency alerts.</Text>
+        )}
+      </SectionCard>
 
-        <View style={styles.welcomePanel}>
-          <Text style={styles.eyebrow}>Resident Dashboard</Text>
-          <Text style={styles.welcome}>Welcome back, {residentFirstName}</Text>
-          <Text style={styles.copy}>
-            Stay informed, report local flood incidents, and track emergency response progress.
-          </Text>
-        </View>
+      <SectionCard title="Latest Incident Status" subtitle="Your most recent report status from the backend.">
+        {latestIncident ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => router.push({
+              pathname: '/incidents/[id]',
+              params: { id: String(latestIncident.id) },
+            } as unknown as Href)}
+            style={({ pressed }) => [styles.compactRow, pressed && styles.pressed]}>
+            <View style={styles.compactTextBlock}>
+              <Text style={styles.compactTitle}>{latestIncident.title}</Text>
+              <Text style={styles.compactMeta}>Updated {formatDateTime(latestIncident.updatedAt)}</Text>
+            </View>
+            <StatusBadge
+              label={latestIncident.status}
+              tone={latestIncident.status === 'Resolved' ? 'green' : 'blue'}
+            />
+          </Pressable>
+        ) : (
+          <Text style={styles.mutedText}>No incident reports submitted yet.</Text>
+        )}
+        <SecondaryButton
+          title="My Incident Reports"
+          onPress={() => router.push('/incidents' as Href)}
+        />
+      </SectionCard>
 
-        <View style={styles.panel}>
-          <Text style={styles.sectionEyebrow}>Incident Management</Text>
-          <Text style={styles.panelTitle}>Flood response tools</Text>
-          <Text style={styles.copy}>
-            Report verified flood conditions and monitor the response status of your reports.
-          </Text>
-          <View style={styles.dashboardActions}>
-            <DashboardAction
-              accent="primary"
-              description="Send verified flood details to support response teams."
-              mark="!"
-              symbolName="exclamationmark.triangle.fill"
-              title="Report Flood Incident"
-              variant="primary"
-              onPress={() => router.push('/incidents/report' as Href)}
-            />
-            <DashboardAction
-              accent="secondary"
-              description="Review your submitted reports and current status."
-              mark="R"
-              symbolName="clock.arrow.circlepath"
-              title="My Incident Reports"
-              variant="secondary"
-              onPress={() => router.push('/incidents' as Href)}
-            />
-          </View>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+      <SectionCard title="Nearest Safe Shelter" subtitle="Verified shelter data from Neon.">
+        {nearestShelter ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => router.push({
+              pathname: '/shelters/[id]',
+              params: { id: String(nearestShelter.id) },
+            } as unknown as Href)}
+            style={({ pressed }) => [styles.compactRow, pressed && styles.pressed]}>
+            <View style={styles.compactTextBlock}>
+              <Text style={styles.compactTitle}>{nearestShelter.name}</Text>
+              <Text style={styles.compactMeta}>
+                {nearestShelter.area} | {availableSpaces(nearestShelter) ?? 'Capacity pending'} spaces available
+              </Text>
+            </View>
+            <StatusBadge label={nearestShelter.status} tone={nearestShelter.status === 'Open' ? 'green' : 'amber'} />
+          </Pressable>
+        ) : (
+          <Text style={styles.mutedText}>Shelter availability is not loaded yet.</Text>
+        )}
+      </SectionCard>
+
+      <SectionCard title="Safety Tip" tone="navy">
+        <Text style={styles.safetyText}>
+          Keep essentials ready, avoid flooded roads, and follow official evacuation instructions when alerts become active.
+        </Text>
+      </SectionCard>
+
+      {canPublishAlerts ? (
+        <SectionCard title="Authority Tools" subtitle="Visible only to admin and authority roles.">
+          <PrimaryButton title="Publish Emergency Alert" onPress={() => router.push('/alerts/create' as Href)} />
+        </SectionCard>
+      ) : null}
+    </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    backgroundColor: BrandColors.navy,
-    flex: 1,
-  },
-  loadingContainer: {
-    flex: 1,
-  },
-  content: {
-    flexGrow: 1,
-    gap: 18,
-    paddingHorizontal: 18,
-    paddingVertical: 18,
-  },
-  topHeader: {
-    alignItems: 'center',
+  heroHeader: {
+    alignItems: 'flex-start',
     flexDirection: 'row',
+    gap: spacing.sm,
     justifyContent: 'space-between',
-    paddingTop: 4,
   },
-  brandBlock: {
-    alignItems: 'center',
-    flexDirection: 'row',
+  heroTitleBlock: {
     flex: 1,
-    gap: 10,
+    gap: spacing.xs,
   },
-  logo: {
-    backgroundColor: BrandColors.white,
-    borderRadius: 8,
-    height: 48,
-    width: 48,
-  },
-  brandName: {
-    color: BrandColors.white,
-    fontSize: 22,
-    fontWeight: '900',
-    lineHeight: 27,
-  },
-  headerGreeting: {
-    color: BrandColors.sky,
-    fontSize: 13,
-    fontWeight: '800',
-    lineHeight: 18,
-  },
-  avatarButton: {
-    alignItems: 'center',
-    backgroundColor: BrandColors.white,
-    borderColor: BrandColors.sky,
-    borderRadius: 24,
-    borderWidth: 1,
-    height: 48,
-    justifyContent: 'center',
-    width: 48,
-  },
-  avatarText: {
-    color: BrandColors.navy,
-    fontSize: 16,
-    fontWeight: '900',
-    lineHeight: 21,
-  },
-  welcomePanel: {
-    backgroundColor: BrandColors.lightBlue,
-    borderColor: BrandColors.sky,
-    borderRadius: 8,
-    borderWidth: 1,
-    gap: 8,
-    padding: 18,
-  },
-  panel: {
-    backgroundColor: BrandColors.white,
-    borderColor: BrandColors.border,
-    borderRadius: 8,
-    borderWidth: 1,
-    gap: 12,
-    padding: 18,
-  },
-  eyebrow: {
-    color: BrandColors.red,
-    fontSize: 12,
-    fontWeight: '900',
+  heroEyebrow: {
+    color: colors.red,
+    ...typography.label,
     textTransform: 'uppercase',
   },
-  sectionEyebrow: {
-    color: BrandColors.red,
-    fontSize: 12,
+  heroTitle: {
+    color: colors.navy,
+    fontSize: 25,
     fontWeight: '900',
-    textTransform: 'uppercase',
+    lineHeight: 31,
   },
-  welcome: {
-    color: BrandColors.navy,
-    fontSize: 24,
-    fontWeight: '900',
-    lineHeight: 30,
+  heroText: {
+    color: colors.text,
+    ...typography.body,
   },
-  panelTitle: {
-    color: BrandColors.navy,
-    fontSize: 20,
-    fontWeight: '900',
-    lineHeight: 26,
-  },
-  copy: {
-    color: BrandColors.muted,
-    fontSize: 15,
-    fontWeight: '600',
-    lineHeight: 22,
-  },
-  dashboardActions: {
-    gap: 10,
-    marginTop: 6,
-  },
-  actionButton: {
+  heroMetaRow: {
     alignItems: 'center',
-    borderRadius: 8,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  quickGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  compactRow: {
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    borderColor: colors.border,
+    borderRadius: radius.md,
     borderWidth: 1,
     flexDirection: 'row',
-    gap: 12,
-    minHeight: 74,
-    padding: 14,
+    gap: spacing.md,
+    justifyContent: 'space-between',
+    padding: spacing.md,
   },
-  primaryAction: {
-    backgroundColor: BrandColors.navy,
-    borderColor: BrandColors.navy,
-  },
-  secondaryAction: {
-    backgroundColor: BrandColors.white,
-    borderColor: BrandColors.border,
-  },
-  actionMark: {
-    alignItems: 'center',
-    borderRadius: 8,
-    height: 42,
-    justifyContent: 'center',
-    width: 42,
-  },
-  actionMarkEmergency: {
-    backgroundColor: BrandColors.red,
-  },
-  actionMarkStandard: {
-    backgroundColor: BrandColors.lightBlue,
-    borderColor: BrandColors.border,
-    borderWidth: 1,
-  },
-  actionMarkText: {
-    fontSize: 18,
-    fontWeight: '900',
-    lineHeight: 22,
-  },
-  actionMarkTextEmergency: {
-    color: BrandColors.white,
-  },
-  actionMarkTextStandard: {
-    color: BrandColors.deepBlue,
-  },
-  actionTextBlock: {
+  compactTextBlock: {
     flex: 1,
     gap: 3,
   },
-  actionTitle: {
-    color: BrandColors.navy,
-    fontSize: 16,
+  compactTitle: {
+    color: colors.navy,
+    fontSize: 15,
     fontWeight: '900',
-    lineHeight: 21,
+    lineHeight: 20,
   },
-  primaryActionTitle: {
-    color: BrandColors.white,
+  compactMeta: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 17,
   },
-  actionDescription: {
-    color: BrandColors.muted,
-    fontSize: 13,
-    fontWeight: '600',
-    lineHeight: 18,
+  mutedText: {
+    color: colors.muted,
+    ...typography.body,
   },
-  primaryActionDescription: {
-    color: BrandColors.sky,
-  },
-  actionArrow: {
-    color: BrandColors.deepBlue,
-    fontSize: 25,
-    fontWeight: '900',
-    lineHeight: 28,
-  },
-  primaryActionArrow: {
-    color: BrandColors.white,
+  safetyText: {
+    color: colors.sky,
+    ...typography.body,
   },
   pressed: {
     opacity: 0.72,
