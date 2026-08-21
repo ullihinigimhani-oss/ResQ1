@@ -85,3 +85,13 @@ The Incident Status Tracking feature was implemented and verified as part of Spr
 - Users can view the current status of submitted flood incident reports.
 - Incident progress can be tracked through the response process.
 - Status information helps users monitor the progress of their submitted reports.
+
+### Sprint 1 - Receive Early Warning Alerts Verification
+
+The Receive Early Warning Alerts feature was implemented and verified as part of Sprint 1.
+
+- Jira Work Item: SCRUM-34
+- Feature: Receive Early Warning Alerts
+- Users can receive disaster and flood early-warning alerts through the application.
+- Alerts provide relevant warning information to help users identify potential risks.
+- The feature supports timely communication of emergency information to affected users.
