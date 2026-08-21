@@ -3,6 +3,7 @@ import type {
   Alert,
   AlertFieldErrors,
   CreateAlertPayload,
+  UpdateAlertPayload,
 } from '@/types/alert';
 
 type ApiErrorBody = {
@@ -49,7 +50,7 @@ async function alertRequest<T>(
   path: string,
   token: string,
   options: {
-    method?: 'GET' | 'POST';
+    method?: 'GET' | 'POST' | 'PUT';
     body?: unknown;
   } = {},
 ) {
@@ -125,6 +126,19 @@ export async function getAlertById(id: string, token: string) {
 export async function createAlert(payload: CreateAlertPayload, token: string) {
   const response = await alertRequest<ApiAlertResponse>('/api/alerts', token, {
     method: 'POST',
+    body: payload,
+  });
+
+  if (!response.alert) {
+    throw new AlertApiError(500, 'The server returned an unexpected response.');
+  }
+
+  return response.alert;
+}
+
+export async function updateAlert(id: string, payload: UpdateAlertPayload, token: string) {
+  const response = await alertRequest<ApiAlertResponse>(`/api/alerts/${id}`, token, {
+    method: 'PUT',
     body: payload,
   });
 

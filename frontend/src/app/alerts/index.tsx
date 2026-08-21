@@ -293,18 +293,40 @@ function AuthorityAlertSummary({ alerts }: { alerts: Alert[] }) {
   );
 }
 
-function AuthorityActionRow({ onPress }: { onPress: () => void }) {
+function AuthorityActionRow({
+  onEditAlert,
+  onViewAlert,
+}: {
+  onEditAlert: () => void;
+  onViewAlert: () => void;
+}) {
   return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={onPress}
-      style={({ pressed }) => [styles.authorityManageButton, pressed && styles.pressed]}>
-      <Text style={styles.authorityManageButtonText}>View / Manage Alert -&gt;</Text>
-    </Pressable>
+    <View style={styles.authorityCardActions}>
+      <Pressable
+        accessibilityRole="button"
+        onPress={onViewAlert}
+        style={({ pressed }) => [styles.authorityManageButton, pressed && styles.pressed]}>
+        <Text style={styles.authorityManageButtonText}>View / Manage Alert -&gt;</Text>
+      </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        onPress={onEditAlert}
+        style={({ pressed }) => [styles.authorityEditButton, pressed && styles.pressed]}>
+        <Text style={styles.authorityEditButtonText}>Edit Alert</Text>
+      </Pressable>
+    </View>
   );
 }
 
-function AuthorityAlertCard({ alert, onViewAlert }: { alert: Alert; onViewAlert: (alertId: number) => void }) {
+function AuthorityAlertCard({
+  alert,
+  onEditAlert,
+  onViewAlert,
+}: {
+  alert: Alert;
+  onEditAlert: (alertId: number) => void;
+  onViewAlert: (alertId: number) => void;
+}) {
   const severity = authoritySeverityTheme[alert.riskLevel];
 
   return (
@@ -334,7 +356,10 @@ function AuthorityAlertCard({ alert, onViewAlert }: { alert: Alert; onViewAlert:
         <Text style={styles.compactMetaText}>Issued: {formatDateTime(alert.createdAt)}</Text>
       </View>
 
-      <AuthorityActionRow onPress={() => onViewAlert(alert.id)} />
+      <AuthorityActionRow
+        onEditAlert={() => onEditAlert(alert.id)}
+        onViewAlert={() => onViewAlert(alert.id)}
+      />
     </View>
   );
 }
@@ -427,9 +452,10 @@ function AuthorityDashboard({
   errorMessage,
   loadingAlerts,
   onCreateAlert,
+  onEditAlert,
   onRetry,
   onViewAlert,
-}: DashboardStateProps & { onCreateAlert: () => void }) {
+}: DashboardStateProps & { onCreateAlert: () => void; onEditAlert: (alertId: number) => void }) {
   const showInitialLoading = loadingAlerts && alerts.length === 0;
   const showError = Boolean(errorMessage) && alerts.length === 0 && !showInitialLoading;
   const showEmpty = !showInitialLoading && !showError && alerts.length === 0;
@@ -479,7 +505,12 @@ function AuthorityDashboard({
       {!showInitialLoading && !showError && alerts.length > 0 ? (
         <View style={styles.compactAlertList}>
           {sortedAlerts.map((alert) => (
-            <AuthorityAlertCard alert={alert} key={alert.id} onViewAlert={onViewAlert} />
+            <AuthorityAlertCard
+              alert={alert}
+              key={alert.id}
+              onEditAlert={onEditAlert}
+              onViewAlert={onViewAlert}
+            />
           ))}
         </View>
       ) : null}
@@ -535,6 +566,13 @@ export default function AlertsScreen() {
     } as unknown as Href);
   }, [router]);
 
+  const handleEditAlert = useCallback((alertId: number) => {
+    router.push({
+      pathname: '/alerts/[id]/edit',
+      params: { id: String(alertId) },
+    } as unknown as Href);
+  }, [router]);
+
   if (!isLoading && !user) {
     return <Redirect href={'/auth/welcome' as Href} />;
   }
@@ -565,7 +603,11 @@ export default function AlertsScreen() {
         }
         showsVerticalScrollIndicator={false}>
         {isAuthorityRole(user.role) ? (
-          <AuthorityDashboard {...dashboardProps} onCreateAlert={handleCreateAlert} />
+          <AuthorityDashboard
+            {...dashboardProps}
+            onCreateAlert={handleCreateAlert}
+            onEditAlert={handleEditAlert}
+          />
         ) : (
           <ResidentDashboard {...dashboardProps} residentArea={user.location} />
         )}
@@ -896,19 +938,44 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     lineHeight: 15,
   },
+  authorityCardActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
   authorityManageButton: {
     alignItems: 'center',
-    alignSelf: 'stretch',
     backgroundColor: colors.lightBlue,
     borderColor: colors.sky,
     borderRadius: radius.md,
     borderWidth: 1,
+    flexGrow: 1,
     justifyContent: 'center',
     minHeight: 42,
+    minWidth: '56%',
     paddingHorizontal: spacing.md,
   },
   authorityManageButtonText: {
     color: colors.deepBlue,
+    fontSize: 13,
+    fontWeight: '900',
+    lineHeight: 18,
+    textAlign: 'center',
+  },
+  authorityEditButton: {
+    alignItems: 'center',
+    backgroundColor: colors.white,
+    borderColor: colors.red,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    flexGrow: 1,
+    justifyContent: 'center',
+    minHeight: 42,
+    minWidth: '34%',
+    paddingHorizontal: spacing.md,
+  },
+  authorityEditButtonText: {
+    color: colors.red,
     fontSize: 13,
     fontWeight: '900',
     lineHeight: 18,

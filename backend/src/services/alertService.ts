@@ -9,7 +9,9 @@ import {
   type AlertRow,
   type AlertStatus,
   type CreateAlertInput,
+  type UpdateAlertInput,
   type ValidatedCreateAlertInput,
+  type ValidatedUpdateAlertInput,
 } from '../types/alert.js';
 
 const ACTIVE_ALERT_STATUS: AlertStatus = 'Active';
@@ -110,14 +112,16 @@ function validateExpiresAt(value: unknown, fieldErrors: Record<string, string>) 
   return expirationDate.toISOString();
 }
 
-function validateCreateAlertInput(input: CreateAlertInput): ValidatedCreateAlertInput {
+function validateAlertFields(
+  input: CreateAlertInput,
+  fieldErrors: Record<string, string>,
+): ValidatedCreateAlertInput | null {
   const title = trimmedText(input.title);
   const disasterTypeText = trimmedText(input.disasterType) || 'Flood';
   const affectedArea = trimmedText(input.affectedArea);
   const riskLevelText = trimmedText(input.riskLevel);
   const message = trimmedText(input.message);
   const safetyInstructions = trimmedText(input.safetyInstructions);
-  const fieldErrors: Record<string, string> = {};
 
   if (!title) {
     fieldErrors.title = 'Please enter an alert title.';
@@ -156,7 +160,7 @@ function validateCreateAlertInput(input: CreateAlertInput): ValidatedCreateAlert
   const expiresAt = validateExpiresAt(input.expiresAt, fieldErrors);
 
   if (Object.keys(fieldErrors).length > 0 || !disasterType || !riskLevel) {
-    throw new AlertServiceError(400, 'Please correct the highlighted fields.', fieldErrors);
+    return null;
   }
 
   return {
@@ -167,6 +171,39 @@ function validateCreateAlertInput(input: CreateAlertInput): ValidatedCreateAlert
     message,
     safetyInstructions,
     expiresAt,
+  };
+}
+
+function validateCreateAlertInput(input: CreateAlertInput): ValidatedCreateAlertInput {
+  const fieldErrors: Record<string, string> = {};
+  const alert = validateAlertFields(input, fieldErrors);
+
+  if (!alert) {
+    throw new AlertServiceError(400, 'Please correct the highlighted fields.', fieldErrors);
+  }
+
+  return alert;
+}
+
+function validateUpdateAlertInput(input: UpdateAlertInput): ValidatedUpdateAlertInput {
+  const fieldErrors: Record<string, string> = {};
+  const alert = validateAlertFields(input, fieldErrors);
+  const statusText = trimmedText(input.status);
+  const status = canonicalOption(statusText, alertStatuses);
+
+  if (!statusText) {
+    fieldErrors.status = 'Please select an alert status.';
+  } else if (!status) {
+    fieldErrors.status = 'Choose Active, Expired, or Resolved.';
+  }
+
+  if (!alert || !status) {
+    throw new AlertServiceError(400, 'Please correct the highlighted fields.', fieldErrors);
+  }
+
+  return {
+    ...alert,
+    status,
   };
 }
 
@@ -296,4 +333,32 @@ export async function createAlert(senderId: number, input: CreateAlertInput) {
   }
 
   return toAlert(createdAlert);
+}
+
+export async function updateAlert(alertId: string, input: UpdateAlertInput) {
+  const numericId = numericAlertId(alertId);
+  const alert = validateUpdateAlertInput(input);
+
+  const rows = await sql`
+    UPDATE alerts
+    SET title = ${alert.title},
+        disaster_type = ${alert.disasterType},
+        affected_area = ${alert.affectedArea},
+        risk_level = ${alert.riskLevel},
+        message = ${alert.message},
+        safety_instructions = ${alert.safetyInstructions},
+        status = ${alert.status},
+        expires_at = ${alert.expiresAt},
+        updated_at = CURRENT_TIMESTAMP
+    WHERE id = ${numericId}
+    RETURNING id, title, disaster_type, affected_area, risk_level, message, safety_instructions, status, expires_at, created_by, created_at, updated_at
+  `;
+
+  const updatedAlert = rows[0] as AlertRow | undefined;
+
+  if (!updatedAlert) {
+    throw new AlertServiceError(404, 'Emergency alert not found.');
+  }
+
+  return toAlert(updatedAlert);
 }
