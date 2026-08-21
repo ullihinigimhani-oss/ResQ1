@@ -1,7 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import { Redirect, useRouter, type Href } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BottomNavigation, EmptyState, LoadingState, PrimaryButton } from '@/components/ui/app-components';
@@ -68,6 +68,15 @@ function AlertAction({ label, onPress }: { label: string; onPress: () => void })
   );
 }
 
+function ResidentLoadingState() {
+  return (
+    <View style={styles.residentLoadingState}>
+      <ActivityIndicator color={colors.red} size="large" />
+      <Text style={styles.loadingStateText}>Checking verified alerts...</Text>
+    </View>
+  );
+}
+
 function ResidentRiskAlertCard({
   alert,
   onViewAlert,
@@ -96,7 +105,7 @@ function ResidentRiskAlertCard({
 
       <Text style={styles.areaText}>{alert.affectedArea}</Text>
       <Text style={styles.typeText}>Emergency Type: {alert.disasterType}</Text>
-      <Text style={styles.riskText}>Risk Level: {alert.riskLevel}</Text>
+      <Text style={styles.riskText}>Risk Level: {alert.riskLevel.toUpperCase()}</Text>
       <Text numberOfLines={3} style={styles.messageText}>
         {preview(alert.safetyInstructions || alert.message, 132)}
       </Text>
@@ -124,7 +133,7 @@ function ResidentWarningAlertCard({ alert, onViewAlert }: { alert: Alert; onView
 
       <Text style={styles.areaText}>{alert.affectedArea}</Text>
       <Text style={styles.typeText}>Emergency Type: {alert.disasterType}</Text>
-      <Text style={styles.riskText}>Risk Level: {alert.riskLevel}</Text>
+      <Text style={styles.riskText}>Risk Level: {alert.riskLevel.toUpperCase()}</Text>
       <Text numberOfLines={2} style={styles.messageText}>
         {preview(alert.message, 112)}
       </Text>
@@ -135,13 +144,28 @@ function ResidentWarningAlertCard({ alert, onViewAlert }: { alert: Alert; onView
   );
 }
 
-function AllClearState({ residentArea }: { residentArea: string }) {
+function AllClearState({
+  hasOtherAreaAlerts,
+  residentArea,
+}: {
+  hasOtherAreaAlerts: boolean;
+  residentArea: string | null;
+}) {
+  const areaName = residentArea?.trim();
+
   return (
     <View style={styles.allClearCard}>
       <Text style={styles.allClearLabel}>ALL CLEAR</Text>
-      <Text style={styles.allClearTitle}>No active alerts affecting {residentArea}</Text>
+      <Text style={styles.allClearTitle}>
+        {hasOtherAreaAlerts ? 'Your Area is Currently Clear' : 'All Clear'}
+      </Text>
+      {hasOtherAreaAlerts && areaName ? (
+        <Text style={styles.allClearArea}>Registered area: {areaName}</Text>
+      ) : null}
       <Text style={styles.allClearText}>
-        There are currently no verified emergency warnings for your area.
+        {hasOtherAreaAlerts
+          ? 'No active emergency alert is currently affecting your registered area.'
+          : 'There are currently no active emergency alerts.'}
       </Text>
     </View>
   );
@@ -180,7 +204,8 @@ function ResidentDashboard({
   const showInitialLoading = loadingAlerts && alerts.length === 0;
   const showError = Boolean(errorMessage) && alerts.length === 0 && !showInitialLoading;
   const showRiskIndicators = !showInitialLoading && !showError;
-  const residentAreaLabel = residentArea?.trim() || 'your area';
+  const residentAreaName = residentArea?.trim() || null;
+  const residentAreaLabel = residentAreaName || 'your area';
   const prioritizedAlerts = [...alerts].sort(compareAlertsBySeverity);
   const alertGroups = prioritizedAlerts.reduce(
     (groups, alert) => {
@@ -209,15 +234,16 @@ function ResidentDashboard({
       {errorMessage && alerts.length > 0 ? (
         <View style={styles.inlineError}>
           <Text style={styles.inlineErrorText}>{errorMessage}</Text>
+          <AlertAction label="Retry" onPress={onRetry} />
         </View>
       ) : null}
 
-      {showInitialLoading ? <LoadingState message="Checking verified alerts..." /> : null}
+      {showInitialLoading ? <ResidentLoadingState /> : null}
 
       {showError ? (
         <EmptyState
           body="Check your connection and try again."
-          title="Unable to load emergency alerts"
+          title="Unable to load emergency alerts."
           action={<PrimaryButton title="Retry" onPress={onRetry} />}
         />
       ) : null}
@@ -236,7 +262,7 @@ function ResidentDashboard({
       ) : null}
 
       {showRiskIndicators && residentAreaAlerts.length === 0 ? (
-        <AllClearState residentArea={residentAreaLabel} />
+        <AllClearState hasOtherAreaAlerts={otherAreaAlerts.length > 0} residentArea={residentAreaName} />
       ) : null}
 
       {showRiskIndicators && otherAreaAlerts.length > 0 ? (
@@ -439,9 +465,28 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: radius.md,
     borderWidth: 1,
-    gap: spacing.md,
+    gap: spacing.sm,
+    padding: spacing.md,
+    ...shadows.card,
+  },
+  residentLoadingState: {
+    alignItems: 'center',
+    backgroundColor: colors.white,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    gap: spacing.sm,
+    justifyContent: 'center',
+    minHeight: 132,
     padding: spacing.lg,
     ...shadows.card,
+  },
+  loadingStateText: {
+    color: colors.muted,
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 20,
+    textAlign: 'center',
   },
   highRiskCard: {
     backgroundColor: colors.redSoft,
@@ -487,12 +532,11 @@ const styles = StyleSheet.create({
     color: colors.white,
   },
   riskIndicatorText: {
-    flex: 1,
+    flexBasis: '100%',
     fontSize: 12,
     fontWeight: '900',
     lineHeight: 18,
-    minWidth: 150,
-    textAlign: 'right',
+    textAlign: 'left',
   },
   highRiskText: {
     color: colors.red,
@@ -506,7 +550,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     borderWidth: 1,
     gap: spacing.sm,
-    padding: spacing.lg,
+    padding: spacing.md,
     ...shadows.card,
   },
   allClearLabel: {
@@ -521,6 +565,12 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '900',
     lineHeight: 24,
+  },
+  allClearArea: {
+    color: colors.success,
+    fontSize: 13,
+    fontWeight: '900',
+    lineHeight: 18,
   },
   allClearText: {
     color: colors.text,
@@ -652,6 +702,7 @@ const styles = StyleSheet.create({
     borderColor: colors.red,
     borderRadius: radius.md,
     borderWidth: 1,
+    gap: spacing.sm,
     padding: spacing.md,
   },
   inlineErrorText: {
