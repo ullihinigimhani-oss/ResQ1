@@ -113,6 +113,12 @@ export async function getActiveAlerts(token: string) {
   return response.alerts ?? [];
 }
 
+export async function getAlertHistory(token: string) {
+  const response = await alertRequest<ApiAlertListResponse>('/api/alerts/history', token);
+
+  return response.alerts ?? [];
+}
+
 export async function getAlertById(id: string, token: string) {
   const response = await alertRequest<ApiAlertResponse>(`/api/alerts/${id}`, token);
 

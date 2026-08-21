@@ -265,6 +265,33 @@ export async function getActiveAlerts(residentLocation: string | null | undefine
   return (rows as AlertRow[]).map(toAlert);
 }
 
+export async function getAlertHistory() {
+  const rows = await sql`
+    SELECT
+      id,
+      title,
+      disaster_type,
+      affected_area,
+      risk_level,
+      message,
+      safety_instructions,
+      status,
+      expires_at,
+      created_by,
+      created_at,
+      updated_at,
+      FALSE AS is_relevant_to_resident
+    FROM alerts
+    WHERE COALESCE(status, ${ACTIVE_ALERT_STATUS}) <> ${ACTIVE_ALERT_STATUS}
+      OR (expires_at IS NOT NULL AND expires_at <= CURRENT_TIMESTAMP)
+    ORDER BY
+      updated_at DESC,
+      created_at DESC
+  `;
+
+  return (rows as AlertRow[]).map(toAlert);
+}
+
 export async function getAlertById(alertId: string) {
   const numericId = numericAlertId(alertId);
 

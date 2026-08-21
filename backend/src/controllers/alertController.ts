@@ -4,6 +4,7 @@ import {
   AlertServiceError,
   createAlert,
   getActiveAlerts,
+  getAlertHistory,
   getAlertById,
   updateAlert,
 } from '../services/alertService.js';
@@ -59,6 +60,20 @@ export async function listActiveAlerts(req: Request, res: Response) {
   try {
     const user = requireAuthenticatedUser(req);
     const alerts = await getActiveAlerts(user.location);
+
+    return res.status(200).json({
+      success: true,
+      alerts,
+    });
+  } catch (error) {
+    return sendAlertError(error, res);
+  }
+}
+
+export async function listAlertHistory(req: Request, res: Response) {
+  try {
+    requireAuthenticatedUser(req);
+    const alerts = await getAlertHistory();
 
     return res.status(200).json({
       success: true,
