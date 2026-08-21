@@ -95,3 +95,13 @@ The Receive Early Warning Alerts feature was implemented and verified as part of
 - Users can receive disaster and flood early-warning alerts through the application.
 - Alerts provide relevant warning information to help users identify potential risks.
 - The feature supports timely communication of emergency information to affected users.
+
+### Sprint 1 - Send Emergency Alerts Verification
+
+The Send Emergency Alerts feature was implemented and verified as part of Sprint 1.
+
+- Jira Work Item: SCRUM-35
+- Feature: Send Emergency Alerts
+- Authorized users can send emergency alerts through the application.
+- Emergency alerts contain relevant disaster information and safety instructions.
+- The feature supports rapid communication of emergency information to affected users.
