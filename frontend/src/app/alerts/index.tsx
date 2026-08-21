@@ -8,8 +8,8 @@ import { BottomNavigation, EmptyState, LoadingState, PrimaryButton } from '@/com
 import { colors, radius, shadows, spacing, typography } from '@/constants/design';
 import { useAuth } from '@/context/auth-context';
 import { getActiveAlerts } from '@/services/alertService';
-import type { Alert } from '@/types/alert';
-import { formatDateTime, isAuthorityRole, preview } from '@/utils/format';
+import type { Alert, AlertRiskLevel } from '@/types/alert';
+import { formatDateTime, isAuthorityRole, normalize, preview } from '@/utils/format';
 
 type DashboardStateProps = {
   alerts: Alert[];
@@ -18,6 +18,44 @@ type DashboardStateProps = {
   onRetry: () => void;
   onViewAlert: (alertId: number) => void;
 };
+
+type ResidentDashboardProps = DashboardStateProps & {
+  residentArea: string | null;
+};
+
+function normalizedArea(value: string | null | undefined) {
+  return normalize(value).replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function areaMatches(residentArea: string | null | undefined, alertArea: string | null | undefined) {
+  const resident = normalizedArea(residentArea);
+  const affected = normalizedArea(alertArea);
+
+  return Boolean(resident && affected && (resident === affected || affected.includes(resident) || resident.includes(affected)));
+}
+
+const severityRank: Record<AlertRiskLevel, number> = {
+  Critical: 4,
+  High: 3,
+  Moderate: 2,
+  Low: 1,
+};
+
+function issuedTimestamp(alert: Alert) {
+  const timestamp = new Date(alert.createdAt).getTime();
+
+  return Number.isNaN(timestamp) ? 0 : timestamp;
+}
+
+function compareAlertsBySeverity(left: Alert, right: Alert) {
+  const severityDelta = (severityRank[right.riskLevel] ?? 0) - (severityRank[left.riskLevel] ?? 0);
+
+  if (severityDelta !== 0) {
+    return severityDelta;
+  }
+
+  return issuedTimestamp(right) - issuedTimestamp(left);
+}
 
 function AlertAction({ label, onPress }: { label: string; onPress: () => void }) {
   return (
@@ -30,9 +68,25 @@ function AlertAction({ label, onPress }: { label: string; onPress: () => void })
   );
 }
 
-function ResidentAlertCard({ alert, onViewAlert }: { alert: Alert; onViewAlert: (alertId: number) => void }) {
+function ResidentRiskAlertCard({
+  alert,
+  onViewAlert,
+  residentArea,
+}: {
+  alert: Alert;
+  onViewAlert: (alertId: number) => void;
+  residentArea: string;
+}) {
   return (
-    <View style={styles.residentAlertCard}>
+    <View style={[styles.residentAlertCard, styles.highRiskCard]}>
+      <View style={styles.riskIndicatorRow}>
+        <View style={styles.indicatorLabelGroup}>
+          <Text style={[styles.riskIndicatorLabel, styles.yourAreaLabel]}>YOUR AREA</Text>
+          <Text style={[styles.riskIndicatorLabel, styles.highRiskLabel]}>HIGH RISK</Text>
+        </View>
+        <Text style={[styles.riskIndicatorText, styles.highRiskText]}>{residentArea} is affected</Text>
+      </View>
+
       <View style={styles.cardHeader}>
         <Text numberOfLines={2} style={styles.alertTitle}>
           {alert.title}
@@ -41,13 +95,54 @@ function ResidentAlertCard({ alert, onViewAlert }: { alert: Alert; onViewAlert: 
       </View>
 
       <Text style={styles.areaText}>{alert.affectedArea}</Text>
+      <Text style={styles.typeText}>Emergency Type: {alert.disasterType}</Text>
       <Text style={styles.riskText}>Risk Level: {alert.riskLevel}</Text>
       <Text numberOfLines={3} style={styles.messageText}>
-        {preview(alert.message, 120)}
+        {preview(alert.safetyInstructions || alert.message, 132)}
       </Text>
       <Text style={styles.issuedText}>Issued: {formatDateTime(alert.createdAt)}</Text>
 
       <AlertAction label="View Alert" onPress={() => onViewAlert(alert.id)} />
+    </View>
+  );
+}
+
+function ResidentWarningAlertCard({ alert, onViewAlert }: { alert: Alert; onViewAlert: (alertId: number) => void }) {
+  return (
+    <View style={[styles.residentAlertCard, styles.warningCard]}>
+      <View style={styles.riskIndicatorRow}>
+        <Text style={[styles.riskIndicatorLabel, styles.warningLabel]}>WARNING</Text>
+        <Text style={[styles.riskIndicatorText, styles.warningText]}>Other affected area</Text>
+      </View>
+
+      <View style={styles.cardHeader}>
+        <Text numberOfLines={2} style={styles.alertTitle}>
+          {alert.title}
+        </Text>
+        <Text style={styles.statusText}>{alert.status}</Text>
+      </View>
+
+      <Text style={styles.areaText}>{alert.affectedArea}</Text>
+      <Text style={styles.typeText}>Emergency Type: {alert.disasterType}</Text>
+      <Text style={styles.riskText}>Risk Level: {alert.riskLevel}</Text>
+      <Text numberOfLines={2} style={styles.messageText}>
+        {preview(alert.message, 112)}
+      </Text>
+      <Text style={styles.issuedText}>Issued: {formatDateTime(alert.createdAt)}</Text>
+
+      <AlertAction label="View Alert" onPress={() => onViewAlert(alert.id)} />
+    </View>
+  );
+}
+
+function AllClearState({ residentArea }: { residentArea: string }) {
+  return (
+    <View style={styles.allClearCard}>
+      <Text style={styles.allClearLabel}>ALL CLEAR</Text>
+      <Text style={styles.allClearTitle}>No active alerts affecting {residentArea}</Text>
+      <Text style={styles.allClearText}>
+        There are currently no verified emergency warnings for your area.
+      </Text>
     </View>
   );
 }
@@ -80,10 +175,29 @@ function ResidentDashboard({
   loadingAlerts,
   onRetry,
   onViewAlert,
-}: DashboardStateProps) {
+  residentArea,
+}: ResidentDashboardProps) {
   const showInitialLoading = loadingAlerts && alerts.length === 0;
   const showError = Boolean(errorMessage) && alerts.length === 0 && !showInitialLoading;
-  const showEmpty = !showInitialLoading && !showError && alerts.length === 0;
+  const showRiskIndicators = !showInitialLoading && !showError;
+  const residentAreaLabel = residentArea?.trim() || 'your area';
+  const prioritizedAlerts = [...alerts].sort(compareAlertsBySeverity);
+  const alertGroups = prioritizedAlerts.reduce(
+    (groups, alert) => {
+      if (areaMatches(residentArea, alert.affectedArea)) {
+        groups.residentAreaAlerts.push(alert);
+      } else {
+        groups.otherAreaAlerts.push(alert);
+      }
+
+      return groups;
+    },
+    {
+      otherAreaAlerts: [] as Alert[],
+      residentAreaAlerts: [] as Alert[],
+    },
+  );
+  const { otherAreaAlerts, residentAreaAlerts } = alertGroups;
 
   return (
     <>
@@ -108,17 +222,27 @@ function ResidentDashboard({
         />
       ) : null}
 
-      {showEmpty ? (
-        <EmptyState
-          body="There are currently no verified emergency warnings for your area."
-          title="No Active Alerts"
-        />
+      {showRiskIndicators && residentAreaAlerts.length > 0 ? (
+        <View style={styles.alertList}>
+          {residentAreaAlerts.map((alert) => (
+            <ResidentRiskAlertCard
+              alert={alert}
+              key={alert.id}
+              onViewAlert={onViewAlert}
+              residentArea={residentAreaLabel}
+            />
+          ))}
+        </View>
       ) : null}
 
-      {!showInitialLoading && !showError && alerts.length > 0 ? (
+      {showRiskIndicators && residentAreaAlerts.length === 0 ? (
+        <AllClearState residentArea={residentAreaLabel} />
+      ) : null}
+
+      {showRiskIndicators && otherAreaAlerts.length > 0 ? (
         <View style={styles.alertList}>
-          {alerts.map((alert) => (
-            <ResidentAlertCard alert={alert} key={alert.id} onViewAlert={onViewAlert} />
+          {otherAreaAlerts.map((alert) => (
+            <ResidentWarningAlertCard alert={alert} key={alert.id} onViewAlert={onViewAlert} />
           ))}
         </View>
       ) : null}
@@ -273,7 +397,7 @@ export default function AlertsScreen() {
         {isAuthorityRole(user.role) ? (
           <AuthorityDashboard {...dashboardProps} onCreateAlert={handleCreateAlert} />
         ) : (
-          <ResidentDashboard {...dashboardProps} />
+          <ResidentDashboard {...dashboardProps} residentArea={user.location} />
         )}
       </ScrollView>
       <BottomNavigation />
@@ -319,6 +443,91 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     ...shadows.card,
   },
+  highRiskCard: {
+    backgroundColor: colors.redSoft,
+    borderColor: colors.red,
+    borderWidth: 2,
+  },
+  warningCard: {
+    backgroundColor: colors.warningSoft,
+    borderColor: colors.amber,
+  },
+  riskIndicatorRow: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    justifyContent: 'space-between',
+  },
+  indicatorLabelGroup: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+  },
+  riskIndicatorLabel: {
+    borderRadius: radius.sm,
+    fontSize: 12,
+    fontWeight: '900',
+    lineHeight: 16,
+    overflow: 'hidden',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    textTransform: 'uppercase',
+  },
+  yourAreaLabel: {
+    backgroundColor: colors.navy,
+    color: colors.white,
+  },
+  highRiskLabel: {
+    backgroundColor: colors.red,
+    color: colors.white,
+  },
+  warningLabel: {
+    backgroundColor: colors.amber,
+    color: colors.white,
+  },
+  riskIndicatorText: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '900',
+    lineHeight: 18,
+    minWidth: 150,
+    textAlign: 'right',
+  },
+  highRiskText: {
+    color: colors.red,
+  },
+  warningText: {
+    color: '#7A4B00',
+  },
+  allClearCard: {
+    backgroundColor: colors.successSoft,
+    borderColor: colors.success,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    gap: spacing.sm,
+    padding: spacing.lg,
+    ...shadows.card,
+  },
+  allClearLabel: {
+    color: colors.success,
+    fontSize: 12,
+    fontWeight: '900',
+    lineHeight: 16,
+    textTransform: 'uppercase',
+  },
+  allClearTitle: {
+    color: colors.navy,
+    fontSize: 18,
+    fontWeight: '900',
+    lineHeight: 24,
+  },
+  allClearText: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 21,
+  },
   authorityAlertCard: {
     backgroundColor: colors.white,
     borderColor: colors.border,
@@ -360,6 +569,12 @@ const styles = StyleSheet.create({
     color: colors.deepBlue,
     fontSize: 13,
     fontWeight: '900',
+    lineHeight: 18,
+  },
+  typeText: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '800',
     lineHeight: 18,
   },
   riskText: {
