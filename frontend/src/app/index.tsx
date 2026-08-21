@@ -6,13 +6,10 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import resq1Logo from '@/assets/images/resq1-logo.jfif';
 import { BrandColors } from '@/constants/brand';
 import { useAuth } from '@/context/auth-context';
-import { hasCompletedOnboarding } from '@/services/onboardingService';
 
 export default function LaunchScreen() {
   const { isLoading, user } = useAuth();
   const [splashReady, setSplashReady] = useState(false);
-  const [onboardingChecked, setOnboardingChecked] = useState(false);
-  const [onboardingDone, setOnboardingDone] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => setSplashReady(true), 650);
@@ -20,27 +17,7 @@ export default function LaunchScreen() {
     return () => clearTimeout(timer);
   }, []);
 
-  useEffect(() => {
-    let mounted = true;
-
-    hasCompletedOnboarding()
-      .then((complete) => {
-        if (mounted) {
-          setOnboardingDone(complete);
-        }
-      })
-      .finally(() => {
-        if (mounted) {
-          setOnboardingChecked(true);
-        }
-      });
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  if (isLoading || !splashReady || !onboardingChecked) {
+  if (isLoading || !splashReady) {
     return (
       <View style={styles.splashContainer}>
         <View style={styles.logoShell}>
@@ -55,7 +32,7 @@ export default function LaunchScreen() {
     );
   }
 
-  return <Redirect href={(user ? '/dashboard' : onboardingDone ? '/auth/welcome' : '/onboarding') as Href} />;
+  return <Redirect href={(user ? '/dashboard' : '/auth/welcome') as Href} />;
 }
 
 const styles = StyleSheet.create({
