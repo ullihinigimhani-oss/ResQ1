@@ -65,3 +65,13 @@ The Resident Login feature was implemented and verified as part of Sprint 1.
 - Invalid credentials are rejected with an appropriate error message.
 - Successful login redirects the user to the authenticated application flow.
 - The authenticated session is maintained securely for protected screens.
+
+### Sprint 1 - Report Flood Incident Verification
+
+The Report Flood Incident feature was implemented and verified as part of Sprint 1.
+
+- Jira Work Item: SCRUM-28
+- Feature: Report Flood Incident
+- Users can submit flood incident information through the application.
+- Incident details are captured and submitted for further processing.
+- Submitted incident information supports disaster monitoring and response activities.git status
