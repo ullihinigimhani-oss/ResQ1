@@ -1,13 +1,13 @@
 import { StatusBar } from 'expo-status-bar';
 import { Redirect, useRouter, type Href } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppIcon, BottomNavigation, EmptyState, LoadingState, PrimaryButton } from '@/components/ui/app-components';
 import { colors, radius, shadows, spacing, typography } from '@/constants/design';
 import { useAuth } from '@/context/auth-context';
-import { getActiveAlerts } from '@/services/alertService';
+import { getActiveAlerts, isAlertApiError, updateAlert } from '@/services/alertService';
 import type { Alert, AlertRiskLevel } from '@/types/alert';
 import { formatDateTime, isAuthorityRole, normalize, preview } from '@/utils/format';
 
@@ -294,9 +294,13 @@ function AuthorityAlertSummary({ alerts }: { alerts: Alert[] }) {
 }
 
 function AuthorityActionRow({
+  cancelling,
+  onCancelAlert,
   onEditAlert,
   onViewAlert,
 }: {
+  cancelling: boolean;
+  onCancelAlert: () => void;
   onEditAlert: () => void;
   onViewAlert: () => void;
 }) {
@@ -314,16 +318,31 @@ function AuthorityActionRow({
         style={({ pressed }) => [styles.authorityEditButton, pressed && styles.pressed]}>
         <Text style={styles.authorityEditButtonText}>Edit Alert</Text>
       </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        disabled={cancelling}
+        onPress={onCancelAlert}
+        style={({ pressed }) => [
+          styles.authorityCancelButton,
+          cancelling && styles.disabledAction,
+          pressed && !cancelling && styles.pressed,
+        ]}>
+        <Text style={styles.authorityCancelButtonText}>{cancelling ? 'Cancelling...' : 'Cancel Alert'}</Text>
+      </Pressable>
     </View>
   );
 }
 
 function AuthorityAlertCard({
   alert,
+  cancelling,
+  onCancelAlert,
   onEditAlert,
   onViewAlert,
 }: {
   alert: Alert;
+  cancelling: boolean;
+  onCancelAlert: (alert: Alert) => void;
   onEditAlert: (alertId: number) => void;
   onViewAlert: (alertId: number) => void;
 }) {
@@ -357,6 +376,8 @@ function AuthorityAlertCard({
       </View>
 
       <AuthorityActionRow
+        cancelling={cancelling}
+        onCancelAlert={() => onCancelAlert(alert)}
         onEditAlert={() => onEditAlert(alert.id)}
         onViewAlert={() => onViewAlert(alert.id)}
       />
@@ -449,13 +470,22 @@ function ResidentDashboard({
 
 function AuthorityDashboard({
   alerts,
+  cancellingAlertId,
   errorMessage,
   loadingAlerts,
+  noticeMessage,
+  onCancelAlert,
   onCreateAlert,
   onEditAlert,
   onRetry,
   onViewAlert,
-}: DashboardStateProps & { onCreateAlert: () => void; onEditAlert: (alertId: number) => void }) {
+}: DashboardStateProps & {
+  cancellingAlertId: number | null;
+  noticeMessage: string | null;
+  onCancelAlert: (alert: Alert) => void;
+  onCreateAlert: () => void;
+  onEditAlert: (alertId: number) => void;
+}) {
   const showInitialLoading = loadingAlerts && alerts.length === 0;
   const showError = Boolean(errorMessage) && alerts.length === 0 && !showInitialLoading;
   const showEmpty = !showInitialLoading && !showError && alerts.length === 0;
@@ -469,6 +499,12 @@ function AuthorityDashboard({
       {errorMessage && alerts.length > 0 ? (
         <View style={styles.inlineError}>
           <Text style={styles.inlineErrorText}>{errorMessage}</Text>
+        </View>
+      ) : null}
+
+      {noticeMessage ? (
+        <View style={styles.inlineSuccess}>
+          <Text style={styles.inlineSuccessText}>{noticeMessage}</Text>
         </View>
       ) : null}
 
@@ -507,7 +543,9 @@ function AuthorityDashboard({
           {sortedAlerts.map((alert) => (
             <AuthorityAlertCard
               alert={alert}
+              cancelling={cancellingAlertId === alert.id}
               key={alert.id}
+              onCancelAlert={onCancelAlert}
               onEditAlert={onEditAlert}
               onViewAlert={onViewAlert}
             />
@@ -518,13 +556,85 @@ function AuthorityDashboard({
   );
 }
 
+function CancelAlertDialog({
+  alert,
+  cancelling,
+  onCancel,
+  onConfirm,
+}: {
+  alert: Alert | null;
+  cancelling: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <Modal
+      animationType="fade"
+      onRequestClose={onCancel}
+      transparent
+      visible={Boolean(alert)}>
+      <View style={styles.modalBackdrop}>
+        <View style={styles.cancelDialog}>
+          <Text style={styles.cancelDialogEyebrow}>Authority Action</Text>
+          <Text style={styles.cancelDialogTitle}>Cancel Emergency Alert</Text>
+          <Text style={styles.cancelDialogText}>
+            This alert will no longer be shown as active to residents, active alert counts, or current area risk
+            checks.
+          </Text>
+
+          {alert ? (
+            <View style={styles.cancelDialogContext}>
+              <Text style={styles.cancelDialogContextLabel}>Selected Alert</Text>
+              <Text style={styles.cancelDialogAlertTitle}>{alert.title}</Text>
+              <Text style={styles.cancelDialogMeta}>Alert #{alert.id}</Text>
+              <Text style={styles.cancelDialogMeta}>Affected Area: {alert.affectedArea}</Text>
+              <Text style={styles.cancelDialogMeta}>Risk Level: {alert.riskLevel}</Text>
+              <Text style={styles.cancelDialogMeta}>Issued: {formatDateTime(alert.createdAt)}</Text>
+            </View>
+          ) : null}
+
+          <View style={styles.cancelDialogActions}>
+            <Pressable
+              accessibilityRole="button"
+              disabled={cancelling}
+              onPress={onCancel}
+              style={({ pressed }) => [
+                styles.keepAlertButton,
+                cancelling && styles.disabledAction,
+                pressed && !cancelling && styles.pressed,
+              ]}>
+              <Text style={styles.keepAlertButtonText}>Keep Alert</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              disabled={cancelling}
+              onPress={onConfirm}
+              style={({ pressed }) => [
+                styles.confirmCancelButton,
+                cancelling && styles.disabledAction,
+                pressed && !cancelling && styles.pressed,
+              ]}>
+              <Text style={styles.confirmCancelButtonText}>
+                {cancelling ? 'Cancelling...' : 'Cancel Alert'}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 export default function AlertsScreen() {
   const router = useRouter();
   const { isLoading, token, user } = useAuth();
   const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [cancelTarget, setCancelTarget] = useState<Alert | null>(null);
+  const [cancellingAlertId, setCancellingAlertId] = useState<number | null>(null);
   const [loadingAlerts, setLoadingAlerts] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
 
   const loadAlerts = useCallback(async (refresh = false) => {
     if (!token) {
@@ -538,6 +648,7 @@ export default function AlertsScreen() {
     }
 
     setErrorMessage(null);
+    setNoticeMessage(null);
 
     try {
       setAlerts(await getActiveAlerts(token));
@@ -573,6 +684,61 @@ export default function AlertsScreen() {
     } as unknown as Href);
   }, [router]);
 
+  const handleCancelAlertRequest = useCallback((alert: Alert) => {
+    if (alert.status !== 'Active') {
+      return;
+    }
+
+    setErrorMessage(null);
+    setNoticeMessage(null);
+    setCancelTarget(alert);
+  }, []);
+
+  const handleKeepAlert = useCallback(() => {
+    if (cancellingAlertId === null) {
+      setCancelTarget(null);
+    }
+  }, [cancellingAlertId]);
+
+  const handleConfirmCancelAlert = useCallback(async () => {
+    if (!token || !cancelTarget || cancellingAlertId !== null) {
+      return;
+    }
+
+    setCancellingAlertId(cancelTarget.id);
+    setErrorMessage(null);
+    setNoticeMessage(null);
+
+    try {
+      const cancelledAlert = await updateAlert(String(cancelTarget.id), {
+        title: cancelTarget.title,
+        disasterType: cancelTarget.disasterType,
+        affectedArea: cancelTarget.affectedArea,
+        riskLevel: cancelTarget.riskLevel,
+        status: 'Resolved',
+        message: cancelTarget.message,
+        safetyInstructions: cancelTarget.safetyInstructions,
+        expiresAt: cancelTarget.expiresAt,
+      }, token);
+
+      setAlerts((currentAlerts) => currentAlerts.filter((alert) => alert.id !== cancelledAlert.id));
+      setCancelTarget(null);
+      setNoticeMessage('Emergency alert cancelled successfully.');
+    } catch (error) {
+      if (__DEV__ && !isAlertApiError(error)) {
+        console.warn('Unexpected alert cancellation error:', error);
+      }
+
+      setErrorMessage(
+        isAlertApiError(error) && error.statusCode === 403
+          ? 'You are not authorized to cancel emergency alerts.'
+          : 'Unable to cancel this emergency alert. Check your connection and try again.',
+      );
+    } finally {
+      setCancellingAlertId(null);
+    }
+  }, [cancelTarget, cancellingAlertId, token]);
+
   if (!isLoading && !user) {
     return <Redirect href={'/auth/welcome' as Href} />;
   }
@@ -605,6 +771,9 @@ export default function AlertsScreen() {
         {isAuthorityRole(user.role) ? (
           <AuthorityDashboard
             {...dashboardProps}
+            cancellingAlertId={cancellingAlertId}
+            noticeMessage={noticeMessage}
+            onCancelAlert={handleCancelAlertRequest}
             onCreateAlert={handleCreateAlert}
             onEditAlert={handleEditAlert}
           />
@@ -613,6 +782,12 @@ export default function AlertsScreen() {
         )}
       </ScrollView>
       <BottomNavigation />
+      <CancelAlertDialog
+        alert={cancelTarget}
+        cancelling={cancellingAlertId !== null}
+        onCancel={handleKeepAlert}
+        onConfirm={handleConfirmCancelAlert}
+      />
     </SafeAreaView>
   );
 }
@@ -981,6 +1156,25 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     textAlign: 'center',
   },
+  authorityCancelButton: {
+    alignItems: 'center',
+    backgroundColor: colors.redSoft,
+    borderColor: colors.red,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    flexGrow: 1,
+    justifyContent: 'center',
+    minHeight: 42,
+    minWidth: '100%',
+    paddingHorizontal: spacing.md,
+  },
+  authorityCancelButtonText: {
+    color: colors.red,
+    fontSize: 13,
+    fontWeight: '900',
+    lineHeight: 18,
+    textAlign: 'center',
+  },
   cardHeader: {
     alignItems: 'flex-start',
     flexDirection: 'row',
@@ -1107,6 +1301,131 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
     lineHeight: 20,
+  },
+  inlineSuccess: {
+    backgroundColor: colors.successSoft,
+    borderColor: colors.success,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    padding: spacing.md,
+  },
+  inlineSuccessText: {
+    color: colors.success,
+    fontSize: 14,
+    fontWeight: '800',
+    lineHeight: 20,
+  },
+  modalBackdrop: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(7, 26, 53, 0.58)',
+    flex: 1,
+    justifyContent: 'center',
+    padding: spacing.xl,
+  },
+  cancelDialog: {
+    backgroundColor: colors.white,
+    borderColor: colors.red,
+    borderRadius: radius.md,
+    borderTopColor: colors.red,
+    borderTopWidth: 5,
+    borderWidth: 1,
+    gap: spacing.md,
+    maxWidth: 420,
+    padding: spacing.lg,
+    width: '100%',
+    ...shadows.card,
+  },
+  cancelDialogEyebrow: {
+    color: colors.red,
+    fontSize: 12,
+    fontWeight: '900',
+    lineHeight: 16,
+    textTransform: 'uppercase',
+  },
+  cancelDialogTitle: {
+    color: colors.navy,
+    fontSize: 22,
+    fontWeight: '900',
+    lineHeight: 28,
+  },
+  cancelDialogText: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 21,
+  },
+  cancelDialogContext: {
+    backgroundColor: colors.redSoft,
+    borderColor: colors.red,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    gap: spacing.xs,
+    padding: spacing.md,
+  },
+  cancelDialogContextLabel: {
+    color: colors.red,
+    fontSize: 11,
+    fontWeight: '900',
+    lineHeight: 15,
+    textTransform: 'uppercase',
+  },
+  cancelDialogAlertTitle: {
+    color: colors.navy,
+    fontSize: 17,
+    fontWeight: '900',
+    lineHeight: 22,
+  },
+  cancelDialogMeta: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '800',
+    lineHeight: 18,
+  },
+  cancelDialogActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  keepAlertButton: {
+    alignItems: 'center',
+    backgroundColor: colors.white,
+    borderColor: colors.navy,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    flexGrow: 1,
+    justifyContent: 'center',
+    minHeight: 46,
+    minWidth: '42%',
+    paddingHorizontal: spacing.md,
+  },
+  keepAlertButtonText: {
+    color: colors.navy,
+    fontSize: 14,
+    fontWeight: '900',
+    lineHeight: 19,
+    textAlign: 'center',
+  },
+  confirmCancelButton: {
+    alignItems: 'center',
+    backgroundColor: colors.red,
+    borderColor: colors.red,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    flexGrow: 1,
+    justifyContent: 'center',
+    minHeight: 46,
+    minWidth: '42%',
+    paddingHorizontal: spacing.md,
+  },
+  confirmCancelButtonText: {
+    color: colors.white,
+    fontSize: 14,
+    fontWeight: '900',
+    lineHeight: 19,
+    textAlign: 'center',
+  },
+  disabledAction: {
+    opacity: 0.58,
   },
   pressed: {
     opacity: 0.72,
