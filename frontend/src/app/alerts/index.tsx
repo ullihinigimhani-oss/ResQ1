@@ -244,7 +244,7 @@ function AuthorityEmergencyActionCard({ onPress }: { onPress: () => void }) {
       style={({ pressed }) => [styles.authorityEmergencyActionCard, pressed && styles.pressed]}>
       <View style={styles.authorityActionContent}>
         <View style={styles.authorityActionIcon}>
-          <AppIcon fallback="!" name="exclamationmark.triangle.fill" size={22} tintColor={colors.red} />
+          <AppIcon fallback="!" name="exclamationmark.triangle.fill" size={22} tintColor={colors.orange} />
         </View>
         <View style={styles.authorityActionTextBlock}>
           <Text style={styles.authorityActionTitle}>SEND EMERGENCY ALERT</Text>
@@ -964,9 +964,9 @@ const styles = StyleSheet.create({
     lineHeight: 15,
   },
   authorityEmergencyActionCard: {
-    backgroundColor: colors.redSoft,
-    borderColor: colors.red,
-    borderLeftColor: colors.red,
+    backgroundColor: colors.amberSoft,
+    borderColor: colors.amber,
+    borderLeftColor: colors.orange,
     borderLeftWidth: 5,
     borderRadius: radius.md,
     borderWidth: 1,
@@ -982,7 +982,7 @@ const styles = StyleSheet.create({
   authorityActionIcon: {
     alignItems: 'center',
     backgroundColor: colors.white,
-    borderColor: colors.red,
+    borderColor: colors.amber,
     borderRadius: radius.md,
     borderWidth: 1,
     height: 42,
@@ -994,7 +994,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   authorityActionTitle: {
-    color: colors.red,
+    color: colors.orange,
     fontSize: 18,
     fontWeight: '900',
     lineHeight: 23,
@@ -1008,7 +1008,7 @@ const styles = StyleSheet.create({
   authorityCreateButton: {
     alignItems: 'center',
     alignSelf: 'flex-start',
-    backgroundColor: colors.red,
+    backgroundColor: colors.orange,
     borderRadius: radius.md,
     justifyContent: 'center',
     minHeight: 42,
