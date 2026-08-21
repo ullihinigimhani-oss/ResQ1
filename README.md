@@ -115,3 +115,13 @@ The Find Nearby Safe Shelter feature was implemented and verified as part of Spr
 - Residents can view available safe shelters through the application.
 - Shelter information helps users identify suitable emergency shelter locations.
 - Users can view relevant shelter details to support evacuation decisions during an emergency.
+
+### Sprint 1 - View Safe Evacuation Routes Verification
+
+The View Safe Evacuation Routes feature was implemented and verified as part of Sprint 1.
+
+- Jira Work Item: SCRUM-41
+- Feature: View Safe Evacuation Routes
+- Residents can view evacuation route information for selected safe shelters.
+- Route information helps users identify an appropriate path toward a safe shelter.
+- The feature provides relevant route and safety information to support evacuation during an emergency.
