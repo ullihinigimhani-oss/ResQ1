@@ -105,3 +105,13 @@ The Send Emergency Alerts feature was implemented and verified as part of Sprint
 - Authorized users can send emergency alerts through the application.
 - Emergency alerts contain relevant disaster information and safety instructions.
 - The feature supports rapid communication of emergency information to affected users.
+
+### Sprint 1 - Find Nearby Safe Shelter Verification
+
+The Find Nearby Safe Shelter feature was implemented and verified as part of Sprint 1.
+
+- Jira Work Item: SCRUM-40
+- Feature: Find Nearby Safe Shelter
+- Residents can view available safe shelters through the application.
+- Shelter information helps users identify suitable emergency shelter locations.
+- Users can view relevant shelter details to support evacuation decisions during an emergency.
