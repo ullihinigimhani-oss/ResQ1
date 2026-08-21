@@ -54,3 +54,14 @@ Join our community of developers creating universal apps.
 
 - [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
 - [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+
+### Sprint 1 - Resident Login Verification
+
+The Resident Login feature was implemented and verified as part of Sprint 1.
+
+- Jira Work Item: SCRUM-23
+- Feature: Resident Login
+- Users can log in using registered credentials.
+- Invalid credentials are rejected with an appropriate error message.
+- Successful login redirects the user to the authenticated application flow.
+- The authenticated session is maintained securely for protected screens.
