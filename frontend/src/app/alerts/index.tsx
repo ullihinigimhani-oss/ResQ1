@@ -1,78 +1,195 @@
-import { Redirect, useRouter, type Href } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { Redirect, useRouter, type Href } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { AlertStatusBadge, RiskBadge } from '@/components/alerts/alert-badges';
-import {
-  BottomNavigation,
-  DemoNotice,
-  EmptyState,
-  FilterChip,
-  IconButton,
-  LoadingState,
-  PrimaryButton,
-  QuickActionCard,
-  SectionCard,
-  StatusBadge,
-} from '@/components/ui/app-components';
-import { colors, radius, spacing, typography } from '@/constants/design';
+import { BottomNavigation, EmptyState, LoadingState, PrimaryButton } from '@/components/ui/app-components';
+import { colors, radius, shadows, spacing, typography } from '@/constants/design';
 import { useAuth } from '@/context/auth-context';
 import { getActiveAlerts } from '@/services/alertService';
-import type { Alert, AlertRiskLevel } from '@/types/alert';
-import { formatDateTime, isAuthorityRole, plural, userArea } from '@/utils/format';
+import type { Alert } from '@/types/alert';
+import { formatDateTime, isAuthorityRole, preview } from '@/utils/format';
 
-const riskRank: Record<AlertRiskLevel | string, number> = {
-  Critical: 4,
-  High: 3,
-  Moderate: 2,
-  Low: 1,
+type DashboardStateProps = {
+  alerts: Alert[];
+  errorMessage: string | null;
+  loadingAlerts: boolean;
+  onRetry: () => void;
+  onViewAlert: (alertId: number) => void;
 };
 
-function topAlert(alerts: Alert[]) {
-  return [...alerts].sort((left, right) => {
-    const riskDelta = (riskRank[right.riskLevel] ?? 0) - (riskRank[left.riskLevel] ?? 0);
-
-    if (riskDelta !== 0) {
-      return riskDelta;
-    }
-
-    return new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime();
-  })[0] ?? null;
-}
-
-function riskTone(riskLevel: AlertRiskLevel | string | null) {
-  if (riskLevel === 'Critical' || riskLevel === 'High') {
-    return 'red' as const;
-  }
-
-  if (riskLevel === 'Moderate') {
-    return 'amber' as const;
-  }
-
-  return 'green' as const;
-}
-
-function AlertCard({ alert, onPress }: { alert: Alert; onPress: () => void }) {
+function AlertAction({ label, onPress }: { label: string; onPress: () => void }) {
   return (
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
-      style={({ pressed }) => [styles.alertCard, pressed && styles.pressed]}>
-      <View style={styles.alertCardHeader}>
-        <View style={styles.alertCardTitleBlock}>
-          <Text style={styles.alertCardTitle}>{alert.title}</Text>
-          <Text style={styles.alertCardMeta}>{alert.affectedArea} | {formatDateTime(alert.createdAt)}</Text>
-        </View>
-        <RiskBadge riskLevel={alert.riskLevel} />
-      </View>
-      <Text style={styles.alertMessage}>{alert.message}</Text>
-      <View style={styles.badgeRow}>
-        <AlertStatusBadge status={alert.status} />
-        {alert.isRelevantToResident ? <StatusBadge label="Near You" tone="blue" /> : null}
-      </View>
+      style={({ pressed }) => [styles.alertAction, pressed && styles.pressed]}>
+      <Text style={styles.alertActionText}>{label}</Text>
     </Pressable>
+  );
+}
+
+function ResidentAlertCard({ alert, onViewAlert }: { alert: Alert; onViewAlert: (alertId: number) => void }) {
+  return (
+    <View style={styles.residentAlertCard}>
+      <View style={styles.cardHeader}>
+        <Text numberOfLines={2} style={styles.alertTitle}>
+          {alert.title}
+        </Text>
+        <Text style={styles.statusText}>{alert.status}</Text>
+      </View>
+
+      <Text style={styles.areaText}>{alert.affectedArea}</Text>
+      <Text style={styles.riskText}>Risk Level: {alert.riskLevel}</Text>
+      <Text numberOfLines={3} style={styles.messageText}>
+        {preview(alert.message, 120)}
+      </Text>
+      <Text style={styles.issuedText}>Issued: {formatDateTime(alert.createdAt)}</Text>
+
+      <AlertAction label="View Alert" onPress={() => onViewAlert(alert.id)} />
+    </View>
+  );
+}
+
+function AuthorityAlertCard({ alert, onViewAlert }: { alert: Alert; onViewAlert: (alertId: number) => void }) {
+  return (
+    <View style={styles.authorityAlertCard}>
+      <View style={styles.cardHeader}>
+        <Text numberOfLines={1} style={styles.authorityAlertTitle}>
+          {alert.title}
+        </Text>
+        <Text style={styles.statusText}>{alert.status}</Text>
+      </View>
+
+      <Text style={styles.areaText}>{alert.affectedArea}</Text>
+
+      <View style={styles.authorityMetaRow}>
+        <Text style={styles.compactMetaText}>Risk Level: {alert.riskLevel}</Text>
+        <Text style={styles.compactMetaText}>Issued: {formatDateTime(alert.createdAt)}</Text>
+      </View>
+
+      <AlertAction label="View / Manage Alert" onPress={() => onViewAlert(alert.id)} />
+    </View>
+  );
+}
+
+function ResidentDashboard({
+  alerts,
+  errorMessage,
+  loadingAlerts,
+  onRetry,
+  onViewAlert,
+}: DashboardStateProps) {
+  const showInitialLoading = loadingAlerts && alerts.length === 0;
+  const showError = Boolean(errorMessage) && alerts.length === 0 && !showInitialLoading;
+  const showEmpty = !showInitialLoading && !showError && alerts.length === 0;
+
+  return (
+    <>
+      <View style={styles.header}>
+        <Text style={styles.title}>Emergency Alerts</Text>
+        <Text style={styles.subtitle}>Verified emergency warnings for your area</Text>
+      </View>
+
+      {errorMessage && alerts.length > 0 ? (
+        <View style={styles.inlineError}>
+          <Text style={styles.inlineErrorText}>{errorMessage}</Text>
+        </View>
+      ) : null}
+
+      {showInitialLoading ? <LoadingState message="Checking verified alerts..." /> : null}
+
+      {showError ? (
+        <EmptyState
+          body="Check your connection and try again."
+          title="Unable to load emergency alerts"
+          action={<PrimaryButton title="Retry" onPress={onRetry} />}
+        />
+      ) : null}
+
+      {showEmpty ? (
+        <EmptyState
+          body="There are currently no verified emergency warnings for your area."
+          title="No Active Alerts"
+        />
+      ) : null}
+
+      {!showInitialLoading && !showError && alerts.length > 0 ? (
+        <View style={styles.alertList}>
+          {alerts.map((alert) => (
+            <ResidentAlertCard alert={alert} key={alert.id} onViewAlert={onViewAlert} />
+          ))}
+        </View>
+      ) : null}
+    </>
+  );
+}
+
+function AuthorityDashboard({
+  alerts,
+  errorMessage,
+  loadingAlerts,
+  onCreateAlert,
+  onRetry,
+  onViewAlert,
+}: DashboardStateProps & { onCreateAlert: () => void }) {
+  const showInitialLoading = loadingAlerts && alerts.length === 0;
+  const showError = Boolean(errorMessage) && alerts.length === 0 && !showInitialLoading;
+  const showEmpty = !showInitialLoading && !showError && alerts.length === 0;
+
+  return (
+    <>
+      <View style={styles.header}>
+        <Text style={styles.title}>Authority Alert Center</Text>
+        <Text style={styles.subtitle}>Publish and manage official emergency warnings</Text>
+      </View>
+
+      <Pressable
+        accessibilityRole="button"
+        onPress={onCreateAlert}
+        style={({ pressed }) => [styles.primaryAuthorityAction, pressed && styles.pressed]}>
+        <Text style={styles.primaryAuthorityTitle}>SEND EMERGENCY ALERT</Text>
+        <Text style={styles.primaryAuthorityBody}>
+          Create and publish an official warning for affected communities.
+        </Text>
+      </Pressable>
+
+      {errorMessage && alerts.length > 0 ? (
+        <View style={styles.inlineError}>
+          <Text style={styles.inlineErrorText}>{errorMessage}</Text>
+        </View>
+      ) : null}
+
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Active Alerts</Text>
+      </View>
+
+      {showInitialLoading ? <LoadingState message="Checking verified alerts..." /> : null}
+
+      {showError ? (
+        <EmptyState
+          body="Check your connection and try again."
+          title="Unable to load emergency alerts"
+          action={<PrimaryButton title="Retry" onPress={onRetry} />}
+        />
+      ) : null}
+
+      {showEmpty ? (
+        <EmptyState
+          body="There are currently no verified emergency warnings."
+          title="No Active Alerts"
+        />
+      ) : null}
+
+      {!showInitialLoading && !showError && alerts.length > 0 ? (
+        <View style={styles.compactAlertList}>
+          {alerts.map((alert) => (
+            <AuthorityAlertCard alert={alert} key={alert.id} onViewAlert={onViewAlert} />
+          ))}
+        </View>
+      ) : null}
+    </>
   );
 }
 
@@ -83,7 +200,6 @@ export default function AlertsScreen() {
   const [loadingAlerts, setLoadingAlerts] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [filter, setFilter] = useState<'All' | 'Near Me' | 'Critical'>('All');
 
   const loadAlerts = useCallback(async (refresh = false) => {
     if (!token) {
@@ -101,7 +217,7 @@ export default function AlertsScreen() {
     try {
       setAlerts(await getActiveAlerts(token));
     } catch {
-      setErrorMessage('Unable to load active emergency alerts.');
+      setErrorMessage('Unable to load emergency alerts.');
     } finally {
       setLoadingAlerts(false);
       setRefreshing(false);
@@ -114,24 +230,22 @@ export default function AlertsScreen() {
     }
   }, [loadAlerts, token]);
 
-  const activeAlert = useMemo(() => topAlert(alerts), [alerts]);
-  const filteredAlerts = useMemo(() => {
-    if (filter === 'Near Me') {
-      return alerts.filter((alert) => alert.isRelevantToResident);
-    }
+  const handleCreateAlert = useCallback(() => {
+    router.push('/alerts/create' as Href);
+  }, [router]);
 
-    if (filter === 'Critical') {
-      return alerts.filter((alert) => alert.riskLevel === 'Critical');
-    }
-
-    return alerts;
-  }, [alerts, filter]);
+  const handleViewAlert = useCallback((alertId: number) => {
+    router.push({
+      pathname: '/alerts/[id]',
+      params: { id: String(alertId) },
+    } as unknown as Href);
+  }, [router]);
 
   if (!isLoading && !user) {
     return <Redirect href={'/auth/welcome' as Href} />;
   }
 
-  if (isLoading || !user) {
+  if (isLoading || !user || !user.role) {
     return (
       <SafeAreaView style={styles.safeArea}>
         <LoadingState message="Loading alert center..." />
@@ -139,8 +253,13 @@ export default function AlertsScreen() {
     );
   }
 
-  const canPublish = isAuthorityRole(user.role);
-  const area = userArea(user);
+  const dashboardProps: DashboardStateProps = {
+    alerts,
+    errorMessage,
+    loadingAlerts,
+    onRetry: () => void loadAlerts(),
+    onViewAlert: handleViewAlert,
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -151,131 +270,11 @@ export default function AlertsScreen() {
           <RefreshControl refreshing={refreshing} tintColor={colors.red} onRefresh={() => void loadAlerts(true)} />
         }
         showsVerticalScrollIndicator={false}>
-        <View style={styles.topBar}>
-          <IconButton
-            accessibilityLabel="Back to dashboard"
-            fallback="<"
-            name="chevron.left"
-            onPress={() => router.replace('/dashboard' as Href)}
-          />
-          {canPublish ? (
-            <PrimaryButton title="Send Alert" onPress={() => router.push('/alerts/create' as Href)} />
-          ) : null}
-        </View>
-
-        <View style={styles.header}>
-          <Text style={styles.eyebrow}>Early Warning</Text>
-          <Text style={styles.title}>Emergency Alerts</Text>
-          <Text style={styles.subtitle}>Location: {area}</Text>
-        </View>
-
-        <SectionCard tone={activeAlert ? (riskTone(activeAlert.riskLevel) === 'red' ? 'danger' : 'white') : 'blue'}>
-          <View style={styles.riskHeader}>
-            <View style={styles.riskTextBlock}>
-              <Text style={styles.heroEyebrow}>Current Risk Level</Text>
-              <Text style={styles.heroTitle}>{activeAlert ? activeAlert.riskLevel : 'Low'}</Text>
-              <Text style={styles.heroText}>
-                {activeAlert
-                  ? `${activeAlert.title} is active for ${activeAlert.affectedArea}.`
-                  : 'No active emergency alerts are verified for your area.'}
-              </Text>
-            </View>
-            {loadingAlerts ? <ActivityIndicator color={colors.red} /> : null}
-          </View>
-          <View style={styles.badgeRow}>
-            <StatusBadge
-              label={`${alerts.length} active ${plural(alerts.length, 'alert', 'alerts')}`}
-              tone={activeAlert ? riskTone(activeAlert.riskLevel) : 'green'}
-            />
-            <StatusBadge label="Verified feed" tone="blue" />
-          </View>
-        </SectionCard>
-
-        <SectionCard title="Active Alert Card">
-          {activeAlert ? (
-            <AlertCard
-              alert={activeAlert}
-              onPress={() => router.push({
-                pathname: '/alerts/[id]',
-                params: { id: String(activeAlert.id) },
-              } as unknown as Href)}
-            />
-          ) : (
-            <Text style={styles.mutedText}>No active emergency alert.</Text>
-          )}
-        </SectionCard>
-
-        <SectionCard title="Current Conditions" subtitle="Only verified app data is shown.">
-          <DemoNotice text="Rainfall, water-level, and weather sensors are not exposed by the Sprint 1 backend. ResQ1 is showing verified alert records instead of sample sensor values." />
-        </SectionCard>
-
-        <View style={styles.quickGrid}>
-          <QuickActionCard
-            body="Understand the current risk"
-            fallback="R"
-            name="gauge.with.dots.needle.67percent"
-            title="Flood Risk Level"
-            tone="amber"
-            onPress={() => router.push('/alerts/risk-level' as Href)}
-          />
-          <QuickActionCard
-            body="Review available records"
-            fallback="H"
-            name="clock.arrow.circlepath"
-            title="Alert History"
-            tone="blue"
-            onPress={() => router.push('/alerts/history' as Href)}
-          />
-          <QuickActionCard
-            body="Configure local alert UI"
-            fallback="P"
-            name="slider.horizontal.3"
-            title="Preferences"
-            tone="green"
-            onPress={() => router.push('/alerts/preferences' as Href)}
-          />
-          <QuickActionCard
-            body="Send verified local info"
-            fallback="I"
-            name="exclamationmark.triangle.fill"
-            title="Report Incident"
-            tone="red"
-            onPress={() => router.push('/incidents/report' as Href)}
-          />
-        </View>
-
-        <SectionCard title="Recent Alerts">
-          <View style={styles.filterRow}>
-            {(['All', 'Near Me', 'Critical'] as const).map((item) => (
-              <FilterChip key={item} selected={filter === item} title={item} onPress={() => setFilter(item)} />
-            ))}
-          </View>
-
-          {loadingAlerts && alerts.length === 0 ? <LoadingState message="Checking verified alerts..." /> : null}
-
-          {errorMessage && alerts.length === 0 ? (
-            <EmptyState
-              body="Check your connection and try again."
-              title="Unable to load emergency alerts"
-              action={<PrimaryButton title="Retry" onPress={() => void loadAlerts()} />}
-            />
-          ) : null}
-
-          {!loadingAlerts && !errorMessage && filteredAlerts.length === 0 ? (
-            <Text style={styles.mutedText}>No alert records match this view.</Text>
-          ) : null}
-
-          {filteredAlerts.map((alert) => (
-            <AlertCard
-              alert={alert}
-              key={alert.id}
-              onPress={() => router.push({
-                pathname: '/alerts/[id]',
-                params: { id: String(alert.id) },
-              } as unknown as Href)}
-            />
-          ))}
-        </SectionCard>
+        {isAuthorityRole(user.role) ? (
+          <AuthorityDashboard {...dashboardProps} onCreateAlert={handleCreateAlert} />
+        ) : (
+          <ResidentDashboard {...dashboardProps} />
+        )}
       </ScrollView>
       <BottomNavigation />
     </SafeAreaView>
@@ -294,18 +293,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.lg,
   },
-  topBar: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
   header: {
     gap: spacing.xs,
-  },
-  eyebrow: {
-    color: colors.red,
-    ...typography.label,
-    textTransform: 'uppercase',
   },
   title: {
     color: colors.navy,
@@ -315,85 +304,146 @@ const styles = StyleSheet.create({
     color: colors.muted,
     ...typography.body,
   },
-  riskHeader: {
-    alignItems: 'flex-start',
-    flexDirection: 'row',
-    gap: spacing.sm,
-    justifyContent: 'space-between',
+  alertList: {
+    gap: spacing.md,
   },
-  riskTextBlock: {
-    flex: 1,
-    gap: spacing.xs,
-  },
-  heroEyebrow: {
-    color: colors.red,
-    ...typography.label,
-    textTransform: 'uppercase',
-  },
-  heroTitle: {
-    color: colors.navy,
-    fontSize: 26,
-    fontWeight: '900',
-    lineHeight: 32,
-  },
-  heroText: {
-    color: colors.text,
-    ...typography.body,
-  },
-  badgeRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  compactAlertList: {
     gap: spacing.sm,
   },
-  quickGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
+  residentAlertCard: {
+    backgroundColor: colors.white,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    gap: spacing.md,
+    padding: spacing.lg,
+    ...shadows.card,
   },
-  filterRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  alertCard: {
-    backgroundColor: colors.background,
+  authorityAlertCard: {
+    backgroundColor: colors.white,
     borderColor: colors.border,
     borderRadius: radius.md,
     borderWidth: 1,
     gap: spacing.sm,
     padding: spacing.md,
+    ...shadows.card,
   },
-  alertCardHeader: {
+  cardHeader: {
     alignItems: 'flex-start',
     flexDirection: 'row',
-    gap: spacing.sm,
+    gap: spacing.md,
     justifyContent: 'space-between',
   },
-  alertCardTitleBlock: {
-    flex: 1,
-    gap: 3,
-  },
-  alertCardTitle: {
+  alertTitle: {
     color: colors.navy,
+    flex: 1,
+    fontSize: 18,
+    fontWeight: '900',
+    lineHeight: 24,
+  },
+  authorityAlertTitle: {
+    color: colors.navy,
+    flex: 1,
     fontSize: 16,
     fontWeight: '900',
     lineHeight: 21,
   },
-  alertCardMeta: {
-    color: colors.muted,
+  statusText: {
+    color: colors.deepBlue,
     fontSize: 12,
-    fontWeight: '700',
-    lineHeight: 17,
+    fontWeight: '900',
+    lineHeight: 16,
+    textAlign: 'right',
+    textTransform: 'uppercase',
   },
-  alertMessage: {
+  areaText: {
+    color: colors.deepBlue,
+    fontSize: 13,
+    fontWeight: '900',
+    lineHeight: 18,
+  },
+  riskText: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '800',
+    lineHeight: 18,
+  },
+  messageText: {
     color: colors.text,
     fontSize: 14,
-    fontWeight: '600',
-    lineHeight: 20,
+    fontWeight: '700',
+    lineHeight: 21,
   },
-  mutedText: {
+  issuedText: {
     color: colors.muted,
-    ...typography.body,
+    fontSize: 12,
+    fontWeight: '800',
+    lineHeight: 17,
+  },
+  alertAction: {
+    alignItems: 'center',
+    backgroundColor: colors.navy,
+    borderRadius: radius.md,
+    justifyContent: 'center',
+    minHeight: 44,
+    paddingHorizontal: spacing.md,
+  },
+  alertActionText: {
+    color: colors.white,
+    fontSize: 12,
+    fontWeight: '900',
+    lineHeight: 16,
+  },
+  primaryAuthorityAction: {
+    backgroundColor: colors.navy,
+    borderColor: colors.deepBlue,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    gap: spacing.sm,
+    minHeight: 132,
+    padding: spacing.xl,
+    ...shadows.card,
+  },
+  primaryAuthorityTitle: {
+    color: colors.white,
+    fontSize: 20,
+    fontWeight: '900',
+    lineHeight: 26,
+  },
+  primaryAuthorityBody: {
+    color: colors.sky,
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 21,
+  },
+  sectionHeader: {
+    marginTop: spacing.xs,
+  },
+  sectionTitle: {
+    color: colors.navy,
+    ...typography.sectionTitle,
+  },
+  authorityMetaRow: {
+    gap: spacing.xs,
+  },
+  compactMetaText: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: '800',
+    lineHeight: 17,
+  },
+  inlineError: {
+    backgroundColor: colors.redSoft,
+    borderColor: colors.red,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    padding: spacing.md,
+  },
+  inlineErrorText: {
+    color: colors.red,
+    fontSize: 14,
+    fontWeight: '800',
+    lineHeight: 20,
   },
   pressed: {
     opacity: 0.72,
