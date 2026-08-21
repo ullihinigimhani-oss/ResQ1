@@ -83,6 +83,7 @@ export default function AlertDetailsScreen() {
   const [loadingAlert, setLoadingAlert] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [acknowledged, setAcknowledged] = useState(false);
 
   const loadAlert = useCallback(async (refresh = false) => {
     if (!token || !alertId) {
@@ -235,17 +236,33 @@ export default function AlertDetailsScreen() {
             <View style={styles.panel}>
               <Text style={styles.sectionTitle}>Emergency Actions</Text>
               <Text style={styles.sectionCopy}>
-                Use existing ResQ1 incident tools if you see flooding or need to track submitted reports.
+                Use verified ResQ1 routes, shelters, and incident tools for this alert.
               </Text>
+              {acknowledged ? (
+                <StatusBanner
+                  message="Alert acknowledged on this device only. Backend acknowledgement persistence is not connected in the current frontend service layer."
+                  type="success"
+                />
+              ) : null}
               <View style={styles.actionButtons}>
                 <AuthButton
-                  title="Report Flood Incident"
+                  title="View Safe Evacuation Route"
+                  variant="secondary"
+                  onPress={() => router.push('/shelters' as Href)}
+                />
+                <AuthButton
+                  title="Find Nearest Safe Shelter"
+                  variant="secondary"
+                  onPress={() => router.push('/shelters' as Href)}
+                />
+                <AuthButton
+                  title="Report Incident"
                   onPress={() => router.push('/incidents/report' as Href)}
                 />
                 <AuthButton
-                  title="View Incident Reports"
+                  title={acknowledged ? 'Acknowledged' : 'Acknowledge Alert'}
                   variant="secondary"
-                  onPress={() => router.push('/incidents' as Href)}
+                  onPress={() => setAcknowledged(true)}
                 />
               </View>
             </View>
@@ -291,11 +308,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: 14,
     padding: 16,
-    shadowColor: BrandColors.navy,
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.07,
-    shadowRadius: 12,
-    elevation: 2,
   },
   criticalWarningPanel: {
     borderColor: BrandColors.red,
