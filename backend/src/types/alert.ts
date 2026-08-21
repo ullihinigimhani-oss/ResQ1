@@ -48,6 +48,10 @@ export interface CreateAlertInput {
   expiresAt?: unknown;
 }
 
+export interface UpdateAlertInput extends CreateAlertInput {
+  status?: unknown;
+}
+
 export interface ValidatedCreateAlertInput {
   title: string;
   disasterType: AlertDisasterType;
@@ -56,4 +60,8 @@ export interface ValidatedCreateAlertInput {
   message: string;
   safetyInstructions: string;
   expiresAt: string | null;
+}
+
+export interface ValidatedUpdateAlertInput extends ValidatedCreateAlertInput {
+  status: AlertStatus;
 }

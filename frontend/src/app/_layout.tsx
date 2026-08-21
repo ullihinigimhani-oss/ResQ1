@@ -34,6 +34,7 @@ export default function RootLayout() {
         <Stack.Screen name="household/index" />
         <Stack.Screen name="alerts/index" />
         <Stack.Screen name="alerts/[id]" />
+        <Stack.Screen name="alerts/[id]/edit" />
         <Stack.Screen name="alerts/create" />
         <Stack.Screen name="alerts/risk-level" />
         <Stack.Screen name="alerts/history" />

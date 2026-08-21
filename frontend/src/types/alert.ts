@@ -32,4 +32,8 @@ export interface CreateAlertPayload {
   expiresAt: string | null;
 }
 
-export type AlertFieldErrors = Partial<Record<keyof CreateAlertPayload, string>>;
+export interface UpdateAlertPayload extends CreateAlertPayload {
+  status: AlertStatus;
+}
+
+export type AlertFieldErrors = Partial<Record<keyof UpdateAlertPayload, string>>;
