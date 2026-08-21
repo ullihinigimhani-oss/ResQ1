@@ -1,10 +1,10 @@
 import { StatusBar } from 'expo-status-bar';
 import { Redirect, useRouter, type Href } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { BottomNavigation, EmptyState, LoadingState, PrimaryButton } from '@/components/ui/app-components';
+import { AppIcon, BottomNavigation, EmptyState, LoadingState, PrimaryButton } from '@/components/ui/app-components';
 import { colors, radius, shadows, spacing, typography } from '@/constants/design';
 import { useAuth } from '@/context/auth-context';
 import { getActiveAlerts } from '@/services/alertService';
@@ -57,6 +57,38 @@ function compareAlertsBySeverity(left: Alert, right: Alert) {
   return issuedTimestamp(right) - issuedTimestamp(left);
 }
 
+const authoritySeverityTheme: Record<AlertRiskLevel, {
+  accent: string;
+  badgeBackground: string;
+  badgeBorder: string;
+  badgeText: string;
+}> = {
+  Critical: {
+    accent: colors.red,
+    badgeBackground: colors.redSoft,
+    badgeBorder: colors.red,
+    badgeText: colors.red,
+  },
+  High: {
+    accent: colors.orange,
+    badgeBackground: colors.orangeSoft,
+    badgeBorder: colors.orange,
+    badgeText: '#9A3412',
+  },
+  Moderate: {
+    accent: colors.amber,
+    badgeBackground: colors.amberSoft,
+    badgeBorder: colors.amber,
+    badgeText: '#7A4B00',
+  },
+  Low: {
+    accent: colors.success,
+    badgeBackground: colors.successSoft,
+    badgeBorder: colors.success,
+    badgeText: colors.success,
+  },
+};
+
 function AlertAction({ label, onPress }: { label: string; onPress: () => void }) {
   return (
     <Pressable
@@ -65,6 +97,34 @@ function AlertAction({ label, onPress }: { label: string; onPress: () => void })
       style={({ pressed }) => [styles.alertAction, pressed && styles.pressed]}>
       <Text style={styles.alertActionText}>{label}</Text>
     </Pressable>
+  );
+}
+
+function SeverityBadge({ riskLevel }: { riskLevel: AlertRiskLevel }) {
+  const severity = authoritySeverityTheme[riskLevel];
+
+  return (
+    <View
+      style={[
+        styles.authoritySeverityBadge,
+        {
+          backgroundColor: severity.badgeBackground,
+          borderColor: severity.badgeBorder,
+        },
+      ]}>
+      <Text style={[styles.authoritySeverityBadgeText, { color: severity.badgeText }]}>
+        {riskLevel.toUpperCase()}
+      </Text>
+    </View>
+  );
+}
+
+function ResidentLoadingState() {
+  return (
+    <View style={styles.residentLoadingState}>
+      <ActivityIndicator color={colors.red} size="large" />
+      <Text style={styles.loadingStateText}>Checking verified alerts...</Text>
+    </View>
   );
 }
 
@@ -96,7 +156,7 @@ function ResidentRiskAlertCard({
 
       <Text style={styles.areaText}>{alert.affectedArea}</Text>
       <Text style={styles.typeText}>Emergency Type: {alert.disasterType}</Text>
-      <Text style={styles.riskText}>Risk Level: {alert.riskLevel}</Text>
+      <Text style={styles.riskText}>Risk Level: {alert.riskLevel.toUpperCase()}</Text>
       <Text numberOfLines={3} style={styles.messageText}>
         {preview(alert.safetyInstructions || alert.message, 132)}
       </Text>
@@ -124,7 +184,7 @@ function ResidentWarningAlertCard({ alert, onViewAlert }: { alert: Alert; onView
 
       <Text style={styles.areaText}>{alert.affectedArea}</Text>
       <Text style={styles.typeText}>Emergency Type: {alert.disasterType}</Text>
-      <Text style={styles.riskText}>Risk Level: {alert.riskLevel}</Text>
+      <Text style={styles.riskText}>Risk Level: {alert.riskLevel.toUpperCase()}</Text>
       <Text numberOfLines={2} style={styles.messageText}>
         {preview(alert.message, 112)}
       </Text>
@@ -135,36 +195,146 @@ function ResidentWarningAlertCard({ alert, onViewAlert }: { alert: Alert; onView
   );
 }
 
-function AllClearState({ residentArea }: { residentArea: string }) {
+function AllClearState({
+  hasOtherAreaAlerts,
+  residentArea,
+}: {
+  hasOtherAreaAlerts: boolean;
+  residentArea: string | null;
+}) {
+  const areaName = residentArea?.trim();
+
   return (
     <View style={styles.allClearCard}>
       <Text style={styles.allClearLabel}>ALL CLEAR</Text>
-      <Text style={styles.allClearTitle}>No active alerts affecting {residentArea}</Text>
+      <Text style={styles.allClearTitle}>
+        {hasOtherAreaAlerts ? 'Your Area is Currently Clear' : 'All Clear'}
+      </Text>
+      {hasOtherAreaAlerts && areaName ? (
+        <Text style={styles.allClearArea}>Registered area: {areaName}</Text>
+      ) : null}
       <Text style={styles.allClearText}>
-        There are currently no verified emergency warnings for your area.
+        {hasOtherAreaAlerts
+          ? 'No active emergency alert is currently affecting your registered area.'
+          : 'There are currently no active emergency alerts.'}
       </Text>
     </View>
   );
 }
 
-function AuthorityAlertCard({ alert, onViewAlert }: { alert: Alert; onViewAlert: (alertId: number) => void }) {
+function AuthorityHeader() {
   return (
-    <View style={styles.authorityAlertCard}>
-      <View style={styles.cardHeader}>
-        <Text numberOfLines={1} style={styles.authorityAlertTitle}>
-          {alert.title}
+    <View style={styles.authorityHeader}>
+      <View style={styles.authorityHeaderTop}>
+        <Text style={styles.title}>Authority Alert Center</Text>
+        <View style={styles.authorityModeBadge}>
+          <Text style={styles.authorityModeBadgeText}>AUTHORITY MODE</Text>
+        </View>
+      </View>
+      <Text style={styles.subtitle}>Monitor and manage official emergency warnings</Text>
+    </View>
+  );
+}
+
+function AuthorityEmergencyActionCard({ onPress }: { onPress: () => void }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [styles.authorityEmergencyActionCard, pressed && styles.pressed]}>
+      <View style={styles.authorityActionContent}>
+        <View style={styles.authorityActionIcon}>
+          <AppIcon fallback="!" name="exclamationmark.triangle.fill" size={22} tintColor={colors.red} />
+        </View>
+        <View style={styles.authorityActionTextBlock}>
+          <Text style={styles.authorityActionTitle}>SEND EMERGENCY ALERT</Text>
+          <Text style={styles.authorityActionBody}>
+            Create and publish an official warning for affected communities.
+          </Text>
+        </View>
+      </View>
+      <View style={styles.authorityCreateButton}>
+        <Text style={styles.authorityCreateButtonText}>+ Create Alert</Text>
+      </View>
+    </Pressable>
+  );
+}
+
+function AuthorityAlertSummary({ alerts }: { alerts: Alert[] }) {
+  const severityCounts = alerts.reduce(
+    (counts, alert) => ({
+      ...counts,
+      [alert.riskLevel]: counts[alert.riskLevel] + 1,
+    }),
+    {
+      Critical: 0,
+      High: 0,
+      Low: 0,
+      Moderate: 0,
+    } satisfies Record<AlertRiskLevel, number>,
+  );
+  const summaryItems = [
+    { label: 'Active Alerts', value: alerts.length, accent: colors.navy },
+    { label: 'Critical', value: severityCounts.Critical, accent: authoritySeverityTheme.Critical.accent },
+    { label: 'High', value: severityCounts.High, accent: authoritySeverityTheme.High.accent },
+    { label: 'Moderate', value: severityCounts.Moderate, accent: authoritySeverityTheme.Moderate.accent },
+    { label: 'Low', value: severityCounts.Low, accent: authoritySeverityTheme.Low.accent },
+  ];
+
+  return (
+    <View style={styles.authoritySummaryGrid}>
+      {summaryItems.map((item) => (
+        <View key={item.label} style={[styles.authoritySummaryChip, { borderTopColor: item.accent }]}>
+          <Text style={styles.authoritySummaryValue}>{item.value}</Text>
+          <Text style={styles.authoritySummaryLabel}>{item.label}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function AuthorityActionRow({ onPress }: { onPress: () => void }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [styles.authorityManageButton, pressed && styles.pressed]}>
+      <Text style={styles.authorityManageButtonText}>View / Manage Alert -&gt;</Text>
+    </Pressable>
+  );
+}
+
+function AuthorityAlertCard({ alert, onViewAlert }: { alert: Alert; onViewAlert: (alertId: number) => void }) {
+  const severity = authoritySeverityTheme[alert.riskLevel];
+
+  return (
+    <View style={[styles.authorityAlertCard, { borderLeftColor: severity.accent }]}>
+      <View style={styles.authorityAlertTopRow}>
+        <View style={styles.authorityAlertTitleRow}>
+          <View
+            style={[
+              styles.authorityAlertIcon,
+              { backgroundColor: severity.badgeBackground, borderColor: severity.badgeBorder },
+            ]}>
+            <AppIcon fallback="!" name="exclamationmark.triangle.fill" size={16} tintColor={severity.accent} />
+          </View>
+          <Text numberOfLines={2} style={styles.authorityAlertTitle}>
+            {alert.title}
+          </Text>
+        </View>
+        <Text style={styles.authorityStatusBadge}>
+          {alert.status.toUpperCase()}
         </Text>
-        <Text style={styles.statusText}>{alert.status}</Text>
       </View>
 
       <Text style={styles.areaText}>{alert.affectedArea}</Text>
 
-      <View style={styles.authorityMetaRow}>
-        <Text style={styles.compactMetaText}>Risk Level: {alert.riskLevel}</Text>
+      <View style={styles.authorityCardMetaRow}>
+        <SeverityBadge riskLevel={alert.riskLevel} />
         <Text style={styles.compactMetaText}>Issued: {formatDateTime(alert.createdAt)}</Text>
       </View>
 
-      <AlertAction label="View / Manage Alert" onPress={() => onViewAlert(alert.id)} />
+      <AuthorityActionRow onPress={() => onViewAlert(alert.id)} />
     </View>
   );
 }
@@ -180,7 +350,8 @@ function ResidentDashboard({
   const showInitialLoading = loadingAlerts && alerts.length === 0;
   const showError = Boolean(errorMessage) && alerts.length === 0 && !showInitialLoading;
   const showRiskIndicators = !showInitialLoading && !showError;
-  const residentAreaLabel = residentArea?.trim() || 'your area';
+  const residentAreaName = residentArea?.trim() || null;
+  const residentAreaLabel = residentAreaName || 'your area';
   const prioritizedAlerts = [...alerts].sort(compareAlertsBySeverity);
   const alertGroups = prioritizedAlerts.reduce(
     (groups, alert) => {
@@ -209,15 +380,16 @@ function ResidentDashboard({
       {errorMessage && alerts.length > 0 ? (
         <View style={styles.inlineError}>
           <Text style={styles.inlineErrorText}>{errorMessage}</Text>
+          <AlertAction label="Retry" onPress={onRetry} />
         </View>
       ) : null}
 
-      {showInitialLoading ? <LoadingState message="Checking verified alerts..." /> : null}
+      {showInitialLoading ? <ResidentLoadingState /> : null}
 
       {showError ? (
         <EmptyState
           body="Check your connection and try again."
-          title="Unable to load emergency alerts"
+          title="Unable to load emergency alerts."
           action={<PrimaryButton title="Retry" onPress={onRetry} />}
         />
       ) : null}
@@ -236,7 +408,7 @@ function ResidentDashboard({
       ) : null}
 
       {showRiskIndicators && residentAreaAlerts.length === 0 ? (
-        <AllClearState residentArea={residentAreaLabel} />
+        <AllClearState hasOtherAreaAlerts={otherAreaAlerts.length > 0} residentArea={residentAreaName} />
       ) : null}
 
       {showRiskIndicators && otherAreaAlerts.length > 0 ? (
@@ -261,23 +433,12 @@ function AuthorityDashboard({
   const showInitialLoading = loadingAlerts && alerts.length === 0;
   const showError = Boolean(errorMessage) && alerts.length === 0 && !showInitialLoading;
   const showEmpty = !showInitialLoading && !showError && alerts.length === 0;
+  const sortedAlerts = [...alerts].sort(compareAlertsBySeverity);
 
   return (
     <>
-      <View style={styles.header}>
-        <Text style={styles.title}>Authority Alert Center</Text>
-        <Text style={styles.subtitle}>Publish and manage official emergency warnings</Text>
-      </View>
-
-      <Pressable
-        accessibilityRole="button"
-        onPress={onCreateAlert}
-        style={({ pressed }) => [styles.primaryAuthorityAction, pressed && styles.pressed]}>
-        <Text style={styles.primaryAuthorityTitle}>SEND EMERGENCY ALERT</Text>
-        <Text style={styles.primaryAuthorityBody}>
-          Create and publish an official warning for affected communities.
-        </Text>
-      </Pressable>
+      <AuthorityHeader />
+      <AuthorityEmergencyActionCard onPress={onCreateAlert} />
 
       {errorMessage && alerts.length > 0 ? (
         <View style={styles.inlineError}>
@@ -285,8 +446,16 @@ function AuthorityDashboard({
         </View>
       ) : null}
 
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Active Alerts</Text>
+      <AuthorityAlertSummary alerts={alerts} />
+
+      <View style={styles.authoritySectionHeader}>
+        <View style={styles.authoritySectionTitleBlock}>
+          <Text style={styles.sectionTitle}>Active Alerts</Text>
+          <Text style={styles.authoritySectionSubtitle}>Official warnings currently published</Text>
+        </View>
+        <View style={styles.activeCountBadge}>
+          <Text style={styles.activeCountBadgeText}>{alerts.length} ACTIVE</Text>
+        </View>
       </View>
 
       {showInitialLoading ? <LoadingState message="Checking verified alerts..." /> : null}
@@ -301,14 +470,15 @@ function AuthorityDashboard({
 
       {showEmpty ? (
         <EmptyState
-          body="There are currently no verified emergency warnings."
+          body="There are currently no published emergency warnings."
           title="No Active Alerts"
+          action={<PrimaryButton title="Create Alert" tone="red" onPress={onCreateAlert} />}
         />
       ) : null}
 
       {!showInitialLoading && !showError && alerts.length > 0 ? (
         <View style={styles.compactAlertList}>
-          {alerts.map((alert) => (
+          {sortedAlerts.map((alert) => (
             <AuthorityAlertCard alert={alert} key={alert.id} onViewAlert={onViewAlert} />
           ))}
         </View>
@@ -439,9 +609,28 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: radius.md,
     borderWidth: 1,
-    gap: spacing.md,
+    gap: spacing.sm,
+    padding: spacing.md,
+    ...shadows.card,
+  },
+  residentLoadingState: {
+    alignItems: 'center',
+    backgroundColor: colors.white,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    gap: spacing.sm,
+    justifyContent: 'center',
+    minHeight: 132,
     padding: spacing.lg,
     ...shadows.card,
+  },
+  loadingStateText: {
+    color: colors.muted,
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 20,
+    textAlign: 'center',
   },
   highRiskCard: {
     backgroundColor: colors.redSoft,
@@ -487,12 +676,11 @@ const styles = StyleSheet.create({
     color: colors.white,
   },
   riskIndicatorText: {
-    flex: 1,
+    flexBasis: '100%',
     fontSize: 12,
     fontWeight: '900',
     lineHeight: 18,
-    minWidth: 150,
-    textAlign: 'right',
+    textAlign: 'left',
   },
   highRiskText: {
     color: colors.red,
@@ -506,7 +694,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     borderWidth: 1,
     gap: spacing.sm,
-    padding: spacing.lg,
+    padding: spacing.md,
     ...shadows.card,
   },
   allClearLabel: {
@@ -522,20 +710,209 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     lineHeight: 24,
   },
+  allClearArea: {
+    color: colors.success,
+    fontSize: 13,
+    fontWeight: '900',
+    lineHeight: 18,
+  },
   allClearText: {
     color: colors.text,
     fontSize: 14,
     fontWeight: '700',
     lineHeight: 21,
   },
+  authorityHeader: {
+    gap: spacing.xs,
+  },
+  authorityHeaderTop: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    justifyContent: 'space-between',
+  },
+  authorityModeBadge: {
+    backgroundColor: colors.navy,
+    borderColor: colors.deepBlue,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  authorityModeBadgeText: {
+    color: colors.white,
+    fontSize: 11,
+    fontWeight: '900',
+    lineHeight: 15,
+  },
+  authorityEmergencyActionCard: {
+    backgroundColor: colors.redSoft,
+    borderColor: colors.red,
+    borderLeftColor: colors.red,
+    borderLeftWidth: 5,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    gap: spacing.md,
+    padding: spacing.md,
+    ...shadows.card,
+  },
+  authorityActionContent: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  authorityActionIcon: {
+    alignItems: 'center',
+    backgroundColor: colors.white,
+    borderColor: colors.red,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    height: 42,
+    justifyContent: 'center',
+    width: 42,
+  },
+  authorityActionTextBlock: {
+    flex: 1,
+    gap: spacing.xs,
+  },
+  authorityActionTitle: {
+    color: colors.red,
+    fontSize: 18,
+    fontWeight: '900',
+    lineHeight: 23,
+  },
+  authorityActionBody: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 19,
+  },
+  authorityCreateButton: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: colors.red,
+    borderRadius: radius.md,
+    justifyContent: 'center',
+    minHeight: 42,
+    minWidth: 148,
+    paddingHorizontal: spacing.lg,
+  },
+  authorityCreateButtonText: {
+    color: colors.white,
+    fontSize: 14,
+    fontWeight: '900',
+    lineHeight: 19,
+    textAlign: 'center',
+  },
+  authoritySummaryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  authoritySummaryChip: {
+    backgroundColor: colors.white,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    borderTopWidth: 3,
+    borderWidth: 1,
+    flexGrow: 1,
+    minWidth: '30%',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    ...shadows.card,
+  },
+  authoritySummaryValue: {
+    color: colors.navy,
+    fontSize: 18,
+    fontWeight: '900',
+    lineHeight: 23,
+  },
+  authoritySummaryLabel: {
+    color: colors.muted,
+    fontSize: 11,
+    fontWeight: '900',
+    lineHeight: 15,
+    textTransform: 'uppercase',
+  },
   authorityAlertCard: {
     backgroundColor: colors.white,
     borderColor: colors.border,
     borderRadius: radius.md,
+    borderLeftWidth: 5,
     borderWidth: 1,
     gap: spacing.sm,
     padding: spacing.md,
     ...shadows.card,
+  },
+  authorityAlertTopRow: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: spacing.sm,
+    justifyContent: 'space-between',
+  },
+  authorityAlertTitleRow: {
+    alignItems: 'flex-start',
+    flex: 1,
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  authorityAlertIcon: {
+    alignItems: 'center',
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    height: 30,
+    justifyContent: 'center',
+    width: 30,
+  },
+  authorityStatusBadge: {
+    backgroundColor: colors.successSoft,
+    borderColor: colors.success,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    color: colors.success,
+    fontSize: 11,
+    fontWeight: '900',
+    lineHeight: 15,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    textAlign: 'center',
+  },
+  authorityCardMetaRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  authoritySeverityBadge: {
+    alignSelf: 'flex-start',
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  authoritySeverityBadgeText: {
+    fontSize: 11,
+    fontWeight: '900',
+    lineHeight: 15,
+  },
+  authorityManageButton: {
+    alignItems: 'center',
+    alignSelf: 'stretch',
+    backgroundColor: colors.lightBlue,
+    borderColor: colors.sky,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    justifyContent: 'center',
+    minHeight: 42,
+    paddingHorizontal: spacing.md,
+  },
+  authorityManageButtonText: {
+    color: colors.deepBlue,
+    fontSize: 13,
+    fontWeight: '900',
+    lineHeight: 18,
+    textAlign: 'center',
   },
   cardHeader: {
     alignItems: 'flex-start',
@@ -609,28 +986,6 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     lineHeight: 16,
   },
-  primaryAuthorityAction: {
-    backgroundColor: colors.navy,
-    borderColor: colors.deepBlue,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    gap: spacing.sm,
-    minHeight: 132,
-    padding: spacing.xl,
-    ...shadows.card,
-  },
-  primaryAuthorityTitle: {
-    color: colors.white,
-    fontSize: 20,
-    fontWeight: '900',
-    lineHeight: 26,
-  },
-  primaryAuthorityBody: {
-    color: colors.sky,
-    fontSize: 14,
-    fontWeight: '700',
-    lineHeight: 21,
-  },
   sectionHeader: {
     marginTop: spacing.xs,
   },
@@ -638,8 +993,33 @@ const styles = StyleSheet.create({
     color: colors.navy,
     ...typography.sectionTitle,
   },
-  authorityMetaRow: {
+  authoritySectionHeader: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: spacing.md,
+    justifyContent: 'space-between',
+  },
+  authoritySectionTitleBlock: {
+    flex: 1,
     gap: spacing.xs,
+  },
+  authoritySectionSubtitle: {
+    color: colors.muted,
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 18,
+  },
+  activeCountBadge: {
+    backgroundColor: colors.navy,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  activeCountBadgeText: {
+    color: colors.white,
+    fontSize: 11,
+    fontWeight: '900',
+    lineHeight: 15,
   },
   compactMetaText: {
     color: colors.text,
@@ -652,6 +1032,7 @@ const styles = StyleSheet.create({
     borderColor: colors.red,
     borderRadius: radius.md,
     borderWidth: 1,
+    gap: spacing.sm,
     padding: spacing.md,
   },
   inlineErrorText: {
