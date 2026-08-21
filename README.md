@@ -75,3 +75,13 @@ The Report Flood Incident feature was implemented and verified as part of Sprint
 - Users can submit flood incident information through the application.
 - Incident details are captured and submitted for further processing.
 - Submitted incident information supports disaster monitoring and response activities.git status
+
+### Sprint 1 - Incident Status Tracking Verification
+
+The Incident Status Tracking feature was implemented and verified as part of Sprint 1.
+
+- Jira Work Item: SCRUM-30
+- Feature: Track Incident Status
+- Users can view the current status of submitted flood incident reports.
+- Incident progress can be tracked through the response process.
+- Status information helps users monitor the progress of their submitted reports.
