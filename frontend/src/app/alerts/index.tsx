@@ -8,7 +8,7 @@ import { BottomNavigation, EmptyState, LoadingState, PrimaryButton } from '@/com
 import { colors, radius, shadows, spacing, typography } from '@/constants/design';
 import { useAuth } from '@/context/auth-context';
 import { getActiveAlerts } from '@/services/alertService';
-import type { Alert } from '@/types/alert';
+import type { Alert, AlertRiskLevel } from '@/types/alert';
 import { formatDateTime, isAuthorityRole, normalize, preview } from '@/utils/format';
 
 type DashboardStateProps = {
@@ -34,6 +34,29 @@ function areaMatches(residentArea: string | null | undefined, alertArea: string 
   return Boolean(resident && affected && (resident === affected || affected.includes(resident) || resident.includes(affected)));
 }
 
+const severityRank: Record<AlertRiskLevel, number> = {
+  Critical: 4,
+  High: 3,
+  Moderate: 2,
+  Low: 1,
+};
+
+function issuedTimestamp(alert: Alert) {
+  const timestamp = new Date(alert.createdAt).getTime();
+
+  return Number.isNaN(timestamp) ? 0 : timestamp;
+}
+
+function compareAlertsBySeverity(left: Alert, right: Alert) {
+  const severityDelta = (severityRank[right.riskLevel] ?? 0) - (severityRank[left.riskLevel] ?? 0);
+
+  if (severityDelta !== 0) {
+    return severityDelta;
+  }
+
+  return issuedTimestamp(right) - issuedTimestamp(left);
+}
+
 function AlertAction({ label, onPress }: { label: string; onPress: () => void }) {
   return (
     <Pressable
@@ -57,7 +80,10 @@ function ResidentRiskAlertCard({
   return (
     <View style={[styles.residentAlertCard, styles.highRiskCard]}>
       <View style={styles.riskIndicatorRow}>
-        <Text style={[styles.riskIndicatorLabel, styles.highRiskLabel]}>HIGH RISK</Text>
+        <View style={styles.indicatorLabelGroup}>
+          <Text style={[styles.riskIndicatorLabel, styles.yourAreaLabel]}>YOUR AREA</Text>
+          <Text style={[styles.riskIndicatorLabel, styles.highRiskLabel]}>HIGH RISK</Text>
+        </View>
         <Text style={[styles.riskIndicatorText, styles.highRiskText]}>{residentArea} is affected</Text>
       </View>
 
@@ -155,8 +181,23 @@ function ResidentDashboard({
   const showError = Boolean(errorMessage) && alerts.length === 0 && !showInitialLoading;
   const showRiskIndicators = !showInitialLoading && !showError;
   const residentAreaLabel = residentArea?.trim() || 'your area';
-  const residentAreaAlerts = alerts.filter((alert) => areaMatches(residentArea, alert.affectedArea));
-  const otherAreaAlerts = alerts.filter((alert) => !areaMatches(residentArea, alert.affectedArea));
+  const prioritizedAlerts = [...alerts].sort(compareAlertsBySeverity);
+  const alertGroups = prioritizedAlerts.reduce(
+    (groups, alert) => {
+      if (areaMatches(residentArea, alert.affectedArea)) {
+        groups.residentAreaAlerts.push(alert);
+      } else {
+        groups.otherAreaAlerts.push(alert);
+      }
+
+      return groups;
+    },
+    {
+      otherAreaAlerts: [] as Alert[],
+      residentAreaAlerts: [] as Alert[],
+    },
+  );
+  const { otherAreaAlerts, residentAreaAlerts } = alertGroups;
 
   return (
     <>
@@ -418,6 +459,11 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     justifyContent: 'space-between',
   },
+  indicatorLabelGroup: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+  },
   riskIndicatorLabel: {
     borderRadius: radius.sm,
     fontSize: 12,
@@ -427,6 +473,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     textTransform: 'uppercase',
+  },
+  yourAreaLabel: {
+    backgroundColor: colors.navy,
+    color: colors.white,
   },
   highRiskLabel: {
     backgroundColor: colors.red,
