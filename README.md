@@ -54,3 +54,18 @@ Join our community of developers creating universal apps.
 
 - [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
 - [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+
+---
+
+## ResQ1 Project Development
+
+ResQ1 is a mobile-based disaster management application designed to support residents and authorities during local disaster and flood emergencies.
+
+### Sprint 1 - User & Community Management
+
+The following core authentication features were implemented and verified during Sprint 1:
+
+- SCRUM-49: Resident Registration
+- SCRUM-23: Resident Login
+
+These features provide the core authentication flow for residents to create an account and securely access the ResQ1 application.
