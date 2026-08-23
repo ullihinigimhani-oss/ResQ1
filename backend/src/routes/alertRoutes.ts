@@ -3,6 +3,7 @@ import { Router } from 'express';
 import {
   createEmergencyAlert,
   getEmergencyAlert,
+  getEmergencyAlertRiskHistory,
   listAlertHistory,
   listActiveAlerts,
   updateEmergencyAlert,
@@ -16,6 +17,7 @@ router.use(authenticateRequest);
 router.get('/', listActiveAlerts);
 router.post('/', createEmergencyAlert);
 router.get('/history', listAlertHistory);
+router.get('/:id/risk-history', getEmergencyAlertRiskHistory);
 router.put('/:id', updateEmergencyAlert);
 router.get('/:id', getEmergencyAlert);
 

@@ -12,12 +12,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { FloodRiskTrendChart } from '@/components/alerts/flood-risk-trend-chart';
 import { AuthButton, StatusBanner } from '@/components/common/auth-components';
 import { AppIcon } from '@/components/ui/app-components';
 import { BrandColors } from '@/constants/brand';
 import { useAuth } from '@/context/auth-context';
-import { getAlertById, isAlertApiError } from '@/services/alertService';
-import type { Alert } from '@/types/alert';
+import { getAlertById, getAlertRiskHistory, isAlertApiError } from '@/services/alertService';
+import type { Alert, AlertRiskHistoryPoint } from '@/types/alert';
 import {
   alertDisplayThemeOrNull,
   alertDisplayThemeStyles,
@@ -184,6 +185,9 @@ export default function AlertDetailsScreen() {
   const routeAlertDisplayTheme = alertDisplayThemeOrNull(firstParam(params.alertDisplayTheme));
   const { isLoading, token, user } = useAuth();
   const [alert, setAlert] = useState<Alert | null>(null);
+  const [riskHistory, setRiskHistory] = useState<AlertRiskHistoryPoint[]>([]);
+  const [loadingRiskHistory, setLoadingRiskHistory] = useState(false);
+  const [riskHistoryError, setRiskHistoryError] = useState(false);
   const [loadingAlert, setLoadingAlert] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -207,10 +211,23 @@ export default function AlertDetailsScreen() {
     }
 
     setErrorMessage(null);
+    setRiskHistoryError(false);
+    setLoadingRiskHistory(true);
 
     try {
       const alertDetails = await getAlertById(alertId, token);
       setAlert(alertDetails);
+
+      try {
+        setRiskHistory(await getAlertRiskHistory(alertId, token));
+      } catch (historyError) {
+        if (__DEV__ && !isAlertApiError(historyError)) {
+          console.warn('Unexpected alert risk history error:', historyError);
+        }
+
+        setRiskHistory([]);
+        setRiskHistoryError(true);
+      }
     } catch (error) {
       if (__DEV__ && !isAlertApiError(error)) {
         console.warn('Unexpected alert detail error:', error);
@@ -219,6 +236,7 @@ export default function AlertDetailsScreen() {
       setErrorMessage('Unable to load this emergency alert.');
     } finally {
       setLoadingAlert(false);
+      setLoadingRiskHistory(false);
       setRefreshing(false);
     }
   }, [alertId, token]);
@@ -358,6 +376,16 @@ export default function AlertDetailsScreen() {
                 ) : null}
               </View>
 
+              <View style={styles.riskTrendTopSection}>
+                <FloodRiskTrendChart
+                  error={riskHistoryError}
+                  history={riskHistory}
+                  language={displayLanguage}
+                  loading={loadingRiskHistory}
+                  riskLevel={alert.riskLevel}
+                />
+              </View>
+
               <View style={styles.detailInfoList}>
                 <DetailInfoRow fallback="A" label={detailCopy.area} name="house.fill" value={alert.affectedArea} />
                 <DetailInfoRow
@@ -366,14 +394,6 @@ export default function AlertDetailsScreen() {
                   name="exclamationmark.triangle.fill"
                   value={translateDisasterType(alert.disasterType, displayLanguage)}
                 />
-                <DetailInfoRow fallback="R" label={detailCopy.riskLevel} name="gauge.with.dots.needle.33percent">
-                  <DetailPill
-                    backgroundColor={alertTone.pillBackground}
-                    borderColor={alertTone.pillBorder}
-                    label={translateRiskLevel(alert.riskLevel, displayLanguage)}
-                    textColor={alertTone.pillText}
-                  />
-                </DetailInfoRow>
                 <DetailInfoRow
                   fallback="D"
                   label={detailCopy.description}
@@ -626,6 +646,13 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '800',
     lineHeight: 21,
+  },
+  riskTrendTopSection: {
+    backgroundColor: BrandColors.background,
+    borderBottomColor: BrandColors.border,
+    borderBottomWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
   safetyBulletList: {
     gap: 4,

@@ -70,6 +70,22 @@ export interface AlertAuditEvent {
   createdAt: string;
 }
 
+export interface AlertRiskHistoryRow {
+  id: number;
+  alert_id: number;
+  action: AlertAuditAction | string;
+  risk_level: AlertRiskLevel | string;
+  created_at: Date | string;
+}
+
+export interface AlertRiskHistoryPoint {
+  id: number;
+  alertId: number;
+  action: AlertAuditAction | string;
+  riskLevel: AlertRiskLevel | string;
+  timestamp: string;
+}
+
 export interface CreateAlertInput {
   title?: unknown;
   disasterType?: unknown;
