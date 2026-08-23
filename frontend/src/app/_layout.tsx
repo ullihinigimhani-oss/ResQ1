@@ -1,8 +1,6 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
-import { useColorScheme } from 'react-native';
 
 import { BrandColors } from '@/constants/brand';
 import { AuthProvider } from '@/context/auth-context';
@@ -10,27 +8,49 @@ import { AuthProvider } from '@/context/auth-context';
 SplashScreen.preventAutoHideAsync().catch(() => null);
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
-
   useEffect(() => {
     SplashScreen.hideAsync().catch(() => null);
   }, []);
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AuthProvider>
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            contentStyle: { backgroundColor: BrandColors.background },
-          }}>
-          <Stack.Screen name="index" />
-          <Stack.Screen name="auth/welcome" />
-          <Stack.Screen name="auth/register" />
-          <Stack.Screen name="auth/login" />
-          <Stack.Screen name="dashboard" />
-        </Stack>
-      </AuthProvider>
-    </ThemeProvider>
+    <AuthProvider>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: BrandColors.background },
+        }}>
+        <Stack.Screen name="index" />
+        <Stack.Screen name="onboarding/index" />
+        <Stack.Screen name="auth/welcome" />
+        <Stack.Screen name="auth/register" />
+        <Stack.Screen name="auth/login" />
+        <Stack.Screen name="auth/forgot-password" />
+        <Stack.Screen name="dashboard" />
+        <Stack.Screen name="profile" />
+        <Stack.Screen name="settings/index" />
+        <Stack.Screen name="settings/about" />
+        <Stack.Screen name="profile/edit" />
+        <Stack.Screen name="profile/change-password" />
+        <Stack.Screen name="household/index" />
+        <Stack.Screen name="alerts/index" />
+        <Stack.Screen name="alerts/[id]" />
+        <Stack.Screen name="alerts/[id]/edit" />
+        <Stack.Screen name="alerts/create" />
+        <Stack.Screen name="alerts/risk-level" />
+        <Stack.Screen name="alerts/history" />
+        <Stack.Screen name="alerts/preferences" />
+        <Stack.Screen name="incidents/index" />
+        <Stack.Screen name="incidents/report" />
+        <Stack.Screen name="incidents/[id]" />
+        <Stack.Screen name="incidents/photo-evidence" />
+        <Stack.Screen name="incidents/nearby" />
+        <Stack.Screen name="incidents/review" />
+        <Stack.Screen name="shelters/index" />
+        <Stack.Screen name="shelters/[id]" />
+        <Stack.Screen name="shelters/[id]/route" />
+        <Stack.Screen name="assistance/index" />
+        <Stack.Screen name="contacts/index" />
+      </Stack>
+    </AuthProvider>
   );
 }
