@@ -134,3 +134,9 @@ export async function getIncidentById(id: string, token: string) {
 
   return response.incident;
 }
+
+export async function getAllIncidents(token: string) {
+  const response = await incidentRequest<ApiIncidentListResponse>('/api/incidents/all', token);
+
+  return response.incidents ?? [];
+}

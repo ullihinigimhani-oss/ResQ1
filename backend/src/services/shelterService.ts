@@ -1,9 +1,11 @@
 import { sql } from '../config/database.js';
 import type {
+  CreateShelterInput,
   EvacuationRoute,
   EvacuationRouteRow,
   Shelter,
   ShelterRow,
+  UpdateShelterInput,
 } from '../types/shelter.js';
 
 const DEFAULT_SHELTER_STATUS = 'Unknown';
@@ -29,8 +31,8 @@ function optionalText(value: string | null | undefined) {
   return text || null;
 }
 
-function optionalNumber(value: number | string | null) {
-  if (value === null) {
+function optionalNumber(value: number | string | null | undefined) {
+  if (value === null || value === undefined) {
     return null;
   }
 
@@ -38,7 +40,7 @@ function optionalNumber(value: number | string | null) {
   return Number.isFinite(numericValue) ? numericValue : null;
 }
 
-function optionalInteger(value: number | string | null) {
+function optionalInteger(value: number | string | null | undefined) {
   const numericValue = optionalNumber(value);
 
   return numericValue === null ? null : Math.trunc(numericValue);
@@ -295,4 +297,205 @@ export async function getShelterRoutes(shelterId: string, residentLocation: stri
   `;
 
   return (rows as EvacuationRouteRow[]).map(toEvacuationRoute);
+}
+
+function validateCreateShelterInput(input: CreateShelterInput) {
+  const name = trimmedText(input.name);
+  const area = trimmedText(input.area);
+  const address = optionalText(input.address);
+  const latitude = optionalNumber(input.latitude);
+  const longitude = optionalNumber(input.longitude);
+  const capacity = optionalInteger(input.capacity);
+  const currentOccupancy = optionalInteger(input.currentOccupancy);
+  const status = optionalText(input.status);
+  const contactNumber = optionalText(input.contactNumber);
+  const facilities = input.facilities ?? [];
+  const fieldErrors: Record<string, string> = {};
+
+  if (!name) {
+    fieldErrors.name = 'Shelter name is required.';
+  }
+
+  if (!area) {
+    fieldErrors.area = 'Area is required.';
+  }
+
+  if (capacity !== null && capacity < 0) {
+    fieldErrors.capacity = 'Capacity must be a positive number.';
+  }
+
+  if (currentOccupancy !== null && currentOccupancy < 0) {
+    fieldErrors.currentOccupancy = 'Current occupancy must be a positive number.';
+  }
+
+  if (capacity !== null && currentOccupancy !== null && currentOccupancy > capacity) {
+    fieldErrors.currentOccupancy = 'Current occupancy cannot exceed capacity.';
+  }
+
+  if (Object.keys(fieldErrors).length > 0) {
+    throw new ShelterServiceError(400, 'Please correct the highlighted fields.', fieldErrors);
+  }
+
+  return {
+    name,
+    area,
+    address,
+    latitude,
+    longitude,
+    capacity,
+    currentOccupancy,
+    status: status || DEFAULT_SHELTER_STATUS,
+    contactNumber,
+    facilities: JSON.stringify(facilities),
+  };
+}
+
+export async function createShelter(input: CreateShelterInput) {
+  const validated = validateCreateShelterInput(input);
+
+  const rows = await sql`
+    INSERT INTO shelters (name, area, address, latitude, longitude, capacity, current_occupancy, status, contact_number, facilities)
+    VALUES (
+      ${validated.name},
+      ${validated.area},
+      ${validated.address},
+      ${validated.latitude},
+      ${validated.longitude},
+      ${validated.capacity},
+      ${validated.currentOccupancy},
+      ${validated.status},
+      ${validated.contactNumber},
+      ${validated.facilities}
+    )
+    RETURNING id, name, area, address, latitude, longitude, capacity, current_occupancy, status, contact_number, facilities, created_at, updated_at
+  `;
+
+  const createdShelter = rows[0] as ShelterRow | undefined;
+
+  if (!createdShelter) {
+    throw new ShelterServiceError(500, 'Shelter creation could not be completed.');
+  }
+
+  return toShelter(createdShelter);
+}
+
+function validateUpdateShelterInput(input: UpdateShelterInput) {
+  const fieldErrors: Record<string, string> = {};
+
+  if (input.name !== undefined) {
+    const name = trimmedText(input.name);
+    if (!name) {
+      fieldErrors.name = 'Shelter name cannot be empty.';
+    }
+  }
+
+  if (input.area !== undefined) {
+    const area = trimmedText(input.area);
+    if (!area) {
+      fieldErrors.area = 'Area cannot be empty.';
+    }
+  }
+
+  if (input.capacity !== undefined) {
+    const capacity = optionalInteger(input.capacity);
+    if (capacity !== null && capacity < 0) {
+      fieldErrors.capacity = 'Capacity must be a positive number.';
+    }
+  }
+
+  if (input.currentOccupancy !== undefined) {
+    const currentOccupancy = optionalInteger(input.currentOccupancy);
+    if (currentOccupancy !== null && currentOccupancy < 0) {
+      fieldErrors.currentOccupancy = 'Current occupancy must be a positive number.';
+    }
+  }
+
+  if (Object.keys(fieldErrors).length > 0) {
+    throw new ShelterServiceError(400, 'Please correct the highlighted fields.', fieldErrors);
+  }
+
+  return {
+    name: input.name !== undefined ? trimmedText(input.name) : undefined,
+    area: input.area !== undefined ? trimmedText(input.area) : undefined,
+    address: input.address !== undefined ? optionalText(input.address) : undefined,
+    latitude: input.latitude !== undefined ? optionalNumber(input.latitude) : undefined,
+    longitude: input.longitude !== undefined ? optionalNumber(input.longitude) : undefined,
+    capacity: input.capacity !== undefined ? optionalInteger(input.capacity) : undefined,
+    currentOccupancy: input.currentOccupancy !== undefined ? optionalInteger(input.currentOccupancy) : undefined,
+    status: input.status !== undefined ? optionalText(input.status) : undefined,
+    contactNumber: input.contactNumber !== undefined ? optionalText(input.contactNumber) : undefined,
+    facilities: input.facilities !== undefined ? JSON.stringify(input.facilities) : undefined,
+  };
+}
+
+export async function updateShelter(id: string, input: UpdateShelterInput) {
+  const validated = validateUpdateShelterInput(input);
+
+  const updateFields: string[] = [];
+  const updateValues: unknown[] = [];
+
+  if (validated.name !== undefined) {
+    updateFields.push('name = $1');
+    updateValues.push(validated.name);
+  }
+  if (validated.area !== undefined) {
+    updateFields.push(`area = $${updateValues.length + 1}`);
+    updateValues.push(validated.area);
+  }
+  if (validated.address !== undefined) {
+    updateFields.push(`address = $${updateValues.length + 1}`);
+    updateValues.push(validated.address);
+  }
+  if (validated.latitude !== undefined) {
+    updateFields.push(`latitude = $${updateValues.length + 1}`);
+    updateValues.push(validated.latitude);
+  }
+  if (validated.longitude !== undefined) {
+    updateFields.push(`longitude = $${updateValues.length + 1}`);
+    updateValues.push(validated.longitude);
+  }
+  if (validated.capacity !== undefined) {
+    updateFields.push(`capacity = $${updateValues.length + 1}`);
+    updateValues.push(validated.capacity);
+  }
+  if (validated.currentOccupancy !== undefined) {
+    updateFields.push(`current_occupancy = $${updateValues.length + 1}`);
+    updateValues.push(validated.currentOccupancy);
+  }
+  if (validated.status !== undefined) {
+    updateFields.push(`status = $${updateValues.length + 1}`);
+    updateValues.push(validated.status);
+  }
+  if (validated.contactNumber !== undefined) {
+    updateFields.push(`contact_number = $${updateValues.length + 1}`);
+    updateValues.push(validated.contactNumber);
+  }
+  if (validated.facilities !== undefined) {
+    updateFields.push(`facilities = $${updateValues.length + 1}`);
+    updateValues.push(validated.facilities);
+  }
+
+  if (updateFields.length === 0) {
+    throw new ShelterServiceError(400, 'No fields provided for update.');
+  }
+
+  updateFields.push(`updated_at = NOW()`);
+  updateValues.push(id);
+
+  const query = `
+    UPDATE shelters
+    SET ${updateFields.join(', ')}
+    WHERE id = $${updateValues.length}
+    RETURNING id, name, area, address, latitude, longitude, capacity, current_occupancy, status, contact_number, facilities, created_at, updated_at
+  `;
+
+  const rows = await sql.query(query, updateValues);
+
+  const updatedShelter = rows[0] as ShelterRow | undefined;
+
+  if (!updatedShelter) {
+    throw new ShelterServiceError(404, 'Shelter not found.');
+  }
+
+  return toShelter(updatedShelter);
 }
