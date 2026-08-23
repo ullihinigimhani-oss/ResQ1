@@ -9,7 +9,7 @@ import { colors, radius, shadows, spacing, typography } from '@/constants/design
 import { useAuth } from '@/context/auth-context';
 import { getActiveAlerts } from '@/services/alertService';
 import type { Alert, AlertRiskLevel } from '@/types/alert';
-import { formatDateTime, isAuthorityRole, normalize, preview } from '@/utils/format';
+import { formatDateTime, isAuthorityRole, normalize } from '@/utils/format';
 
 type DashboardStateProps = {
   alerts: Alert[];
@@ -55,6 +55,21 @@ function compareAlertsBySeverity(left: Alert, right: Alert) {
   }
 
   return issuedTimestamp(right) - issuedTimestamp(left);
+}
+
+function formatCompactDateTime(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleString(undefined, {
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    month: 'short',
+  });
 }
 
 const authoritySeverityTheme: Record<AlertRiskLevel, {
@@ -131,11 +146,9 @@ function ResidentLoadingState() {
 function ResidentRiskAlertCard({
   alert,
   onViewAlert,
-  residentArea,
 }: {
   alert: Alert;
   onViewAlert: (alertId: number) => void;
-  residentArea: string;
 }) {
   return (
     <View style={[styles.residentAlertCard, styles.highRiskCard]}>
@@ -144,25 +157,21 @@ function ResidentRiskAlertCard({
           <Text style={[styles.riskIndicatorLabel, styles.yourAreaLabel]}>YOUR AREA</Text>
           <Text style={[styles.riskIndicatorLabel, styles.highRiskLabel]}>HIGH RISK</Text>
         </View>
-        <Text style={[styles.riskIndicatorText, styles.highRiskText]}>{residentArea} is affected</Text>
-      </View>
-
-      <View style={styles.cardHeader}>
-        <Text numberOfLines={2} style={styles.alertTitle}>
-          {alert.title}
-        </Text>
         <Text style={styles.statusText}>{alert.status}</Text>
       </View>
 
-      <Text style={styles.areaText}>{alert.affectedArea}</Text>
-      <Text style={styles.typeText}>Emergency Type: {alert.disasterType}</Text>
-      <Text style={styles.riskText}>Risk Level: {alert.riskLevel.toUpperCase()}</Text>
-      <Text numberOfLines={3} style={styles.messageText}>
-        {preview(alert.safetyInstructions || alert.message, 132)}
+      <Text numberOfLines={1} style={styles.alertTitle}>
+        {alert.title}
       </Text>
-      <Text style={styles.issuedText}>Issued: {formatDateTime(alert.createdAt)}</Text>
 
-      <AlertAction label="View Alert" onPress={() => onViewAlert(alert.id)} />
+      <Text style={styles.residentAreaText}>{alert.affectedArea}</Text>
+
+      <View style={styles.compactInfoRow}>
+        <Text style={styles.riskText}>Risk: {alert.riskLevel.toUpperCase()}</Text>
+        <Text style={styles.issuedText}>Issued: {formatCompactDateTime(alert.createdAt)}</Text>
+      </View>
+
+      <AlertAction label="View Alert ->" onPress={() => onViewAlert(alert.id)} />
     </View>
   );
 }
@@ -172,25 +181,21 @@ function ResidentWarningAlertCard({ alert, onViewAlert }: { alert: Alert; onView
     <View style={[styles.residentAlertCard, styles.warningCard]}>
       <View style={styles.riskIndicatorRow}>
         <Text style={[styles.riskIndicatorLabel, styles.warningLabel]}>WARNING</Text>
-        <Text style={[styles.riskIndicatorText, styles.warningText]}>Other affected area</Text>
-      </View>
-
-      <View style={styles.cardHeader}>
-        <Text numberOfLines={2} style={styles.alertTitle}>
-          {alert.title}
-        </Text>
         <Text style={styles.statusText}>{alert.status}</Text>
       </View>
 
-      <Text style={styles.areaText}>{alert.affectedArea}</Text>
-      <Text style={styles.typeText}>Emergency Type: {alert.disasterType}</Text>
-      <Text style={styles.riskText}>Risk Level: {alert.riskLevel.toUpperCase()}</Text>
-      <Text numberOfLines={2} style={styles.messageText}>
-        {preview(alert.message, 112)}
+      <Text numberOfLines={1} style={styles.alertTitle}>
+        {alert.title}
       </Text>
-      <Text style={styles.issuedText}>Issued: {formatDateTime(alert.createdAt)}</Text>
 
-      <AlertAction label="View Alert" onPress={() => onViewAlert(alert.id)} />
+      <Text style={styles.residentAreaText}>{alert.affectedArea}</Text>
+
+      <View style={styles.compactInfoRow}>
+        <Text style={styles.riskText}>Risk: {alert.riskLevel.toUpperCase()}</Text>
+        <Text style={styles.issuedText}>Issued: {formatCompactDateTime(alert.createdAt)}</Text>
+      </View>
+
+      <AlertAction label="View Alert ->" onPress={() => onViewAlert(alert.id)} />
     </View>
   );
 }
@@ -351,7 +356,6 @@ function ResidentDashboard({
   const showError = Boolean(errorMessage) && alerts.length === 0 && !showInitialLoading;
   const showRiskIndicators = !showInitialLoading && !showError;
   const residentAreaName = residentArea?.trim() || null;
-  const residentAreaLabel = residentAreaName || 'your area';
   const prioritizedAlerts = [...alerts].sort(compareAlertsBySeverity);
   const alertGroups = prioritizedAlerts.reduce(
     (groups, alert) => {
@@ -401,7 +405,6 @@ function ResidentDashboard({
               alert={alert}
               key={alert.id}
               onViewAlert={onViewAlert}
-              residentArea={residentAreaLabel}
             />
           ))}
         </View>
@@ -599,7 +602,7 @@ const styles = StyleSheet.create({
     ...typography.body,
   },
   alertList: {
-    gap: spacing.md,
+    gap: spacing.sm,
   },
   compactAlertList: {
     gap: spacing.sm,
@@ -609,8 +612,9 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: radius.md,
     borderWidth: 1,
-    gap: spacing.sm,
-    padding: spacing.md,
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
     ...shadows.card,
   },
   residentLoadingState: {
@@ -635,32 +639,34 @@ const styles = StyleSheet.create({
   highRiskCard: {
     backgroundColor: colors.redSoft,
     borderColor: colors.red,
-    borderWidth: 2,
+    borderLeftWidth: 4,
   },
   warningCard: {
     backgroundColor: colors.warningSoft,
     borderColor: colors.amber,
+    borderLeftWidth: 4,
   },
   riskIndicatorRow: {
-    alignItems: 'flex-start',
+    alignItems: 'center',
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.sm,
+    gap: spacing.xs,
     justifyContent: 'space-between',
   },
   indicatorLabelGroup: {
+    flex: 1,
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.xs,
   },
   riskIndicatorLabel: {
     borderRadius: radius.sm,
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: '900',
-    lineHeight: 16,
+    lineHeight: 13,
     overflow: 'hidden',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
     textTransform: 'uppercase',
   },
   yourAreaLabel: {
@@ -674,19 +680,6 @@ const styles = StyleSheet.create({
   warningLabel: {
     backgroundColor: colors.amber,
     color: colors.white,
-  },
-  riskIndicatorText: {
-    flexBasis: '100%',
-    fontSize: 12,
-    fontWeight: '900',
-    lineHeight: 18,
-    textAlign: 'left',
-  },
-  highRiskText: {
-    color: colors.red,
-  },
-  warningText: {
-    color: '#7A4B00',
   },
   allClearCard: {
     backgroundColor: colors.successSoft,
@@ -914,18 +907,11 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     textAlign: 'center',
   },
-  cardHeader: {
-    alignItems: 'flex-start',
-    flexDirection: 'row',
-    gap: spacing.md,
-    justifyContent: 'space-between',
-  },
   alertTitle: {
     color: colors.navy,
-    flex: 1,
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '900',
-    lineHeight: 24,
+    lineHeight: 21,
   },
   authorityAlertTitle: {
     color: colors.navy,
@@ -936,9 +922,9 @@ const styles = StyleSheet.create({
   },
   statusText: {
     color: colors.deepBlue,
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '900',
-    lineHeight: 16,
+    lineHeight: 15,
     textAlign: 'right',
     textTransform: 'uppercase',
   },
@@ -948,23 +934,24 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     lineHeight: 18,
   },
-  typeText: {
-    color: colors.text,
-    fontSize: 13,
-    fontWeight: '800',
-    lineHeight: 18,
+  residentAreaText: {
+    color: colors.deepBlue,
+    fontSize: 12,
+    fontWeight: '900',
+    lineHeight: 16,
+  },
+  compactInfoRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    justifyContent: 'space-between',
   },
   riskText: {
     color: colors.text,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '800',
-    lineHeight: 18,
-  },
-  messageText: {
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: '700',
-    lineHeight: 21,
+    lineHeight: 17,
   },
   issuedText: {
     color: colors.muted,
@@ -974,14 +961,13 @@ const styles = StyleSheet.create({
   },
   alertAction: {
     alignItems: 'center',
-    backgroundColor: colors.navy,
-    borderRadius: radius.md,
+    alignSelf: 'flex-start',
     justifyContent: 'center',
-    minHeight: 44,
-    paddingHorizontal: spacing.md,
+    minHeight: 28,
+    paddingRight: spacing.sm,
   },
   alertActionText: {
-    color: colors.white,
+    color: colors.navy,
     fontSize: 12,
     fontWeight: '900',
     lineHeight: 16,
