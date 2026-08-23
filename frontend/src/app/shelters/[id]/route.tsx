@@ -1,15 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import * as Location from 'expo-location';
 import { Redirect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
-import * as Location from 'expo-location';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Linking,
-  Platform,
-  Pressable,
-import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -22,19 +14,18 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 
 let MapView: any = null;
 let Marker: any = null;
 let Polyline: any = null;
-let PROVIDER_DEFAULT: any = null;
+let PROVIDER_GOOGLE: any = null;
 
 if (Platform.OS !== 'web') {
   const Maps = require('react-native-maps');
   MapView = Maps.default;
   Marker = Maps.Marker;
   Polyline = Maps.Polyline;
-  PROVIDER_DEFAULT = Maps.PROVIDER_DEFAULT;
+  PROVIDER_GOOGLE = Maps.PROVIDER_GOOGLE;
 }
 
 import { AuthButton, BackButton, StatusBanner } from '@/components/common/auth-components';
@@ -85,7 +76,6 @@ export default function ShelterRouteScreen() {
   const [loadingOSRMRoute, setLoadingOSRMRoute] = useState(false);
   const [selectedRouteIndex, setSelectedRouteIndex] = useState(0);
 
-  const loadRouteData = useCallback(async (refresh = false) => {
   const [safeRoutes, setSafeRoutes] = useState<SafeRoute[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -157,6 +147,9 @@ export default function ShelterRouteScreen() {
       const incidentsWithCoords = allIncidents.filter(
         (incident) => incident.latitude !== null && incident.longitude !== null
       );
+      
+      // Filter incidents to show only those within reasonable distance of the route area
+      // This reduces clutter on the map by showing only locally relevant incidents
       setIncidents(incidentsWithCoords);
     } catch (error) {
       if (__DEV__ && !isIncidentApiError(error)) {
@@ -176,7 +169,6 @@ export default function ShelterRouteScreen() {
     return R * c;
   }, []);
 
-  const fetchOSRMRoute = useCallback(async (startLat: number, startLng: number, endLat: number, endLng: number, alternatives = true) => {
   const generateSafeRoutes = useCallback(async () => {
     if (!userLocation || !shelter || !shelter.latitude || !shelter.longitude) {
       return;
@@ -186,6 +178,7 @@ export default function ShelterRouteScreen() {
       const routes: SafeRoute[] = [];
 
       // Generate 3 different route variations using OSRM
+      // Route 1: Direct route
       const baseRoute = await fetchOSRMRoute(
         userLocation.latitude,
         userLocation.longitude,
@@ -194,67 +187,59 @@ export default function ShelterRouteScreen() {
       );
 
       if (baseRoute) {
-        const routePoints = baseRoute.map(([lng, lat]: [number, number]) => ({ latitude: lat, longitude: lng }));
-
-        // Count incidents near this route
-        const incidentCount = countIncidentsNearRoute(routePoints, incidents);
-
-        // Route 1: Direct route (will be colored based on incidents)
+        const incidentCount = countIncidentsNearRoute(baseRoute, incidents);
         routes.push({
           id: 'route-1',
-          points: routePoints,
+          points: baseRoute,
           incidentCount,
           isSafest: incidentCount === 0,
         });
-
-        // Generate alternative routes by adding waypoints
-        const midLat = (userLocation.latitude + shelter.latitude) / 2;
-        const midLng = (userLocation.longitude + shelter.longitude) / 2;
-
-        // Alternative 1: Offset route
-        const alt1Route = await fetchOSRMRoute(
-          userLocation.latitude,
-          userLocation.longitude,
-          midLat + 0.01,
-          midLng + 0.01,
-          shelter.latitude,
-          shelter.longitude
-        );
-
-        if (alt1Route) {
-          const alt1Points = alt1Route.map(([lng, lat]: [number, number]) => ({ latitude: lat, longitude: lng }));
-          const alt1IncidentCount = countIncidentsNearRoute(alt1Points, incidents);
-          routes.push({
-            id: 'route-2',
-            points: alt1Points,
-            incidentCount: alt1IncidentCount,
-            isSafest: alt1IncidentCount === 0,
-          });
-        }
-
-        // Alternative 2: Different offset
-        const alt2Route = await fetchOSRMRoute(
-          userLocation.latitude,
-          userLocation.longitude,
-          midLat - 0.01,
-          midLng - 0.01,
-          shelter.latitude,
-          shelter.longitude
-        );
-
-        if (alt2Route) {
-          const alt2Points = alt2Route.map(([lng, lat]: [number, number]) => ({ latitude: lat, longitude: lng }));
-          const alt2IncidentCount = countIncidentsNearRoute(alt2Points, incidents);
-          routes.push({
-            id: 'route-3',
-            points: alt2Points,
-            incidentCount: alt2IncidentCount,
-            isSafest: alt2IncidentCount === 0,
-          });
-        }
       }
 
-      // Sort routes: safest first, then by incident count
+      // Alternative 1: Route via intermediate waypoint (offset from midpoint)
+      const midLat = (userLocation.latitude + shelter.latitude) / 2;
+      const midLng = (userLocation.longitude + shelter.longitude) / 2;
+      
+      const alt1Route = await fetchOSRMRoute(
+        userLocation.latitude,
+        userLocation.longitude,
+        midLat + 0.01,
+        midLng + 0.01,
+        shelter.latitude,
+        shelter.longitude
+      );
+
+      if (alt1Route) {
+        const alt1IncidentCount = countIncidentsNearRoute(alt1Route, incidents);
+        routes.push({
+          id: 'route-2',
+          points: alt1Route,
+          incidentCount: alt1IncidentCount,
+          isSafest: alt1IncidentCount === 0,
+        });
+      }
+
+      // Alternative 2: Route via different intermediate waypoint
+      const alt2Route = await fetchOSRMRoute(
+        userLocation.latitude,
+        userLocation.longitude,
+        midLat - 0.01,
+        midLng - 0.01,
+        shelter.latitude,
+        shelter.longitude
+      );
+
+      if (alt2Route) {
+        const alt2IncidentCount = countIncidentsNearRoute(alt2Route, incidents);
+        routes.push({
+          id: 'route-3',
+          points: alt2Route,
+          incidentCount: alt2IncidentCount,
+          isSafest: alt2IncidentCount === 0,
+        });
+      }
+
+      // Sort routes: safest first (incidentCount === 0), then by incident count
       routes.sort((a, b) => {
         if (a.isSafest && !b.isSafest) return -1;
         if (!a.isSafest && b.isSafest) return 1;
@@ -290,82 +275,31 @@ export default function ShelterRouteScreen() {
     return count;
   };
 
-  const fetchOSRMRoute = async (startLat: number, startLng: number, ...waypoints: number[]) => {
+  const fetchOSRMRoute = async (startLat: number, startLng: number, endLat: number, endLng: number, waypointLat?: number, waypointLng?: number) => {
     try {
-      const coords = [startLng, startLat, ...waypoints].join(';');
-      const response = await fetch(
-        `https://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${endLng},${endLat}?overview=full&geometries=geojson&alternatives=${alternatives ? 'true' : 'false'}`
-        `https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`
-      );
+      let url: string;
+      if (waypointLat !== undefined && waypointLng !== undefined) {
+        // Route with waypoint
+        url = `https://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${waypointLng},${waypointLat};${endLng},${endLat}?overview=full&geometries=geojson`;
+      } else {
+        // Direct route
+        url = `https://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${endLng},${endLat}?overview=full&geometries=geojson`;
+      }
+      
+      const response = await fetch(url);
       const data = await response.json();
       if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
-        return data.routes.map((route: any) => {
-          const coords = route.geometry.coordinates.map((coord: number[]) => ({
-            latitude: coord[1],
-            longitude: coord[0],
-          }));
-          return {
-            coordinates: coords,
-            distance: route.distance,
-            duration: route.duration,
-          };
-        });
+        return data.routes[0].geometry.coordinates.map((coord: number[]) => ({
+          latitude: coord[1],
+          longitude: coord[0],
+        }));
       }
-      return [];
+      return null;
     } catch (error) {
       console.warn('Failed to fetch OSRM route:', error);
-      return [];
+      return null;
     }
   };
-
-  const openInExternalMap = useCallback(() => {
-    if (!userLocation || !shelter || !shelter.latitude || !shelter.longitude) {
-      Alert.alert('Error', 'Location or shelter coordinates not available');
-      return;
-    }
-
-    // Get the safest route (first one in the sorted array)
-    const safestRoute = safeRoutes.find(route => route.isSafest) || safeRoutes[0];
-
-    if (safestRoute && safestRoute.points.length > 2) {
-      // Include waypoints from the safest route
-      // Take a few intermediate points to approximate the route (avoid too many waypoints)
-      const waypointCount = Math.min(safestRoute.points.length, 5);
-      const step = Math.floor(safestRoute.points.length / waypointCount);
-      
-      const waypoints: string[] = [];
-      for (let i = step; i < safestRoute.points.length - 1; i += step) {
-        if (waypoints.length < 3) { // Limit to 3 waypoints max
-          waypoints.push(`${safestRoute.points[i].latitude},${safestRoute.points[i].longitude}`);
-        }
-      }
-
-      const url = Platform.select({
-        ios: `maps://app?saddr=${userLocation.latitude},${userLocation.longitude}&daddr=${shelter.latitude},${shelter.longitude}&dirflg=d`,
-        android: waypoints.length > 0
-          ? `google.navigation:q=${shelter.latitude},${shelter.longitude}&waypoints=${waypoints.join('|')}`
-          : `google.navigation:q=${shelter.latitude},${shelter.longitude}`,
-      });
-
-      if (url) {
-        Linking.openURL(url).catch(() => {
-          Alert.alert('Error', 'Unable to open maps application');
-        });
-      }
-    } else {
-      // Fallback to direct route if no safest route available
-      const url = Platform.select({
-        ios: `maps://app?saddr=${userLocation.latitude},${userLocation.longitude}&daddr=${shelter.latitude},${shelter.longitude}`,
-        android: `google.navigation:q=${shelter.latitude},${shelter.longitude}`,
-      });
-
-      if (url) {
-        Linking.openURL(url).catch(() => {
-          Alert.alert('Error', 'Unable to open maps application');
-        });
-      }
-    }
-  }, [userLocation, shelter, safeRoutes]);
 
   const refreshData = useCallback(async () => {
     setRefreshing(true);
@@ -406,32 +340,23 @@ export default function ShelterRouteScreen() {
 
     setLoadingOSRMRoute(true);
     try {
-      const routes = await fetchOSRMRoute(
+      const route = await fetchOSRMRoute(
         userLocation.latitude,
         userLocation.longitude,
         shelter.latitude,
-        shelter.longitude,
-        true
+        shelter.longitude
       );
 
-      if (routes.length === 0) {
+      if (!route) {
         setRouteCoordinates([]);
         setAlternativeRoutes([]);
         return;
       }
 
-      const routesWithSafety = routes.map((route: any) => {
-        const safety = calculateRouteSafety(route.coordinates, incidents);
-        return {
-          ...route,
-          safety,
-        };
-      });
+      const safety = calculateRouteSafety(route, incidents);
 
-      routesWithSafety.sort((a: any, b: any) => b.safety.safetyScore - a.safety.safetyScore);
-
-      setRouteCoordinates(routesWithSafety[0].coordinates);
-      setAlternativeRoutes(routesWithSafety.slice(1).map((r: any) => r.coordinates));
+      setRouteCoordinates(route);
+      setAlternativeRoutes([]);
     } catch (error) {
       console.warn('Failed to load routes:', error);
     } finally {
@@ -445,21 +370,25 @@ export default function ShelterRouteScreen() {
       return;
     }
 
-    // Use the safest route (routeCoordinates) for waypoints
-    if (routeCoordinates.length > 2) {
+    // Use the safest route (safeRoutes) for waypoints
+    const safestRoute = safeRoutes.find(route => route.isSafest) || safeRoutes[0];
+    
+    if (safestRoute && safestRoute.points.length > 2) {
       // Include waypoints from the safest route
-      const waypointCount = Math.min(routeCoordinates.length, 5);
-      const step = Math.floor(routeCoordinates.length / waypointCount);
+      const waypointCount = Math.min(safestRoute.points.length, 5);
+      const step = Math.floor(safestRoute.points.length / waypointCount);
       
       const waypoints: string[] = [];
-      for (let i = step; i < routeCoordinates.length - 1; i += step) {
+      for (let i = step; i < safestRoute.points.length - 1; i += step) {
         if (waypoints.length < 3) { // Limit to 3 waypoints max
-          waypoints.push(`${routeCoordinates[i].latitude},${routeCoordinates[i].longitude}`);
+          waypoints.push(`${safestRoute.points[i].latitude},${safestRoute.points[i].longitude}`);
         }
       }
 
       const url = Platform.select({
-        ios: `maps://app?saddr=${userLocation.latitude},${userLocation.longitude}&daddr=${shelter.latitude},${shelter.longitude}&dirflg=d`,
+        ios: waypoints.length > 0
+          ? `maps://app?saddr=${userLocation.latitude},${userLocation.longitude}&daddr=${shelter.latitude},${shelter.longitude}&dirflg=d&waypoints=${waypoints.join('|')}`
+          : `maps://app?saddr=${userLocation.latitude},${userLocation.longitude}&daddr=${shelter.latitude},${shelter.longitude}&dirflg=d`,
         android: waypoints.length > 0
           ? `google.navigation:q=${shelter.latitude},${shelter.longitude}&waypoints=${waypoints.join('|')}`
           : `google.navigation:q=${shelter.latitude},${shelter.longitude}`,
@@ -483,7 +412,7 @@ export default function ShelterRouteScreen() {
         });
       }
     }
-  }, [userLocation, shelter, routeCoordinates]);
+  }, [userLocation, shelter, safeRoutes]);
 
   useEffect(() => {
     if (token && shelterId) {
@@ -502,14 +431,7 @@ export default function ShelterRouteScreen() {
     }
   }, [userLocation, shelter, incidents, loadRoutesWithSafety]);
 
-  const selectedRoute = useMemo(
-    () => routes.find((route) => route.id === selectedRouteId) ?? routes[0] ?? null,
-    [routes, selectedRouteId],
-  );
-  const instructionSteps = useMemo(
-    () => selectedRoute ? parseInstructionSteps(selectedRoute.routeInstructions) : [],
-    [selectedRoute],
-  );
+  useEffect(() => {
     if (userLocation && shelter && incidents.length > 0) {
       generateSafeRoutes();
     }
@@ -590,8 +512,8 @@ export default function ShelterRouteScreen() {
                 />
               )}
 
-              {/* Incident markers */}
-              {incidents.map((incident) =>
+              {/* Incident markers - limited to 10 to reduce map clutter */}
+              {incidents.slice(0, 10).map((incident) =>
                 incident.latitude && incident.longitude ? (
                   <Marker
                     key={incident.id}
@@ -637,180 +559,6 @@ export default function ShelterRouteScreen() {
                   <View style={[styles.legendLine, { backgroundColor: '#000000', borderStyle: 'dashed' }]} />
                   <Text style={styles.legendText}>Alternative Routes</Text>
                 </View>
-              )}
-            </View>
-
-            <RouteVisualization
-              destination={shelter.name}
-              from={officialFrom}
-              routeName={currentRouteTitle}
-              shelter={shelter}
-            />
-
-            <View style={styles.mapSummaryPanel}>
-              <Text style={styles.sectionTitle}>Live Map</Text>
-              {Platform.OS === 'web' ? (
-                <View style={styles.centerState}>
-                  <Text style={styles.emptyTitle}>Map Not Available on Web</Text>
-                  <Text style={styles.stateText}>
-                    Please use the mobile app to view the live map with evacuation routes.
-                  </Text>
-                </View>
-              ) : loadingOSRMRoute ? (
-                <View style={styles.centerState}>
-                  <ActivityIndicator color={BrandColors.red} size="large" />
-                  <Text style={styles.stateText}>Loading safe routes...</Text>
-                </View>
-              ) : userLocation && shelter && shelter.latitude && shelter.longitude ? (
-                <View style={styles.mapContainer}>
-                  <MapView
-                    provider={PROVIDER_DEFAULT}
-                    style={styles.map}
-                    initialRegion={{
-                      latitude: (userLocation.latitude + shelter.latitude) / 2,
-                      longitude: (userLocation.longitude + shelter.longitude) / 2,
-                      latitudeDelta: Math.abs(userLocation.latitude - shelter.latitude) * 1.5,
-                      longitudeDelta: Math.abs(userLocation.longitude - shelter.longitude) * 1.5,
-                    }}>
-                    {userLocation && (
-                      <Marker
-                        coordinate={{
-                          latitude: userLocation.latitude,
-                          longitude: userLocation.longitude,
-                        }}
-                        title="Your Location"
-                        description="Current position"
-                        pinColor={BrandColors.blue}
-                      />
-                    )}
-
-                    {shelter && shelter.latitude && shelter.longitude && (
-                      <Marker
-                        coordinate={{
-                          latitude: shelter.latitude,
-                          longitude: shelter.longitude,
-                        }}
-                        title={shelter.name}
-                        description="Safe Shelter"
-                        pinColor={BrandColors.success}
-                      />
-                    )}
-
-                    {routeCoordinates.length > 0 && (
-                      <Polyline
-                        coordinates={routeCoordinates}
-                        strokeColor="#22C55E"
-                        strokeWidth={5}
-                      />
-                    )}
-
-                    {alternativeRoutes.map((altRoute, index) => (
-                      <Polyline
-                        key={index}
-                        coordinates={altRoute}
-                        strokeColor="#000000"
-                        strokeWidth={3}
-                        lineDashPattern={[10, 5]}
-                      />
-                    ))}
-
-                    {incidents.map((incident) => (
-                      incident.latitude && incident.longitude ? (
-                        <Marker
-                          key={incident.id}
-                          coordinate={{
-                            latitude: incident.latitude,
-                            longitude: incident.longitude,
-                          }}
-                          title={incident.title}
-                          description={`Severity: ${incident.severity}`}
-                          pinColor={BrandColors.red}
-                        />
-                      ) : null
-                    ))}
-                  </MapView>
-
-                  <View style={styles.mapLegend}>
-                    <View style={styles.legendItem}>
-                      <View style={[styles.legendDot, { backgroundColor: BrandColors.blue }]} />
-                      <Text style={styles.legendText}>Your Location</Text>
-                    </View>
-                    <View style={styles.legendItem}>
-                      <View style={[styles.legendLine, { backgroundColor: '#22C55E' }]} />
-                      <Text style={styles.legendText}>Safest Route</Text>
-                    </View>
-                    <View style={styles.legendItem}>
-                      <View style={[styles.legendLine, { backgroundColor: '#000000', borderStyle: 'dashed' }]} />
-                      <Text style={styles.legendText}>Alternative Routes</Text>
-                    </View>
-                    <View style={styles.legendItem}>
-                      <View style={[styles.legendDot, { backgroundColor: BrandColors.red }]} />
-                      <Text style={styles.legendText}>Disaster Points</Text>
-                    </View>
-                  </View>
-                </View>
-              ) : (
-                <View style={styles.centerState}>
-                  <Text style={styles.emptyTitle}>Map Unavailable</Text>
-                  <Text style={styles.stateText}>
-                    {userLocation ? 'Shelter coordinates missing' : 'Location permission required'}
-                  </Text>
-                </View>
-              )}
-            </View>
-
-            <View style={styles.panel}>
-              <Text style={styles.sectionTitle}>Route Actions</Text>
-              <Text style={styles.sectionCopy}>
-                Real-time turn-by-turn navigation is not enabled; use verified route instructions.
-              </Text>
-              <View style={styles.actionButtons}>
-                <AuthButton
-                  title="Open in Maps App"
-                  onPress={openInExternalMap}
-                />
-                <AuthButton
-                  title="View Route on Map"
-                  variant="secondary"
-                  onPress={() => {
-                    if (userLocation && shelter && shelter.latitude && shelter.longitude) {
-                      router.push({
-                        pathname: '/shelters/[id]/route/map',
-                        params: {
-                          id: shelterId ?? '',
-                          userLat: String(userLocation.latitude),
-                          userLng: String(userLocation.longitude),
-                          shelterLat: String(shelter.latitude),
-                          shelterLng: String(shelter.longitude),
-                          shelterName: shelter.name,
-                          routeCoordinates: JSON.stringify(routeCoordinates),
-                          alternativeRoutes: JSON.stringify(alternativeRoutes),
-                          incidents: JSON.stringify(incidents),
-                        },
-                      } as unknown as Href);
-                    }
-                  }}
-                />
-                <AuthButton
-                  title="View Route Instructions"
-                  variant="secondary"
-                  onPress={() => setRouteActionMessage('Verified route instructions are displayed on this screen. Real-time navigation is not enabled.')}
-                />
-                <AuthButton
-                  title="View Alternative Route"
-                  variant="secondary"
-                  onPress={selectAlternativeRoute}
-                />
-                <AuthButton
-                  title="Call Emergency Services"
-                  variant="secondary"
-                  onPress={() => router.push('/contacts' as Href)}
-                />
-                <AuthButton
-                  title="Refresh Route"
-                  variant="secondary"
-                  onPress={() => void loadRouteData(true)}
-                />
               </View>
 
               <TouchableOpacity style={styles.openMapButton} onPress={openInExternalMap}>
@@ -941,90 +689,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     lineHeight: 22,
   },
-  visualCard: {
-    backgroundColor: BrandColors.white,
-    borderColor: BrandColors.border,
-    borderRadius: 8,
-    borderWidth: 1,
-    gap: 14,
-    padding: 15,
-  },
-  visualTimeline: {
-    alignItems: 'stretch',
-    flexDirection: 'row',
-    gap: 12,
-  },
-  visualIconRail: {
-    alignItems: 'center',
-    paddingVertical: 2,
-    width: 38,
-  },
-  visualIconShell: {
-    alignItems: 'center',
-    backgroundColor: BrandColors.lightBlue,
-    borderColor: BrandColors.sky,
-    borderRadius: 8,
-    borderWidth: 1,
-    height: 38,
-    justifyContent: 'center',
-    width: 38,
-  },
-  visualIconShellDestination: {
-    backgroundColor: BrandColors.successSoft,
-    borderColor: BrandColors.success,
-  },
-  visualConnector: {
-    backgroundColor: BrandColors.sky,
-    flex: 1,
-    minHeight: 30,
-    width: 3,
-  },
-  routeIconFallback: {
-    fontSize: 13,
-    fontWeight: '900',
-    lineHeight: 17,
-  },
-  visualContent: {
-    flex: 1,
-    gap: 12,
-  },
-  visualNode: {
-    backgroundColor: BrandColors.background,
-    borderColor: BrandColors.border,
-    borderRadius: 8,
-    borderWidth: 1,
-    gap: 3,
-    minHeight: 58,
-    paddingHorizontal: 11,
-    paddingVertical: 9,
-  },
-  visualNodeLabel: {
-    color: BrandColors.muted,
-    fontSize: 11,
-    fontWeight: '900',
-    lineHeight: 15,
-    textTransform: 'uppercase',
-  },
-  visualNodeTitle: {
-    color: BrandColors.text,
-    fontSize: 14,
-    fontWeight: '900',
-    lineHeight: 20,
-  },
-  visualNodeMeta: {
-    color: BrandColors.muted,
-    fontSize: 12,
-    fontWeight: '700',
-    lineHeight: 17,
-  },
-  mapSummaryPanel: {
-    backgroundColor: BrandColors.white,
-    borderColor: BrandColors.border,
-    borderRadius: 8,
-    borderWidth: 1,
-    gap: 13,
-    padding: 15,
-  },
   centerState: {
     alignItems: 'center',
     backgroundColor: BrandColors.white,
@@ -1050,94 +714,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     lineHeight: 22,
     textAlign: 'center',
-  },
-  mapContainer: {
-    borderRadius: 8,
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  map: {
-    height: 300,
-    width: '100%',
-  },
-  mapLegend: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: 8,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    padding: 10,
-    position: 'absolute',
-    top: 10,
-    left: 10,
-    right: 10,
-  },
-  legendItem: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 4,
-  },
-  legendDot: {
-    borderRadius: 4,
-    height: 8,
-    width: 8,
-  },
-  legendLine: {
-    borderRadius: 2,
-    height: 3,
-    width: 20,
-  },
-  legendText: {
-    color: BrandColors.text,
-    fontSize: 11,
-    fontWeight: '700',
-    lineHeight: 15,
-  },
-  mapLine: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    height: 34,
-    paddingHorizontal: 10,
-  },
-  mapPointStart: {
-    backgroundColor: BrandColors.deepBlue,
-    borderRadius: 8,
-    height: 16,
-    width: 16,
-  },
-  mapConnector: {
-    backgroundColor: BrandColors.sky,
-    flex: 1,
-    height: 5,
-  },
-  mapPointEnd: {
-    backgroundColor: BrandColors.success,
-    borderRadius: 8,
-    height: 16,
-    width: 16,
-  },
-  safetyPanel: {
-    backgroundColor: BrandColors.navy,
-    borderColor: BrandColors.deepBlue,
-    borderRadius: 8,
-    borderWidth: 1,
-    gap: 6,
-    padding: 14,
-  },
-  actionButtons: {
-    gap: 10,
-  },
-  safetyTitle: {
-    color: BrandColors.white,
-    fontSize: 14,
-    fontWeight: '900',
-    lineHeight: 19,
-  },
-  safetyText: {
-    color: BrandColors.sky,
-    fontSize: 13,
-    fontWeight: '700',
-    lineHeight: 19,
   },
   stateButton: {
     marginTop: 4,
