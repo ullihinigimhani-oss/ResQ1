@@ -21,6 +21,7 @@ type AuthContextValue = {
   token: string | null;
   isLoading: boolean;
   completeLogin: (session: AuthSession, remember: boolean) => Promise<void>;
+  updateCurrentUser: (user: AuthUser) => Promise<void>;
   signOut: () => Promise<void>;
   updateUser: (updates: Partial<AuthUser>) => Promise<void>;
 };
@@ -67,6 +68,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await clearSession();
   }, []);
 
+  const updateCurrentUser = useCallback(async (updatedUser: AuthUser) => {
+    setUser(updatedUser);
+    await updateStoredUser(updatedUser);
+  }, []);
+
   const signOut = useCallback(async () => {
     setUser(null);
     setToken(null);
@@ -93,10 +99,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       token,
       isLoading,
       completeLogin,
+      updateCurrentUser,
       signOut,
       updateUser,
     }),
-    [completeLogin, isLoading, signOut, token, updateUser, user],
+    [completeLogin, isLoading, signOut, token, updateCurrentUser, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
