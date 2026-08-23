@@ -1,8 +1,9 @@
 import { StatusBar } from 'expo-status-bar';
 import { Redirect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -11,12 +12,33 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { AlertStatusBadge, RiskBadge } from '@/components/alerts/alert-badges';
-import { AuthButton, BackButton, StatusBanner } from '@/components/common/auth-components';
+import { FloodRiskTrendChart } from '@/components/alerts/flood-risk-trend-chart';
+import { AuthButton, StatusBanner } from '@/components/common/auth-components';
+import { AppIcon } from '@/components/ui/app-components';
 import { BrandColors } from '@/constants/brand';
 import { useAuth } from '@/context/auth-context';
-import { getAlertById, isAlertApiError } from '@/services/alertService';
-import type { Alert } from '@/types/alert';
+import { getAlertById, getAlertRiskHistory, isAlertApiError } from '@/services/alertService';
+import type { Alert, AlertRiskHistoryPoint } from '@/types/alert';
+import {
+  alertDisplayThemeOrNull,
+  alertDisplayThemeStyles,
+  getResidentAlertDisplayTheme,
+} from '@/utils/alert-display';
+import { isAuthorityRole } from '@/utils/format';
+import {
+  alertDetailUiText,
+  fallbackSafetyInstruction,
+  preferredLanguageLabels,
+  preferredLanguageOrNull,
+  residentAlertUiText,
+  toPreferredLanguage,
+  translateAlertMessage,
+  translateAlertStatus,
+  translateAlertTitle,
+  translateDisasterType,
+  translateRiskLevel,
+  translateSafetyInstruction,
+} from '@/utils/language';
 
 function firstParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
@@ -42,7 +64,7 @@ function formatDateTime(value: string | null) {
   });
 }
 
-function safetyInstructionLines(value: string) {
+function safetyInstructionLines(value: string, fallback: string) {
   const instructions = value
     .split(/\r?\n|;/)
     .map((item) => item.replace(/^\s*(?:[-*]|\d+[.)])\s*/, '').trim())
@@ -52,23 +74,104 @@ function safetyInstructionLines(value: string) {
     return instructions;
   }
 
-  return ['Follow official evacuation and safety instructions from emergency authorities.'];
+  return [fallback];
 }
 
-function SummaryItem({ label, value }: { label: string; value: string }) {
+function alertToneForRisk(riskLevel: Alert['riskLevel'] | undefined) {
+  if (riskLevel === 'Critical' || riskLevel === 'High') {
+    return {
+      accent: BrandColors.red,
+      backgroundColor: BrandColors.redSoft,
+      borderColor: BrandColors.red,
+      pillBackground: BrandColors.redSoft,
+      pillBorder: BrandColors.red,
+      pillText: BrandColors.red,
+      titleColor: BrandColors.red,
+    };
+  }
+
+  if (riskLevel === 'Moderate') {
+    return {
+      accent: '#B7791F',
+      backgroundColor: BrandColors.warningSoft,
+      borderColor: '#D69E2E',
+      pillBackground: BrandColors.warningSoft,
+      pillBorder: '#D69E2E',
+      pillText: '#7A4B00',
+      titleColor: '#8A4B00',
+    };
+  }
+
+  return {
+    accent: BrandColors.deepBlue,
+    backgroundColor: BrandColors.lightBlue,
+    borderColor: BrandColors.sky,
+    pillBackground: BrandColors.lightBlue,
+    pillBorder: BrandColors.sky,
+    pillText: BrandColors.deepBlue,
+    titleColor: BrandColors.deepBlue,
+  };
+}
+
+function DetailPill({
+  backgroundColor,
+  borderColor,
+  label,
+  textColor,
+}: {
+  backgroundColor: string;
+  borderColor: string;
+  label: string;
+  textColor: string;
+}) {
   return (
-    <View style={styles.summaryItem}>
-      <Text style={styles.summaryLabel}>{label}</Text>
-      <Text style={styles.summaryValue}>{value}</Text>
+    <View style={[styles.detailPill, { backgroundColor, borderColor }]}>
+      <Text style={[styles.detailPillText, { color: textColor }]}>{label.toUpperCase()}</Text>
     </View>
   );
 }
 
-function DetailRow({ label, value }: { label: string; value: string }) {
+function DetailBackButton({
+  label,
+  onPress,
+}: {
+  label: string;
+  onPress: () => void;
+}) {
   return (
-    <View style={styles.detailRow}>
-      <Text style={styles.detailLabel}>{label}</Text>
-      <Text style={styles.detailValue}>{value}</Text>
+    <Pressable
+      accessibilityLabel={label}
+      accessibilityRole="button"
+      hitSlop={8}
+      onPress={onPress}
+      style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
+      <Text style={styles.backButtonText}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function DetailInfoRow({
+  children,
+  fallback,
+  label,
+  name,
+  value,
+}: {
+  children?: ReactNode;
+  fallback: string;
+  label: string;
+  name: string;
+  value?: string;
+}) {
+  return (
+    <View style={styles.detailInfoRow}>
+      <View style={styles.detailIcon}>
+        <AppIcon fallback={fallback} name={name} size={22} tintColor={BrandColors.navy} />
+      </View>
+      <View style={styles.detailInfoTextBlock}>
+        <Text style={styles.detailInfoLabel}>{label}</Text>
+        {value ? <Text style={styles.detailInfoValue}>{value}</Text> : children}
+      </View>
     </View>
   );
 }
@@ -78,12 +181,23 @@ export default function AlertDetailsScreen() {
   const params = useLocalSearchParams();
   const alertId = firstParam(params.id);
   const published = firstParam(params.published) === '1';
+  const routeLanguage = preferredLanguageOrNull(firstParam(params.language));
+  const routeAlertDisplayTheme = alertDisplayThemeOrNull(firstParam(params.alertDisplayTheme));
   const { isLoading, token, user } = useAuth();
   const [alert, setAlert] = useState<Alert | null>(null);
+  const [riskHistory, setRiskHistory] = useState<AlertRiskHistoryPoint[]>([]);
+  const [loadingRiskHistory, setLoadingRiskHistory] = useState(false);
+  const [riskHistoryError, setRiskHistoryError] = useState(false);
   const [loadingAlert, setLoadingAlert] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [acknowledged, setAcknowledged] = useState(false);
+  const userLanguage = toPreferredLanguage(user?.preferredLanguage);
+  const selectedLanguage = routeLanguage ?? userLanguage;
+  const showResidentLanguage = user ? !isAuthorityRole(user.role) : true;
+  const displayLanguage = showResidentLanguage ? selectedLanguage : 'English';
+  const detailCopy = alertDetailUiText[displayLanguage];
+  const residentListCopy = residentAlertUiText[displayLanguage];
 
   const loadAlert = useCallback(async (refresh = false) => {
     if (!token || !alertId) {
@@ -97,10 +211,23 @@ export default function AlertDetailsScreen() {
     }
 
     setErrorMessage(null);
+    setRiskHistoryError(false);
+    setLoadingRiskHistory(true);
 
     try {
       const alertDetails = await getAlertById(alertId, token);
       setAlert(alertDetails);
+
+      try {
+        setRiskHistory(await getAlertRiskHistory(alertId, token));
+      } catch (historyError) {
+        if (__DEV__ && !isAlertApiError(historyError)) {
+          console.warn('Unexpected alert risk history error:', historyError);
+        }
+
+        setRiskHistory([]);
+        setRiskHistoryError(true);
+      }
     } catch (error) {
       if (__DEV__ && !isAlertApiError(error)) {
         console.warn('Unexpected alert detail error:', error);
@@ -109,6 +236,7 @@ export default function AlertDetailsScreen() {
       setErrorMessage('Unable to load this emergency alert.');
     } finally {
       setLoadingAlert(false);
+      setLoadingRiskHistory(false);
       setRefreshing(false);
     }
   }, [alertId, token]);
@@ -123,8 +251,11 @@ export default function AlertDetailsScreen() {
   }, [alertId, loadAlert, token]);
 
   const safetyInstructions = useMemo(
-    () => safetyInstructionLines(alert?.safetyInstructions ?? ''),
-    [alert?.safetyInstructions],
+    () => safetyInstructionLines(
+      alert?.safetyInstructions ?? '',
+      fallbackSafetyInstruction(displayLanguage),
+    ).map((instruction) => translateSafetyInstruction(instruction, displayLanguage)),
+    [alert?.safetyInstructions, displayLanguage],
   );
 
   if (!isLoading && !user) {
@@ -145,7 +276,23 @@ export default function AlertDetailsScreen() {
   const showError = Boolean(errorMessage) && !alert && !showInitialLoading;
   const publishedAt = formatDateTime(alert?.createdAt ?? null);
   const expiresAt = formatDateTime(alert?.expiresAt ?? null);
-  const critical = alert?.riskLevel === 'Critical';
+  const residentAlertDisplayTheme = routeAlertDisplayTheme ?? (
+    alert ? getResidentAlertDisplayTheme(alert, user.location) : 'danger'
+  );
+  const alertTone = showResidentLanguage
+    ? alertDisplayThemeStyles[residentAlertDisplayTheme]
+    : alertToneForRisk(alert?.riskLevel);
+  const handleBackToAlerts = () => {
+    if (showResidentLanguage) {
+      router.replace({
+        pathname: '/alerts',
+        params: { language: selectedLanguage },
+      } as unknown as Href);
+      return;
+    }
+
+    router.replace('/alerts' as Href);
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -155,35 +302,42 @@ export default function AlertDetailsScreen() {
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            tintColor={BrandColors.red}
+            tintColor={alertTone.accent}
             onRefresh={() => void loadAlert(true)}
           />
         }
         showsVerticalScrollIndicator={false}>
         <View style={styles.topBar}>
-          <BackButton onPress={() => router.replace('/alerts' as Href)} />
-          <Text style={styles.topBarTitle}>Emergency Alert</Text>
+          <DetailBackButton label={detailCopy.back} onPress={handleBackToAlerts} />
+          <Text style={styles.topBarTitle}>{detailCopy.alertDetails}</Text>
         </View>
 
-        {published ? <StatusBanner message="Emergency alert published successfully." type="success" /> : null}
+        {showResidentLanguage ? (
+          <View style={styles.languageContext}>
+            <Text style={styles.languageContextLabel}>{detailCopy.language}</Text>
+            <Text style={styles.languageContextValue}>{preferredLanguageLabels[displayLanguage]}</Text>
+          </View>
+        ) : null}
 
-        {errorMessage && alert ? <StatusBanner message={errorMessage} type="error" /> : null}
+        {published ? <StatusBanner message={detailCopy.publishedSuccess} type="success" /> : null}
+
+        {errorMessage && alert ? <StatusBanner message={detailCopy.unableLoadAlert} type="error" /> : null}
 
         {showInitialLoading ? (
           <View style={styles.centerState}>
             <ActivityIndicator color={BrandColors.red} size="large" />
-            <Text style={styles.stateTitle}>Loading alert details...</Text>
-            <Text style={styles.stateText}>Retrieving the latest verified warning.</Text>
+            <Text style={styles.stateTitle}>{detailCopy.loadingTitle}</Text>
+            <Text style={styles.stateText}>{detailCopy.loadingBody}</Text>
           </View>
         ) : null}
 
         {showError ? (
           <View style={styles.centerState}>
-            <Text style={styles.emptyTitle}>Unable to load this emergency alert.</Text>
-            <Text style={styles.stateText}>Check your connection and try again.</Text>
+            <Text style={styles.emptyTitle}>{detailCopy.unableLoadAlert}</Text>
+            <Text style={styles.stateText}>{detailCopy.checkConnection}</Text>
             <AuthButton
               style={styles.stateButton}
-              title="Retry"
+              title={detailCopy.retry}
               variant="secondary"
               onPress={() => void loadAlert()}
             />
@@ -192,75 +346,112 @@ export default function AlertDetailsScreen() {
 
         {alert ? (
           <>
-            <View style={[styles.warningPanel, critical && styles.criticalWarningPanel]}>
-              <View style={styles.warningHeader}>
-                <RiskBadge riskLevel={alert.riskLevel} />
-                <AlertStatusBadge status={alert.status} />
-              </View>
-              <Text style={[styles.alertTitle, critical && styles.criticalAlertTitle]}>{alert.title}</Text>
-              <Text style={styles.alertMessage}>{alert.message}</Text>
-
-              <View style={styles.summaryGrid}>
-                <SummaryItem label="Affected Area" value={alert.affectedArea} />
-                <SummaryItem label="Disaster Type" value={alert.disasterType} />
-                <SummaryItem label="Published" value={publishedAt ?? 'Not available'} />
-                {expiresAt ? <SummaryItem label="Expires" value={expiresAt} /> : null}
-              </View>
-            </View>
-
-            <View style={styles.safetyPanel}>
-              <Text style={styles.sectionEyebrow}>Safety Instructions</Text>
-              <Text style={[styles.sectionTitle, styles.safetyTitle]}>Follow these actions now</Text>
-              <View style={styles.instructionList}>
-                {safetyInstructions.map((instruction, index) => (
-                  <View key={`${instruction}-${index}`} style={styles.instructionRow}>
-                    <View style={styles.instructionNumber}>
-                      <Text style={styles.instructionNumberText}>{index + 1}</Text>
+            <View style={[styles.detailCard, { borderColor: alertTone.borderColor }]}>
+              <View style={[styles.detailHero, { backgroundColor: alertTone.backgroundColor }]}>
+                <View style={styles.detailHeroTopRow}>
+                  <View style={styles.detailHeroTitleRow}>
+                    <View style={[styles.detailHeroIcon, { backgroundColor: alertTone.accent }]}>
+                      <AppIcon fallback="!" name="exclamationmark.triangle.fill" size={30} tintColor={BrandColors.white} />
                     </View>
-                    <Text style={styles.instructionText}>{instruction}</Text>
+                    <Text style={[styles.detailHeroTitle, { color: alertTone.titleColor }]}>
+                      {translateAlertTitle(alert, displayLanguage)}
+                    </Text>
                   </View>
-                ))}
+                  <DetailPill
+                    backgroundColor={BrandColors.lightBlue}
+                    borderColor={BrandColors.sky}
+                    label={translateAlertStatus(alert.status, displayLanguage)}
+                    textColor={BrandColors.deepBlue}
+                  />
+                </View>
+                {showResidentLanguage ? (
+                  <View style={styles.detailHeroMetaRow}>
+                    <Text style={[styles.detailDisplayBadge, { backgroundColor: alertTone.accent }]}>
+                      {residentAlertDisplayTheme === 'danger' ? residentListCopy.yourArea : residentListCopy.warning}
+                    </Text>
+                    <Text style={[styles.detailHeroRiskText, { color: alertTone.titleColor }]}>
+                      {residentListCopy.risk}: {translateRiskLevel(alert.riskLevel, displayLanguage)}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+
+              <View style={styles.riskTrendTopSection}>
+                <FloodRiskTrendChart
+                  error={riskHistoryError}
+                  history={riskHistory}
+                  language={displayLanguage}
+                  loading={loadingRiskHistory}
+                  riskLevel={alert.riskLevel}
+                />
+              </View>
+
+              <View style={styles.detailInfoList}>
+                <DetailInfoRow fallback="A" label={detailCopy.area} name="house.fill" value={alert.affectedArea} />
+                <DetailInfoRow
+                  fallback="T"
+                  label={detailCopy.emergencyType}
+                  name="exclamationmark.triangle.fill"
+                  value={translateDisasterType(alert.disasterType, displayLanguage)}
+                />
+                <DetailInfoRow
+                  fallback="D"
+                  label={detailCopy.description}
+                  name="slider.horizontal.3"
+                  value={translateAlertMessage(alert, displayLanguage)}
+                />
+                <DetailInfoRow fallback="I" label={detailCopy.issued} name="clock.fill" value={publishedAt ?? ''} />
+                {expiresAt ? (
+                  <DetailInfoRow fallback="E" label={detailCopy.expires} name="clock.fill" value={expiresAt} />
+                ) : null}
+                <DetailInfoRow fallback="S" label={detailCopy.status} name="bell.fill">
+                  <DetailPill
+                    backgroundColor={BrandColors.lightBlue}
+                    borderColor={BrandColors.sky}
+                    label={translateAlertStatus(alert.status, displayLanguage)}
+                    textColor={BrandColors.deepBlue}
+                  />
+                </DetailInfoRow>
+                <DetailInfoRow fallback="!" label={detailCopy.safetyInstructions} name="cross.case.fill">
+                  <View style={styles.safetyBulletList}>
+                    {safetyInstructions.map((instruction, index) => (
+                      <Text key={`${instruction}-${index}`} style={styles.safetyBulletText}>
+                        - {instruction}
+                      </Text>
+                    ))}
+                  </View>
+                </DetailInfoRow>
               </View>
             </View>
 
             <View style={styles.panel}>
-              <Text style={styles.sectionTitle}>Alert Information</Text>
-              <DetailRow label="Status" value={alert.status} />
-              <DetailRow label="Risk Level" value={alert.riskLevel} />
-              <DetailRow label="Affected Area" value={alert.affectedArea} />
-              <DetailRow label="Disaster Type" value={alert.disasterType} />
-              <DetailRow label="Published Time" value={publishedAt ?? 'Not available'} />
-              <DetailRow label="Expiration Time" value={expiresAt ?? 'No expiration set'} />
-            </View>
-
-            <View style={styles.panel}>
-              <Text style={styles.sectionTitle}>Emergency Actions</Text>
+              <Text style={styles.sectionTitle}>{detailCopy.emergencyActions}</Text>
               <Text style={styles.sectionCopy}>
-                Use verified ResQ1 routes, shelters, and incident tools for this alert.
+                {detailCopy.emergencyActionsCopy}
               </Text>
               {acknowledged ? (
                 <StatusBanner
-                  message="Alert acknowledged on this device only. Backend acknowledgement persistence is not connected in the current frontend service layer."
+                  message={detailCopy.acknowledgedMessage}
                   type="success"
                 />
               ) : null}
               <View style={styles.actionButtons}>
                 <AuthButton
-                  title="View Safe Evacuation Route"
+                  title={detailCopy.viewSafeEvacuationRoute}
                   variant="secondary"
                   onPress={() => router.push('/shelters' as Href)}
                 />
                 <AuthButton
-                  title="Find Nearest Safe Shelter"
+                  title={detailCopy.findNearestSafeShelter}
                   variant="secondary"
                   onPress={() => router.push('/shelters' as Href)}
                 />
                 <AuthButton
-                  title="Report Incident"
+                  title={detailCopy.reportIncident}
                   onPress={() => router.push('/incidents/report' as Href)}
                 />
                 <AuthButton
-                  title={acknowledged ? 'Acknowledged' : 'Acknowledge Alert'}
+                  title={acknowledged ? detailCopy.acknowledged : detailCopy.acknowledgeAlert}
                   variant="secondary"
                   onPress={() => setAcknowledged(true)}
                 />
@@ -301,80 +492,142 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     lineHeight: 23,
   },
-  warningPanel: {
+  backButton: {
+    alignItems: 'center',
     backgroundColor: BrandColors.white,
     borderColor: BrandColors.border,
     borderRadius: 8,
     borderWidth: 1,
-    gap: 14,
-    padding: 16,
+    justifyContent: 'center',
+    minHeight: 44,
+    minWidth: 44,
+    paddingHorizontal: 10,
   },
-  criticalWarningPanel: {
-    borderColor: BrandColors.red,
-    borderTopColor: BrandColors.red,
-    borderTopWidth: 6,
-  },
-  warningHeader: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  alertTitle: {
+  backButtonText: {
     color: BrandColors.navy,
-    fontSize: 24,
-    fontWeight: '900',
-    lineHeight: 30,
+    fontSize: 12,
+    fontWeight: '800',
+    lineHeight: 16,
   },
-  criticalAlertTitle: {
-    color: BrandColors.red,
-  },
-  alertMessage: {
-    color: BrandColors.text,
-    fontSize: 16,
-    fontWeight: '600',
-    lineHeight: 24,
-  },
-  summaryGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  summaryItem: {
-    backgroundColor: BrandColors.lightBlue,
+  languageContext: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: BrandColors.white,
+    borderColor: BrandColors.border,
     borderRadius: 8,
-    flexGrow: 1,
-    minWidth: '47%',
-    padding: 12,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 8,
+    minHeight: 34,
+    paddingHorizontal: 10,
   },
-  summaryLabel: {
+  languageContextLabel: {
     color: BrandColors.muted,
     fontSize: 11,
     fontWeight: '900',
     lineHeight: 15,
     textTransform: 'uppercase',
   },
-  summaryValue: {
-    color: BrandColors.text,
-    fontSize: 14,
-    fontWeight: '800',
-    lineHeight: 20,
-    marginTop: 4,
+  languageContextValue: {
+    color: BrandColors.navy,
+    fontSize: 13,
+    fontWeight: '900',
+    lineHeight: 18,
   },
-  safetyPanel: {
-    backgroundColor: BrandColors.navy,
-    borderColor: BrandColors.deepBlue,
+  detailCard: {
+    backgroundColor: BrandColors.white,
+    borderColor: BrandColors.border,
     borderRadius: 8,
     borderWidth: 1,
-    gap: 13,
+    overflow: 'hidden',
+  },
+  detailHero: {
+    borderBottomColor: BrandColors.border,
+    borderBottomWidth: 1,
+    gap: 12,
     padding: 16,
   },
-  sectionEyebrow: {
-    color: BrandColors.sky,
-    fontSize: 12,
+  detailHeroTopRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    justifyContent: 'space-between',
+  },
+  detailHeroMetaRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  detailHeroTitleRow: {
+    alignItems: 'center',
+    flex: 1,
+    flexDirection: 'row',
+    gap: 12,
+    minWidth: 0,
+  },
+  detailHeroIcon: {
+    alignItems: 'center',
+    borderRadius: 8,
+    height: 46,
+    justifyContent: 'center',
+    width: 46,
+  },
+  detailHeroTitle: {
+    flex: 1,
+    fontSize: 22,
     fontWeight: '900',
-    lineHeight: 16,
-    textTransform: 'uppercase',
+    lineHeight: 28,
+  },
+  detailDisplayBadge: {
+    borderRadius: 4,
+    color: BrandColors.white,
+    fontSize: 11,
+    fontWeight: '900',
+    lineHeight: 15,
+    overflow: 'hidden',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+  },
+  detailHeroRiskText: {
+    fontSize: 13,
+    fontWeight: '900',
+    lineHeight: 18,
+  },
+  detailPill: {
+    alignSelf: 'flex-start',
+    borderRadius: 6,
+    borderWidth: 1,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+  },
+  detailPillText: {
+    fontSize: 11,
+    fontWeight: '900',
+    lineHeight: 15,
+  },
+  detailInfoList: {
+    paddingHorizontal: 16,
+  },
+  detailInfoRow: {
+    alignItems: 'flex-start',
+    borderBottomColor: BrandColors.border,
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    gap: 12,
+    paddingVertical: 14,
+  },
+  detailIcon: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 1,
+    width: 28,
+  },
+  detailInfoTextBlock: {
+    flex: 1,
+    gap: 4,
+    minWidth: 0,
   },
   sectionTitle: {
     color: BrandColors.navy,
@@ -382,43 +635,39 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     lineHeight: 24,
   },
-  safetyTitle: {
-    color: BrandColors.white,
+  detailInfoLabel: {
+    color: BrandColors.muted,
+    fontSize: 13,
+    fontWeight: '900',
+    lineHeight: 18,
+  },
+  detailInfoValue: {
+    color: BrandColors.text,
+    fontSize: 15,
+    fontWeight: '800',
+    lineHeight: 21,
+  },
+  riskTrendTopSection: {
+    backgroundColor: BrandColors.background,
+    borderBottomColor: BrandColors.border,
+    borderBottomWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  safetyBulletList: {
+    gap: 4,
+  },
+  safetyBulletText: {
+    color: BrandColors.text,
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 20,
   },
   sectionCopy: {
     color: BrandColors.muted,
     fontSize: 14,
     fontWeight: '600',
     lineHeight: 21,
-  },
-  instructionList: {
-    gap: 10,
-  },
-  instructionRow: {
-    alignItems: 'flex-start',
-    flexDirection: 'row',
-    gap: 10,
-  },
-  instructionNumber: {
-    alignItems: 'center',
-    backgroundColor: BrandColors.red,
-    borderRadius: 8,
-    height: 30,
-    justifyContent: 'center',
-    width: 30,
-  },
-  instructionNumberText: {
-    color: BrandColors.white,
-    fontSize: 13,
-    fontWeight: '900',
-    lineHeight: 17,
-  },
-  instructionText: {
-    color: BrandColors.white,
-    flex: 1,
-    fontSize: 15,
-    fontWeight: '700',
-    lineHeight: 22,
   },
   panel: {
     backgroundColor: BrandColors.white,
@@ -427,25 +676,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: 14,
     padding: 16,
-  },
-  detailRow: {
-    borderTopColor: BrandColors.border,
-    borderTopWidth: 1,
-    gap: 4,
-    paddingTop: 12,
-  },
-  detailLabel: {
-    color: BrandColors.muted,
-    fontSize: 12,
-    fontWeight: '900',
-    lineHeight: 16,
-    textTransform: 'uppercase',
-  },
-  detailValue: {
-    color: BrandColors.text,
-    fontSize: 15,
-    fontWeight: '800',
-    lineHeight: 21,
   },
   actionButtons: {
     gap: 10,
@@ -486,5 +716,8 @@ const styles = StyleSheet.create({
   stateButton: {
     marginTop: 4,
     width: '100%',
+  },
+  pressed: {
+    opacity: 0.72,
   },
 });

@@ -1,8 +1,11 @@
 import { API_BASE_URL } from '@/services/authService';
 import type {
   Alert,
+  AlertAuditEvent,
   AlertFieldErrors,
+  AlertRiskHistoryPoint,
   CreateAlertPayload,
+  UpdateAlertPayload,
 } from '@/types/alert';
 
 type ApiErrorBody = {
@@ -19,6 +22,16 @@ type ApiAlertResponse = ApiErrorBody & {
 type ApiAlertListResponse = ApiErrorBody & {
   success: boolean;
   alerts?: Alert[];
+};
+
+type ApiAlertHistoryResponse = ApiErrorBody & {
+  success: boolean;
+  history?: AlertAuditEvent[];
+};
+
+type ApiAlertRiskHistoryResponse = ApiErrorBody & {
+  success: boolean;
+  riskHistory?: AlertRiskHistoryPoint[];
 };
 
 export class AlertApiError extends Error {
@@ -49,7 +62,7 @@ async function alertRequest<T>(
   path: string,
   token: string,
   options: {
-    method?: 'GET' | 'POST';
+    method?: 'GET' | 'POST' | 'PUT';
     body?: unknown;
   } = {},
 ) {
@@ -112,6 +125,18 @@ export async function getActiveAlerts(token: string) {
   return response.alerts ?? [];
 }
 
+export async function getAlertHistory(token: string) {
+  const response = await alertRequest<ApiAlertHistoryResponse>('/api/alerts/history', token);
+
+  return response.history ?? [];
+}
+
+export async function getAlertRiskHistory(id: string, token: string) {
+  const response = await alertRequest<ApiAlertRiskHistoryResponse>(`/api/alerts/${id}/risk-history`, token);
+
+  return response.riskHistory ?? [];
+}
+
 export async function getAlertById(id: string, token: string) {
   const response = await alertRequest<ApiAlertResponse>(`/api/alerts/${id}`, token);
 
@@ -125,6 +150,19 @@ export async function getAlertById(id: string, token: string) {
 export async function createAlert(payload: CreateAlertPayload, token: string) {
   const response = await alertRequest<ApiAlertResponse>('/api/alerts', token, {
     method: 'POST',
+    body: payload,
+  });
+
+  if (!response.alert) {
+    throw new AlertApiError(500, 'The server returned an unexpected response.');
+  }
+
+  return response.alert;
+}
+
+export async function updateAlert(id: string, payload: UpdateAlertPayload, token: string) {
+  const response = await alertRequest<ApiAlertResponse>(`/api/alerts/${id}`, token, {
+    method: 'PUT',
     body: payload,
   });
 
