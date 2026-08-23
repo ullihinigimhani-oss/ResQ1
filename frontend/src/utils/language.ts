@@ -40,6 +40,33 @@ type ResidentAlertUiKey =
   | 'yourArea'
   | 'yourAreaClear';
 
+type AlertDetailUiKey =
+  | 'acknowledgeAlert'
+  | 'acknowledged'
+  | 'acknowledgedMessage'
+  | 'alertDetails'
+  | 'area'
+  | 'back'
+  | 'checkConnection'
+  | 'description'
+  | 'emergencyActions'
+  | 'emergencyActionsCopy'
+  | 'emergencyType'
+  | 'expires'
+  | 'findNearestSafeShelter'
+  | 'issued'
+  | 'language'
+  | 'loadingBody'
+  | 'loadingTitle'
+  | 'publishedSuccess'
+  | 'retry'
+  | 'riskLevel'
+  | 'safetyInstructions'
+  | 'reportIncident'
+  | 'status'
+  | 'unableLoadAlert'
+  | 'viewSafeEvacuationRoute';
+
 export const residentAlertUiText: Record<PreferredLanguage, Record<ResidentAlertUiKey, string>> = {
   English: {
     allClear: 'All Clear',
@@ -100,6 +127,90 @@ export const residentAlertUiText: Record<PreferredLanguage, Record<ResidentAlert
     warning: 'எச்சரிக்கை',
     yourArea: 'உங்கள் பகுதி',
     yourAreaClear: 'உங்கள் பகுதி தற்போது பாதுகாப்பாக உள்ளது',
+  },
+};
+
+export const alertDetailUiText: Record<PreferredLanguage, Record<AlertDetailUiKey, string>> = {
+  English: {
+    acknowledgeAlert: 'Acknowledge Alert',
+    acknowledged: 'Acknowledged',
+    acknowledgedMessage: 'Alert acknowledged on this device only. Backend acknowledgement persistence is not connected in the current frontend service layer.',
+    alertDetails: 'Alert Details',
+    area: 'Area',
+    back: 'Back',
+    checkConnection: 'Check your connection and try again.',
+    description: 'Description',
+    emergencyActions: 'Emergency Actions',
+    emergencyActionsCopy: 'Use verified ResQ1 routes, shelters, and incident tools for this alert.',
+    emergencyType: 'Emergency Type',
+    expires: 'Expires',
+    findNearestSafeShelter: 'Find Nearest Safe Shelter',
+    issued: 'Issued',
+    language: 'Language',
+    loadingBody: 'Retrieving the latest verified warning.',
+    loadingTitle: 'Loading alert details...',
+    publishedSuccess: 'Emergency alert published successfully.',
+    retry: 'Retry',
+    riskLevel: 'Risk Level',
+    safetyInstructions: 'Safety Instructions',
+    reportIncident: 'Report Incident',
+    status: 'Status',
+    unableLoadAlert: 'Unable to load this emergency alert.',
+    viewSafeEvacuationRoute: 'View Safe Evacuation Route',
+  },
+  Sinhala: {
+    acknowledgeAlert: 'අනතුරු ඇඟවීම තහවුරු කරන්න',
+    acknowledged: 'තහවුරු කර ඇත',
+    acknowledgedMessage: 'මෙම උපාංගයේ පමණක් අනතුරු ඇඟවීම තහවුරු කර ඇත. පසුපස සේවා තහවුරු කිරීමේ සුරැකීම තවම සම්බන්ධ කර නැත.',
+    alertDetails: 'අනතුරු ඇඟවීමේ විස්තර',
+    area: 'ප්‍රදේශය',
+    back: 'ආපසු',
+    checkConnection: 'ඔබගේ සම්බන්ධතාව පරීක්ෂා කර නැවත උත්සාහ කරන්න.',
+    description: 'විස්තරය',
+    emergencyActions: 'හදිසි ක්‍රියාමාර්ග',
+    emergencyActionsCopy: 'මෙම අනතුරු ඇඟවීම සඳහා තහවුරු කළ ResQ1 මාර්ග, ආරක්ෂිත ස්ථාන සහ සිද්ධි මෙවලම් භාවිතා කරන්න.',
+    emergencyType: 'හදිසි තත්ත්ව වර්ගය',
+    expires: 'කල් ඉකුත් වන්නේ',
+    findNearestSafeShelter: 'ළඟම ආරක්ෂිත ස්ථානය සොයන්න',
+    issued: 'නිකුත් කළේ',
+    language: 'භාෂාව',
+    loadingBody: 'නවතම තහවුරු කළ අනතුරු ඇඟවීම ලබා ගනිමින්...',
+    loadingTitle: 'අනතුරු ඇඟවීමේ විස්තර පූරණය වෙමින්...',
+    publishedSuccess: 'හදිසි අනතුරු ඇඟවීම සාර්ථකව පළ කර ඇත.',
+    retry: 'නැවත උත්සාහ කරන්න',
+    riskLevel: 'අවදානම් මට්ටම',
+    safetyInstructions: 'ආරක්ෂක උපදෙස්',
+    reportIncident: 'සිද්ධියක් වාර්තා කරන්න',
+    status: 'තත්ත්වය',
+    unableLoadAlert: 'මෙම හදිසි අනතුරු ඇඟවීම පූරණය කළ නොහැක.',
+    viewSafeEvacuationRoute: 'ආරක්ෂිත ඉවත් කිරීමේ මාර්ගය බලන්න',
+  },
+  Tamil: {
+    acknowledgeAlert: 'எச்சரிக்கையை உறுதிப்படுத்து',
+    acknowledged: 'உறுதிப்படுத்தப்பட்டது',
+    acknowledgedMessage: 'இந்த சாதனத்தில் மட்டும் எச்சரிக்கை உறுதிப்படுத்தப்பட்டது. பின்புல உறுதிப்படுத்தல் சேமிப்பு தற்போது இணைக்கப்படவில்லை.',
+    alertDetails: 'எச்சரிக்கை விவரங்கள்',
+    area: 'பகுதி',
+    back: 'பின்',
+    checkConnection: 'உங்கள் இணைப்பைச் சரிபார்த்து மீண்டும் முயற்சிக்கவும்.',
+    description: 'விளக்கம்',
+    emergencyActions: 'அவசர நடவடிக்கைகள்',
+    emergencyActionsCopy: 'இந்த எச்சரிக்கைக்கான உறுதிப்படுத்தப்பட்ட ResQ1 பாதைகள், தங்குமிடங்கள் மற்றும் சம்பவ கருவிகளைப் பயன்படுத்தவும்.',
+    emergencyType: 'அவசர நிலை வகை',
+    expires: 'காலாவதியாகும்',
+    findNearestSafeShelter: 'அருகிலுள்ள பாதுகாப்பான தங்குமிடத்தை கண்டறி',
+    issued: 'வெளியிடப்பட்டது',
+    language: 'மொழி',
+    loadingBody: 'சமீபத்திய உறுதிப்படுத்தப்பட்ட எச்சரிக்கை பெறப்படுகிறது.',
+    loadingTitle: 'எச்சரிக்கை விவரங்கள் ஏற்றப்படுகின்றன...',
+    publishedSuccess: 'அவசர எச்சரிக்கை வெற்றிகரமாக வெளியிடப்பட்டது.',
+    retry: 'மீண்டும் முயற்சி',
+    riskLevel: 'அபாய நிலை',
+    safetyInstructions: 'பாதுகாப்பு வழிமுறைகள்',
+    reportIncident: 'சம்பவத்தை அறிக்கை செய்',
+    status: 'நிலை',
+    unableLoadAlert: 'இந்த அவசர எச்சரிக்கையை ஏற்ற முடியவில்லை.',
+    viewSafeEvacuationRoute: 'பாதுகாப்பான வெளியேற்ற பாதையைப் பார்க்க',
   },
 };
 
@@ -180,6 +291,37 @@ const knownAlertTitleText: Record<string, Partial<Record<PreferredLanguage, stri
   },
 };
 
+const knownAlertMessageText: Record<string, Partial<Record<PreferredLanguage, string>>> = {
+  'avoid walking or driving in flood water': {
+    Sinhala: 'ගංවතුර ජලය තුළ ඇවිදීම හෝ රිය පැදවීමෙන් වළකින්න.',
+    Tamil: 'வெள்ளநீரில் நடப்பதையோ வாகனம் ஓட்டுவதையோ தவிர்க்கவும்.',
+  },
+  'follow instructions from authorities': {
+    Sinhala: 'බලධාරීන්ගේ උපදෙස් අනුගමනය කරන්න.',
+    Tamil: 'அதிகாரிகளின் அறிவுறுத்தல்களைப் பின்பற்றவும்.',
+  },
+  'follow official evacuation and safety instructions from emergency authorities': {
+    Sinhala: 'හදිසි බලධාරීන්ගේ නිල ඉවත් කිරීමේ සහ ආරක්ෂක උපදෙස් අනුගමනය කරන්න.',
+    Tamil: 'அவசர அதிகாரிகளின் அதிகாரப்பூர்வ வெளியேற்ற மற்றும் பாதுகாப்பு வழிமுறைகளைப் பின்பற்றவும்.',
+  },
+  'heavy rainfall and rising water levels': {
+    Sinhala: 'අධික වැසි සහ ජල මට්ටම් ඉහළ යාම.',
+    Tamil: 'கனமழை மற்றும் நீர்மட்டம் உயர்வு.',
+  },
+  'heavy rainfall expected': {
+    Sinhala: 'අධික වැසි අපේක්ෂා කෙරේ.',
+    Tamil: 'கனமழை எதிர்பார்க்கப்படுகிறது.',
+  },
+  'move to higher ground': {
+    Sinhala: 'ඉහළ භූමි ප්‍රදේශයකට ගමන් කරන්න.',
+    Tamil: 'உயரமான நிலப்பகுதிக்குச் செல்லவும்.',
+  },
+  'strong winds expected': {
+    Sinhala: 'තද සුළං අපේක්ෂා කෙරේ.',
+    Tamil: 'பலத்த காற்று எதிர்பார்க்கப்படுகிறது.',
+  },
+};
+
 function normalizedPhrase(value: string) {
   return value.trim().toLowerCase().replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
 }
@@ -200,6 +342,32 @@ export function translateAlertTitle(alert: Alert, language: PreferredLanguage) {
   return knownAlertTitleText[normalizedPhrase(alert.title)]?.[language] ?? alert.title;
 }
 
-export function translateAlertMessage(alert: Alert, _language: PreferredLanguage) {
-  return alert.message;
+export function translateDisasterType(value: string, language: PreferredLanguage) {
+  if (language === 'English') {
+    return value;
+  }
+
+  return knownAlertTitleText[normalizedPhrase(value)]?.[language] ?? value;
+}
+
+export function translateAlertMessage(alert: Alert, language: PreferredLanguage) {
+  if (language === 'English') {
+    return alert.message;
+  }
+
+  return knownAlertMessageText[normalizedPhrase(alert.message)]?.[language] ?? alert.message;
+}
+
+export function translateSafetyInstruction(instruction: string, language: PreferredLanguage) {
+  if (language === 'English') {
+    return instruction;
+  }
+
+  return knownAlertMessageText[normalizedPhrase(instruction)]?.[language] ?? instruction;
+}
+
+export function fallbackSafetyInstruction(language: PreferredLanguage) {
+  const fallback = 'Follow official evacuation and safety instructions from emergency authorities.';
+
+  return knownAlertMessageText[normalizedPhrase(fallback)]?.[language] ?? fallback;
 }
