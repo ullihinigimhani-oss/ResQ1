@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import { Redirect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   RefreshControl,
@@ -11,8 +11,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { AlertStatusBadge, RiskBadge } from '@/components/alerts/alert-badges';
 import { AuthButton, BackButton, StatusBanner } from '@/components/common/auth-components';
+import { AppIcon } from '@/components/ui/app-components';
 import { BrandColors } from '@/constants/brand';
 import { useAuth } from '@/context/auth-context';
 import { getAlertById, isAlertApiError } from '@/services/alertService';
@@ -55,20 +55,82 @@ function safetyInstructionLines(value: string) {
   return ['Follow official evacuation and safety instructions from emergency authorities.'];
 }
 
-function SummaryItem({ label, value }: { label: string; value: string }) {
+function alertToneForRisk(riskLevel: Alert['riskLevel'] | undefined) {
+  if (riskLevel === 'Critical' || riskLevel === 'High') {
+    return {
+      accent: BrandColors.red,
+      backgroundColor: BrandColors.redSoft,
+      borderColor: BrandColors.red,
+      pillBackground: BrandColors.redSoft,
+      pillBorder: BrandColors.red,
+      pillText: BrandColors.red,
+      titleColor: BrandColors.red,
+    };
+  }
+
+  if (riskLevel === 'Moderate') {
+    return {
+      accent: '#B7791F',
+      backgroundColor: BrandColors.warningSoft,
+      borderColor: '#D69E2E',
+      pillBackground: BrandColors.warningSoft,
+      pillBorder: '#D69E2E',
+      pillText: '#7A4B00',
+      titleColor: '#8A4B00',
+    };
+  }
+
+  return {
+    accent: BrandColors.deepBlue,
+    backgroundColor: BrandColors.lightBlue,
+    borderColor: BrandColors.sky,
+    pillBackground: BrandColors.lightBlue,
+    pillBorder: BrandColors.sky,
+    pillText: BrandColors.deepBlue,
+    titleColor: BrandColors.deepBlue,
+  };
+}
+
+function DetailPill({
+  backgroundColor,
+  borderColor,
+  label,
+  textColor,
+}: {
+  backgroundColor: string;
+  borderColor: string;
+  label: string;
+  textColor: string;
+}) {
   return (
-    <View style={styles.summaryItem}>
-      <Text style={styles.summaryLabel}>{label}</Text>
-      <Text style={styles.summaryValue}>{value}</Text>
+    <View style={[styles.detailPill, { backgroundColor, borderColor }]}>
+      <Text style={[styles.detailPillText, { color: textColor }]}>{label.toUpperCase()}</Text>
     </View>
   );
 }
 
-function DetailRow({ label, value }: { label: string; value: string }) {
+function DetailInfoRow({
+  children,
+  fallback,
+  label,
+  name,
+  value,
+}: {
+  children?: ReactNode;
+  fallback: string;
+  label: string;
+  name: string;
+  value?: string;
+}) {
   return (
-    <View style={styles.detailRow}>
-      <Text style={styles.detailLabel}>{label}</Text>
-      <Text style={styles.detailValue}>{value}</Text>
+    <View style={styles.detailInfoRow}>
+      <View style={styles.detailIcon}>
+        <AppIcon fallback={fallback} name={name} size={22} tintColor={BrandColors.navy} />
+      </View>
+      <View style={styles.detailInfoTextBlock}>
+        <Text style={styles.detailInfoLabel}>{label}</Text>
+        {value ? <Text style={styles.detailInfoValue}>{value}</Text> : children}
+      </View>
     </View>
   );
 }
@@ -145,7 +207,7 @@ export default function AlertDetailsScreen() {
   const showError = Boolean(errorMessage) && !alert && !showInitialLoading;
   const publishedAt = formatDateTime(alert?.createdAt ?? null);
   const expiresAt = formatDateTime(alert?.expiresAt ?? null);
-  const critical = alert?.riskLevel === 'Critical';
+  const alertTone = alertToneForRisk(alert?.riskLevel);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -162,7 +224,7 @@ export default function AlertDetailsScreen() {
         showsVerticalScrollIndicator={false}>
         <View style={styles.topBar}>
           <BackButton onPress={() => router.replace('/alerts' as Href)} />
-          <Text style={styles.topBarTitle}>Emergency Alert</Text>
+          <Text style={styles.topBarTitle}>Alert Details</Text>
         </View>
 
         {published ? <StatusBanner message="Emergency alert published successfully." type="success" /> : null}
@@ -192,45 +254,56 @@ export default function AlertDetailsScreen() {
 
         {alert ? (
           <>
-            <View style={[styles.warningPanel, critical && styles.criticalWarningPanel]}>
-              <View style={styles.warningHeader}>
-                <RiskBadge riskLevel={alert.riskLevel} />
-                <AlertStatusBadge status={alert.status} />
-              </View>
-              <Text style={[styles.alertTitle, critical && styles.criticalAlertTitle]}>{alert.title}</Text>
-              <Text style={styles.alertMessage}>{alert.message}</Text>
-
-              <View style={styles.summaryGrid}>
-                <SummaryItem label="Affected Area" value={alert.affectedArea} />
-                <SummaryItem label="Disaster Type" value={alert.disasterType} />
-                <SummaryItem label="Published" value={publishedAt ?? 'Not available'} />
-                {expiresAt ? <SummaryItem label="Expires" value={expiresAt} /> : null}
-              </View>
-            </View>
-
-            <View style={styles.safetyPanel}>
-              <Text style={styles.sectionEyebrow}>Safety Instructions</Text>
-              <Text style={[styles.sectionTitle, styles.safetyTitle]}>Follow these actions now</Text>
-              <View style={styles.instructionList}>
-                {safetyInstructions.map((instruction, index) => (
-                  <View key={`${instruction}-${index}`} style={styles.instructionRow}>
-                    <View style={styles.instructionNumber}>
-                      <Text style={styles.instructionNumberText}>{index + 1}</Text>
-                    </View>
-                    <Text style={styles.instructionText}>{instruction}</Text>
+            <View style={[styles.detailCard, { borderColor: alertTone.borderColor }]}>
+              <View style={[styles.detailHero, { backgroundColor: alertTone.backgroundColor }]}>
+                <View style={styles.detailHeroTitleRow}>
+                  <View style={[styles.detailHeroIcon, { backgroundColor: alertTone.accent }]}>
+                    <AppIcon fallback="!" name="exclamationmark.triangle.fill" size={30} tintColor={BrandColors.white} />
                   </View>
-                ))}
+                  <Text style={[styles.detailHeroTitle, { color: alertTone.titleColor }]}>{alert.title}</Text>
+                </View>
+                <DetailPill
+                  backgroundColor={BrandColors.lightBlue}
+                  borderColor={BrandColors.sky}
+                  label={alert.status}
+                  textColor={BrandColors.deepBlue}
+                />
               </View>
-            </View>
 
-            <View style={styles.panel}>
-              <Text style={styles.sectionTitle}>Alert Information</Text>
-              <DetailRow label="Status" value={alert.status} />
-              <DetailRow label="Risk Level" value={alert.riskLevel} />
-              <DetailRow label="Affected Area" value={alert.affectedArea} />
-              <DetailRow label="Disaster Type" value={alert.disasterType} />
-              <DetailRow label="Published Time" value={publishedAt ?? 'Not available'} />
-              <DetailRow label="Expiration Time" value={expiresAt ?? 'No expiration set'} />
+              <View style={styles.detailInfoList}>
+                <DetailInfoRow fallback="A" label="Area" name="house.fill" value={alert.affectedArea} />
+                <DetailInfoRow fallback="T" label="Emergency Type" name="exclamationmark.triangle.fill" value={alert.disasterType} />
+                <DetailInfoRow fallback="R" label="Risk Level" name="gauge.with.dots.needle.33percent">
+                  <DetailPill
+                    backgroundColor={alertTone.pillBackground}
+                    borderColor={alertTone.pillBorder}
+                    label={alert.riskLevel}
+                    textColor={alertTone.pillText}
+                  />
+                </DetailInfoRow>
+                <DetailInfoRow fallback="D" label="Description" name="slider.horizontal.3" value={alert.message} />
+                <DetailInfoRow fallback="I" label="Issued" name="clock.fill" value={publishedAt ?? 'Not available'} />
+                {expiresAt ? (
+                  <DetailInfoRow fallback="E" label="Expires" name="clock.fill" value={expiresAt} />
+                ) : null}
+                <DetailInfoRow fallback="S" label="Status" name="bell.fill">
+                  <DetailPill
+                    backgroundColor={BrandColors.lightBlue}
+                    borderColor={BrandColors.sky}
+                    label={alert.status}
+                    textColor={BrandColors.deepBlue}
+                  />
+                </DetailInfoRow>
+                <DetailInfoRow fallback="!" label="Safety Instructions" name="cross.case.fill">
+                  <View style={styles.safetyBulletList}>
+                    {safetyInstructions.map((instruction, index) => (
+                      <Text key={`${instruction}-${index}`} style={styles.safetyBulletText}>
+                        - {instruction}
+                      </Text>
+                    ))}
+                  </View>
+                </DetailInfoRow>
+              </View>
             </View>
 
             <View style={styles.panel}>
@@ -301,80 +374,76 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     lineHeight: 23,
   },
-  warningPanel: {
+  detailCard: {
     backgroundColor: BrandColors.white,
     borderColor: BrandColors.border,
     borderRadius: 8,
     borderWidth: 1,
-    gap: 14,
+    overflow: 'hidden',
+  },
+  detailHero: {
+    alignItems: 'center',
+    borderBottomColor: BrandColors.border,
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    justifyContent: 'space-between',
     padding: 16,
   },
-  criticalWarningPanel: {
-    borderColor: BrandColors.red,
-    borderTopColor: BrandColors.red,
-    borderTopWidth: 6,
-  },
-  warningHeader: {
+  detailHeroTitleRow: {
     alignItems: 'center',
+    flex: 1,
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+    gap: 12,
+    minWidth: 0,
   },
-  alertTitle: {
-    color: BrandColors.navy,
-    fontSize: 24,
-    fontWeight: '900',
-    lineHeight: 30,
-  },
-  criticalAlertTitle: {
-    color: BrandColors.red,
-  },
-  alertMessage: {
-    color: BrandColors.text,
-    fontSize: 16,
-    fontWeight: '600',
-    lineHeight: 24,
-  },
-  summaryGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  summaryItem: {
-    backgroundColor: BrandColors.lightBlue,
+  detailHeroIcon: {
+    alignItems: 'center',
     borderRadius: 8,
-    flexGrow: 1,
-    minWidth: '47%',
-    padding: 12,
+    height: 46,
+    justifyContent: 'center',
+    width: 46,
   },
-  summaryLabel: {
-    color: BrandColors.muted,
+  detailHeroTitle: {
+    flex: 1,
+    fontSize: 22,
+    fontWeight: '900',
+    lineHeight: 28,
+  },
+  detailPill: {
+    alignSelf: 'flex-start',
+    borderRadius: 6,
+    borderWidth: 1,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+  },
+  detailPillText: {
     fontSize: 11,
     fontWeight: '900',
     lineHeight: 15,
-    textTransform: 'uppercase',
   },
-  summaryValue: {
-    color: BrandColors.text,
-    fontSize: 14,
-    fontWeight: '800',
-    lineHeight: 20,
-    marginTop: 4,
+  detailInfoList: {
+    paddingHorizontal: 16,
   },
-  safetyPanel: {
-    backgroundColor: BrandColors.navy,
-    borderColor: BrandColors.deepBlue,
-    borderRadius: 8,
-    borderWidth: 1,
-    gap: 13,
-    padding: 16,
+  detailInfoRow: {
+    alignItems: 'flex-start',
+    borderBottomColor: BrandColors.border,
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    gap: 12,
+    paddingVertical: 14,
   },
-  sectionEyebrow: {
-    color: BrandColors.sky,
-    fontSize: 12,
-    fontWeight: '900',
-    lineHeight: 16,
-    textTransform: 'uppercase',
+  detailIcon: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 1,
+    width: 28,
+  },
+  detailInfoTextBlock: {
+    flex: 1,
+    gap: 4,
+    minWidth: 0,
   },
   sectionTitle: {
     color: BrandColors.navy,
@@ -382,43 +451,32 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     lineHeight: 24,
   },
-  safetyTitle: {
-    color: BrandColors.white,
+  detailInfoLabel: {
+    color: BrandColors.muted,
+    fontSize: 13,
+    fontWeight: '900',
+    lineHeight: 18,
+  },
+  detailInfoValue: {
+    color: BrandColors.text,
+    fontSize: 15,
+    fontWeight: '800',
+    lineHeight: 21,
+  },
+  safetyBulletList: {
+    gap: 4,
+  },
+  safetyBulletText: {
+    color: BrandColors.text,
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 20,
   },
   sectionCopy: {
     color: BrandColors.muted,
     fontSize: 14,
     fontWeight: '600',
     lineHeight: 21,
-  },
-  instructionList: {
-    gap: 10,
-  },
-  instructionRow: {
-    alignItems: 'flex-start',
-    flexDirection: 'row',
-    gap: 10,
-  },
-  instructionNumber: {
-    alignItems: 'center',
-    backgroundColor: BrandColors.red,
-    borderRadius: 8,
-    height: 30,
-    justifyContent: 'center',
-    width: 30,
-  },
-  instructionNumberText: {
-    color: BrandColors.white,
-    fontSize: 13,
-    fontWeight: '900',
-    lineHeight: 17,
-  },
-  instructionText: {
-    color: BrandColors.white,
-    flex: 1,
-    fontSize: 15,
-    fontWeight: '700',
-    lineHeight: 22,
   },
   panel: {
     backgroundColor: BrandColors.white,
@@ -427,25 +485,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: 14,
     padding: 16,
-  },
-  detailRow: {
-    borderTopColor: BrandColors.border,
-    borderTopWidth: 1,
-    gap: 4,
-    paddingTop: 12,
-  },
-  detailLabel: {
-    color: BrandColors.muted,
-    fontSize: 12,
-    fontWeight: '900',
-    lineHeight: 16,
-    textTransform: 'uppercase',
-  },
-  detailValue: {
-    color: BrandColors.text,
-    fontSize: 15,
-    fontWeight: '800',
-    lineHeight: 21,
   },
   actionButtons: {
     gap: 10,
