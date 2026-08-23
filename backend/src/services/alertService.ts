@@ -1,9 +1,13 @@
 import { sql } from '../config/database.js';
 import {
+  alertAuditActions,
   alertDisasterTypes,
   alertRiskLevels,
   alertStatuses,
   type Alert,
+  type AlertAuditAction,
+  type AlertAuditEvent,
+  type AlertAuditRow,
   type AlertDisasterType,
   type AlertRiskLevel,
   type AlertRow,
@@ -17,6 +21,7 @@ import {
 const ACTIVE_ALERT_STATUS: AlertStatus = 'Active';
 const ALERT_TITLE_MAX_LENGTH = 150;
 const ALERT_AREA_MAX_LENGTH = 150;
+let auditTableReady: Promise<void> | null = null;
 
 export class AlertServiceError extends Error {
   constructor(
@@ -77,6 +82,129 @@ function toAlert(row: AlertRow): Alert {
     updatedAt: formatTimestamp(row.updated_at),
     isRelevantToResident: Boolean(row.is_relevant_to_resident),
   };
+}
+
+type RecordAlertAuditEventInput = {
+  action: AlertAuditAction;
+  alertId: number;
+  changedBy: number | null;
+  newRiskLevel: string | null;
+  newStatus: string | null;
+  previousRiskLevel: string | null;
+  previousStatus: string | null;
+};
+
+async function createAlertAuditTable() {
+  await sql`
+    CREATE TABLE IF NOT EXISTS alert_audit_events (
+      id SERIAL PRIMARY KEY,
+      alert_id INTEGER NOT NULL REFERENCES alerts(id) ON DELETE CASCADE,
+      action VARCHAR(20) NOT NULL,
+      previous_status VARCHAR(20),
+      new_status VARCHAR(20),
+      previous_risk_level VARCHAR(20),
+      new_risk_level VARCHAR(20),
+      changed_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `;
+
+  await sql`
+    CREATE INDEX IF NOT EXISTS idx_alert_audit_events_alert_id
+    ON alert_audit_events(alert_id)
+  `;
+
+  await sql`
+    CREATE INDEX IF NOT EXISTS idx_alert_audit_events_created_at
+    ON alert_audit_events(created_at DESC)
+  `;
+}
+
+async function ensureAlertAuditTable() {
+  auditTableReady ??= createAlertAuditTable();
+
+  await auditTableReady;
+}
+
+function toAuditEvent(row: AlertAuditRow): AlertAuditEvent {
+  return {
+    id: row.id,
+    alertId: row.alert_id,
+    action: row.action,
+    title: row.title,
+    disasterType: row.disaster_type,
+    affectedArea: row.affected_area,
+    previousStatus: row.previous_status,
+    newStatus: row.new_status,
+    previousRiskLevel: row.previous_risk_level,
+    newRiskLevel: row.new_risk_level,
+    changedBy: row.changed_by,
+    createdAt: formatTimestamp(row.created_at),
+  };
+}
+
+function statusText(row: AlertRow) {
+  return effectiveAlertStatus(row.status, row.expires_at);
+}
+
+function riskLevelText(row: AlertRow) {
+  return trimmedText(row.risk_level) || null;
+}
+
+function auditActionForUpdate(
+  previousAlert: AlertRow,
+  updatedAlert: AlertRow,
+  requestedAction: AlertAuditAction | null,
+): AlertAuditAction {
+  if (requestedAction) {
+    return requestedAction;
+  }
+
+  const previousStatus = statusText(previousAlert);
+  const newStatus = statusText(updatedAlert);
+
+  if (previousStatus !== newStatus && newStatus === 'Expired') {
+    return 'EXPIRED';
+  }
+
+  if (previousStatus !== newStatus && newStatus === 'Resolved') {
+    return 'RESOLVED';
+  }
+
+  return 'UPDATED';
+}
+
+async function recordAlertAuditEvent({
+  action,
+  alertId,
+  changedBy,
+  newRiskLevel,
+  newStatus,
+  previousRiskLevel,
+  previousStatus,
+}: RecordAlertAuditEventInput) {
+  await ensureAlertAuditTable();
+
+  await sql`
+    INSERT INTO alert_audit_events (
+      alert_id,
+      action,
+      previous_status,
+      new_status,
+      previous_risk_level,
+      new_risk_level,
+      changed_by
+    )
+    VALUES (
+      ${alertId},
+      ${action},
+      ${previousStatus},
+      ${newStatus},
+      ${previousRiskLevel},
+      ${newRiskLevel},
+      ${changedBy}
+    )
+  `;
 }
 
 function numericAlertId(alertId: string) {
@@ -266,30 +394,30 @@ export async function getActiveAlerts(residentLocation: string | null | undefine
 }
 
 export async function getAlertHistory() {
+  await ensureAlertAuditTable();
+
   const rows = await sql`
     SELECT
-      id,
-      title,
-      disaster_type,
-      affected_area,
-      risk_level,
-      message,
-      safety_instructions,
-      status,
-      expires_at,
-      created_by,
-      created_at,
-      updated_at,
-      FALSE AS is_relevant_to_resident
-    FROM alerts
-    WHERE COALESCE(status, ${ACTIVE_ALERT_STATUS}) <> ${ACTIVE_ALERT_STATUS}
-      OR (expires_at IS NOT NULL AND expires_at <= CURRENT_TIMESTAMP)
+      alert_audit_events.id,
+      alert_audit_events.alert_id,
+      alert_audit_events.action,
+      alert_audit_events.previous_status,
+      alert_audit_events.new_status,
+      alert_audit_events.previous_risk_level,
+      alert_audit_events.new_risk_level,
+      alert_audit_events.changed_by,
+      alert_audit_events.created_at,
+      alerts.title,
+      alerts.disaster_type,
+      alerts.affected_area
+    FROM alert_audit_events
+    INNER JOIN alerts ON alerts.id = alert_audit_events.alert_id
     ORDER BY
-      updated_at DESC,
-      created_at DESC
+      alert_audit_events.created_at DESC,
+      alert_audit_events.id DESC
   `;
 
-  return (rows as AlertRow[]).map(toAlert);
+  return (rows as AlertAuditRow[]).map(toAuditEvent);
 }
 
 export async function getAlertById(alertId: string) {
@@ -359,12 +487,50 @@ export async function createAlert(senderId: number, input: CreateAlertInput) {
     throw new AlertServiceError(500, 'Emergency alert could not be published.');
   }
 
+  await recordAlertAuditEvent({
+    action: 'PUBLISHED',
+    alertId: createdAlert.id,
+    changedBy: senderId,
+    newRiskLevel: riskLevelText(createdAlert),
+    newStatus: statusText(createdAlert),
+    previousRiskLevel: null,
+    previousStatus: null,
+  });
+
   return toAlert(createdAlert);
 }
 
-export async function updateAlert(alertId: string, input: UpdateAlertInput) {
+export async function updateAlert(alertId: string, input: UpdateAlertInput, changedBy: number | null = null) {
   const numericId = numericAlertId(alertId);
   const alert = validateUpdateAlertInput(input);
+  const auditActionOverride = canonicalOption(trimmedText(input.auditAction), alertAuditActions);
+  const requestedAuditAction = auditActionOverride === 'PUBLISHED' ? null : auditActionOverride;
+
+  const currentRows = await sql`
+    SELECT
+      id,
+      title,
+      disaster_type,
+      affected_area,
+      risk_level,
+      message,
+      safety_instructions,
+      status,
+      expires_at,
+      created_by,
+      created_at,
+      updated_at,
+      FALSE AS is_relevant_to_resident
+    FROM alerts
+    WHERE id = ${numericId}
+    LIMIT 1
+  `;
+
+  const previousAlert = currentRows[0] as AlertRow | undefined;
+
+  if (!previousAlert) {
+    throw new AlertServiceError(404, 'Emergency alert not found.');
+  }
 
   const rows = await sql`
     UPDATE alerts
@@ -386,6 +552,16 @@ export async function updateAlert(alertId: string, input: UpdateAlertInput) {
   if (!updatedAlert) {
     throw new AlertServiceError(404, 'Emergency alert not found.');
   }
+
+  await recordAlertAuditEvent({
+    action: auditActionForUpdate(previousAlert, updatedAlert, requestedAuditAction),
+    alertId: updatedAlert.id,
+    changedBy,
+    newRiskLevel: riskLevelText(updatedAlert),
+    newStatus: statusText(updatedAlert),
+    previousRiskLevel: riskLevelText(previousAlert),
+    previousStatus: statusText(previousAlert),
+  });
 
   return toAlert(updatedAlert);
 }

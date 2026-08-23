@@ -614,6 +614,7 @@ function AuthorityDashboard({
   onCreateAlert,
   onEditAlert,
   onRetry,
+  onViewHistory,
   onViewAlert,
 }: DashboardStateProps & {
   cancellingAlertId: number | null;
@@ -621,6 +622,7 @@ function AuthorityDashboard({
   onCancelAlert: (alert: Alert) => void;
   onCreateAlert: () => void;
   onEditAlert: (alertId: number) => void;
+  onViewHistory: () => void;
 }) {
   const showInitialLoading = loadingAlerts && alerts.length === 0;
   const showError = Boolean(errorMessage) && alerts.length === 0 && !showInitialLoading;
@@ -651,8 +653,16 @@ function AuthorityDashboard({
           <Text style={styles.sectionTitle}>Active Alerts</Text>
           <Text style={styles.authoritySectionSubtitle}>Official warnings currently published</Text>
         </View>
-        <View style={styles.activeCountBadge}>
-          <Text style={styles.activeCountBadgeText}>{alerts.length} ACTIVE</Text>
+        <View style={styles.authoritySectionActions}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={onViewHistory}
+            style={({ pressed }) => [styles.historyLink, pressed && styles.pressed]}>
+            <Text style={styles.historyLinkText}>View History -&gt;</Text>
+          </Pressable>
+          <View style={styles.activeCountBadge}>
+            <Text style={styles.activeCountBadgeText}>{alerts.length} ACTIVE</Text>
+          </View>
         </View>
       </View>
 
@@ -830,6 +840,10 @@ export default function AlertsScreen() {
     } as unknown as Href);
   }, [router]);
 
+  const handleViewHistory = useCallback(() => {
+    router.push('/alerts/history' as Href);
+  }, [router]);
+
   const handleCancelAlertRequest = useCallback((alert: Alert) => {
     if (alert.status !== 'Active') {
       return;
@@ -862,6 +876,7 @@ export default function AlertsScreen() {
         affectedArea: cancelTarget.affectedArea,
         riskLevel: cancelTarget.riskLevel,
         status: 'Resolved',
+        auditAction: 'CANCELLED',
         message: cancelTarget.message,
         safetyInstructions: cancelTarget.safetyInstructions,
         expiresAt: cancelTarget.expiresAt,
@@ -924,6 +939,7 @@ export default function AlertsScreen() {
             onCancelAlert={handleCancelAlertRequest}
             onCreateAlert={handleCreateAlert}
             onEditAlert={handleEditAlert}
+            onViewHistory={handleViewHistory}
           />
         ) : (
           <ResidentDashboard
@@ -1483,6 +1499,22 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     lineHeight: 18,
+  },
+  authoritySectionActions: {
+    alignItems: 'flex-end',
+    gap: spacing.xs,
+  },
+  historyLink: {
+    alignItems: 'center',
+    minHeight: 28,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xs,
+  },
+  historyLinkText: {
+    color: colors.deepBlue,
+    fontSize: 12,
+    fontWeight: '900',
+    lineHeight: 16,
   },
   activeCountBadge: {
     backgroundColor: colors.navy,
