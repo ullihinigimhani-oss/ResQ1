@@ -1,6 +1,7 @@
 import { API_BASE_URL } from '@/services/authService';
 import type {
   Alert,
+  AlertAuditEvent,
   AlertFieldErrors,
   CreateAlertPayload,
   UpdateAlertPayload,
@@ -20,6 +21,11 @@ type ApiAlertResponse = ApiErrorBody & {
 type ApiAlertListResponse = ApiErrorBody & {
   success: boolean;
   alerts?: Alert[];
+};
+
+type ApiAlertHistoryResponse = ApiErrorBody & {
+  success: boolean;
+  history?: AlertAuditEvent[];
 };
 
 export class AlertApiError extends Error {
@@ -111,6 +117,12 @@ export async function getActiveAlerts(token: string) {
   const response = await alertRequest<ApiAlertListResponse>('/api/alerts', token);
 
   return response.alerts ?? [];
+}
+
+export async function getAlertHistory(token: string) {
+  const response = await alertRequest<ApiAlertHistoryResponse>('/api/alerts/history', token);
+
+  return response.history ?? [];
 }
 
 export async function getAlertById(id: string, token: string) {

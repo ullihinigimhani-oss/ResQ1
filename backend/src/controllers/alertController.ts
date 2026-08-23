@@ -4,6 +4,7 @@ import {
   AlertServiceError,
   createAlert,
   getActiveAlerts,
+  getAlertHistory,
   getAlertById,
   updateAlert,
 } from '../services/alertService.js';
@@ -69,6 +70,20 @@ export async function listActiveAlerts(req: Request, res: Response) {
   }
 }
 
+export async function listAlertHistory(req: Request, res: Response) {
+  try {
+    requireAlertManager(req);
+    const history = await getAlertHistory();
+
+    return res.status(200).json({
+      success: true,
+      history,
+    });
+  } catch (error) {
+    return sendAlertError(error, res);
+  }
+}
+
 export async function getEmergencyAlert(req: Request, res: Response) {
   try {
     requireAuthenticatedUser(req);
@@ -106,14 +121,14 @@ export async function createEmergencyAlert(req: Request, res: Response) {
 
 export async function updateEmergencyAlert(req: Request, res: Response) {
   try {
-    requireAlertManager(req);
+    const user = requireAlertManager(req);
     const alertId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
 
     if (!alertId) {
       throw new AlertServiceError(400, 'Invalid alert id.');
     }
 
-    const alert = await updateAlert(alertId, req.body);
+    const alert = await updateAlert(alertId, req.body, user.id);
 
     return res.status(200).json({
       success: true,
