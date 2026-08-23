@@ -8,6 +8,7 @@ import type {
   PreferredLanguage,
   RegisterResidentInput,
   SafeUser,
+  UpdateProfileInput,
   UserRow,
 } from '../types/auth.js';
 
@@ -124,6 +125,45 @@ function validateLoginInput(input: LoginResidentInput) {
   return { email, password };
 }
 
+function validateProfileInput(input: UpdateProfileInput) {
+  const fullName = trimmedText(input.fullName);
+  const email = normalizeEmail(input.email);
+  const location = trimmedText(input.location);
+  const preferredLanguage = trimmedText(input.preferredLanguage);
+  const fieldErrors: Record<string, string> = {};
+
+  if (!fullName) {
+    fieldErrors.fullName = 'Full name is required.';
+  }
+
+  if (!email) {
+    fieldErrors.email = 'Email address is required.';
+  } else if (!EMAIL_PATTERN.test(email)) {
+    fieldErrors.email = 'Enter a valid email address.';
+  }
+
+  if (!location) {
+    fieldErrors.location = 'Location or area is required.';
+  }
+
+  if (!preferredLanguage) {
+    fieldErrors.preferredLanguage = 'Preferred language is required.';
+  } else if (!PREFERRED_LANGUAGES.has(preferredLanguage as PreferredLanguage)) {
+    fieldErrors.preferredLanguage = 'Choose English, Sinhala, or Tamil.';
+  }
+
+  if (Object.keys(fieldErrors).length > 0) {
+    throw new AuthServiceError(400, 'Please correct the highlighted fields.', fieldErrors);
+  }
+
+  return {
+    fullName,
+    email,
+    location,
+    preferredLanguage: preferredLanguage as PreferredLanguage,
+  };
+}
+
 function createAuthToken(user: SafeUser): string {
   const jwtSecret = process.env.JWT_SECRET?.trim();
 
@@ -218,4 +258,45 @@ export async function loginResident(input: LoginResidentInput): Promise<AuthResu
     user: safeUser,
     token: createAuthToken(safeUser),
   };
+}
+
+export async function updateResidentProfile(
+  userId: number,
+  input: UpdateProfileInput,
+): Promise<AuthResult> {
+  const profile = validateProfileInput(input);
+
+  const existingUsers = await sql`
+    SELECT id
+    FROM users
+    WHERE email = ${profile.email}
+      AND id <> ${userId}
+    LIMIT 1
+  `;
+
+  if (existingUsers.length > 0) {
+    throw new AuthServiceError(409, 'An account with this email already exists.', {
+      email: 'An account with this email already exists.',
+    });
+  }
+
+  const rows = await sql`
+    UPDATE users
+    SET
+      full_name = ${profile.fullName},
+      email = ${profile.email},
+      location = ${profile.location},
+      preferred_language = ${profile.preferredLanguage},
+      updated_at = CURRENT_TIMESTAMP
+    WHERE id = ${userId}
+    RETURNING id, full_name, email, role, location, preferred_language, created_at, updated_at
+  `;
+
+  const updatedUser = rows[0] as UserRow | undefined;
+
+  if (!updatedUser) {
+    throw new AuthServiceError(404, 'Resident account was not found.');
+  }
+
+  return { user: toSafeUser(updatedUser) };
 }
