@@ -99,7 +99,7 @@ export default function ProfileScreen() {
       </SectionCard>
 
       <SectionCard title="Account">
-        <ActionRow label="Edit Profile" status="Future" onPress={() => router.push('/profile/edit' as Href)} />
+        <ActionRow label="Edit Profile" onPress={() => router.push('/profile/edit' as Href)} />
         <ActionRow
           label="Change Password"
           status="Future"
