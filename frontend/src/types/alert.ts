@@ -16,7 +16,32 @@ export interface School {
   area: string;
   latitude: number | null;
   longitude: number | null;
+  osmId: string | null;
+  osmType: string | null;
+  formattedAddress?: string | null;
   createdAt: string;
+}
+
+export interface SchoolSearchResult {
+  id: number | null;
+  schoolName: string;
+  area: string;
+  latitude: number | null;
+  longitude: number | null;
+  osmId: string | null;
+  osmType: string | null;
+  formattedAddress: string | null;
+}
+
+export interface SchoolSelectionPayload {
+  id?: number | null;
+  schoolName?: string;
+  area?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  osmId?: string | null;
+  osmType?: string | null;
+  formattedAddress?: string | null;
 }
 
 export interface Alert {
@@ -70,6 +95,7 @@ export interface CreateAlertPayload {
   safetyInstructions: string;
   expiresAt: string | null;
   schoolIds: number[];
+  schools: SchoolSelectionPayload[];
 }
 
 export interface UpdateAlertPayload extends CreateAlertPayload {

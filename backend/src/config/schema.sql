@@ -32,11 +32,17 @@ CREATE TABLE IF NOT EXISTS schools (
     area VARCHAR(150) NOT NULL,
     latitude DECIMAL(10, 7),
     longitude DECIMAL(10, 7),
+    osm_id VARCHAR(80),
+    osm_type VARCHAR(20),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX IF NOT EXISTS idx_schools_area
     ON schools(area);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_schools_osm_identity
+    ON schools(osm_type, osm_id)
+    WHERE osm_type IS NOT NULL AND osm_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS alert_schools (
     alert_id INTEGER NOT NULL REFERENCES alerts(id) ON DELETE CASCADE,

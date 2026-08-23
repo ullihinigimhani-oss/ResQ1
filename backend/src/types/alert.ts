@@ -16,6 +16,8 @@ export interface SchoolRow {
   area: string;
   latitude: number | string | null;
   longitude: number | string | null;
+  osm_id?: string | null;
+  osm_type?: string | null;
   created_at: Date | string;
 }
 
@@ -25,7 +27,32 @@ export interface School {
   area: string;
   latitude: number | null;
   longitude: number | null;
+  osmId: string | null;
+  osmType: string | null;
+  formattedAddress?: string | null;
   createdAt: string;
+}
+
+export interface SchoolSearchResult {
+  id: number | null;
+  schoolName: string;
+  area: string;
+  latitude: number | null;
+  longitude: number | null;
+  osmId: string | null;
+  osmType: string | null;
+  formattedAddress: string | null;
+}
+
+export interface SchoolSelectionInput {
+  id?: unknown;
+  schoolName?: unknown;
+  area?: unknown;
+  latitude?: unknown;
+  longitude?: unknown;
+  osmId?: unknown;
+  osmType?: unknown;
+  formattedAddress?: unknown;
 }
 
 export interface AlertRow {
@@ -120,6 +147,7 @@ export interface CreateAlertInput {
   safetyInstructions?: unknown;
   expiresAt?: unknown;
   schoolIds?: unknown;
+  schools?: unknown;
 }
 
 export interface UpdateAlertInput extends CreateAlertInput {

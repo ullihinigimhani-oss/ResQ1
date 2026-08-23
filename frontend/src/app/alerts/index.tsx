@@ -1096,6 +1096,16 @@ export default function AlertsScreen() {
         safetyInstructions: cancelTarget.safetyInstructions,
         expiresAt: cancelTarget.expiresAt,
         schoolIds: cancelTarget.schools.map((school) => school.id),
+        schools: cancelTarget.schools.map((school) => ({
+          id: school.id,
+          schoolName: school.schoolName,
+          area: school.area,
+          latitude: school.latitude,
+          longitude: school.longitude,
+          osmId: school.osmId,
+          osmType: school.osmType,
+          formattedAddress: school.formattedAddress,
+        })),
       }, token);
 
       setAlerts((currentAlerts) => currentAlerts.filter((alert) => alert.id !== cancelledAlert.id));

@@ -39,6 +39,7 @@ import {
   type AlertFieldErrors,
   type AlertRiskLevel,
   type AlertStatus,
+  type SchoolSelectionPayload,
   type UpdateAlertPayload,
 } from '@/types/alert';
 import { formatDateTime, isAuthorityRole } from '@/utils/format';
@@ -52,7 +53,7 @@ type AlertForm = {
   message: string;
   safetyInstructions: string;
   expiresAt: string;
-  schoolIds: number[];
+  selectedSchools: SchoolSelectionPayload[];
 };
 
 type TextAlertFormField =
@@ -78,7 +79,7 @@ const initialForm: AlertForm = {
   message: '',
   safetyInstructions: '',
   expiresAt: '',
-  schoolIds: [],
+  selectedSchools: [],
 };
 
 function firstParam(value: string | string[] | undefined) {
@@ -95,7 +96,16 @@ function formFromAlert(alert: Alert): AlertForm {
     message: alert.message,
     safetyInstructions: alert.safetyInstructions,
     expiresAt: alert.expiresAt ?? '',
-    schoolIds: alert.schools.map((school) => school.id),
+    selectedSchools: alert.schools.map((school) => ({
+      id: school.id,
+      schoolName: school.schoolName,
+      area: school.area,
+      latitude: school.latitude,
+      longitude: school.longitude,
+      osmId: school.osmId,
+      osmType: school.osmType,
+      formattedAddress: school.formattedAddress,
+    })),
   };
 }
 
@@ -150,7 +160,7 @@ function validateForm(form: AlertForm) {
     errors.riskLevel = 'Please select a risk level.';
   }
 
-  if (form.alertAudience === 'SCHOOL_EMERGENCY' && form.schoolIds.length === 0) {
+  if (form.alertAudience === 'SCHOOL_EMERGENCY' && form.selectedSchools.length === 0) {
     errors.schoolIds = 'Select at least one school for a school emergency alert.';
   }
 
@@ -189,7 +199,10 @@ function validateForm(form: AlertForm) {
     message,
     safetyInstructions,
     expiresAt,
-    schoolIds: form.alertAudience === 'SCHOOL_EMERGENCY' ? form.schoolIds : [],
+    schoolIds: form.alertAudience === 'SCHOOL_EMERGENCY'
+      ? form.selectedSchools.map((school) => school.id).filter((id): id is number => Boolean(id))
+      : [],
+    schools: form.alertAudience === 'SCHOOL_EMERGENCY' ? form.selectedSchools : [],
   };
 
   return {
@@ -256,7 +269,7 @@ function EditSummary({ alert, form }: { alert: Alert; form: AlertForm }) {
       <SummaryRow label="Affected Area" value={form.affectedArea.trim() || 'Not entered'} />
       <SummaryRow label="Alert Audience" value={audienceLabel(form.alertAudience)} />
       {form.alertAudience === 'SCHOOL_EMERGENCY' ? (
-        <SummaryRow label="Selected Schools" value={`${form.schoolIds.length} selected`} />
+        <SummaryRow label="Selected Schools" value={`${form.selectedSchools.length} selected`} />
       ) : null}
       <View style={styles.summaryRow}>
         <Text style={styles.summaryLabel}>Risk Level</Text>
@@ -385,7 +398,7 @@ export default function EditAlertScreen() {
     setForm((current) => ({
       ...current,
       [field]: value,
-      ...(field === 'affectedArea' ? { schoolIds: [] } : {}),
+      ...(field === 'affectedArea' ? { selectedSchools: [] } : {}),
     }));
     setFieldErrors((current) => ({
       ...current,
@@ -402,7 +415,7 @@ export default function EditAlertScreen() {
     setForm((current) => ({
       ...current,
       alertAudience,
-      schoolIds: alertAudience === 'SCHOOL_EMERGENCY' ? current.schoolIds : [],
+      selectedSchools: alertAudience === 'SCHOOL_EMERGENCY' ? current.selectedSchools : [],
     }));
     setFieldErrors((current) => ({ ...current, alertAudience: undefined, schoolIds: undefined }));
 
@@ -411,8 +424,8 @@ export default function EditAlertScreen() {
     }
   };
 
-  const updateSchoolIds = (schoolIds: number[]) => {
-    setForm((current) => ({ ...current, schoolIds }));
+  const updateSelectedSchools = (selectedSchools: SchoolSelectionPayload[]) => {
+    setForm((current) => ({ ...current, selectedSchools }));
     setFieldErrors((current) => ({ ...current, schoolIds: undefined }));
 
     if (banner?.type === 'success') {
@@ -591,8 +604,8 @@ export default function EditAlertScreen() {
                     <SchoolTargetingSection
                       affectedArea={form.affectedArea}
                       error={fieldErrors.schoolIds}
-                      onSelectedSchoolIdsChange={updateSchoolIds}
-                      selectedSchoolIds={form.schoolIds}
+                      onSelectedSchoolsChange={updateSelectedSchools}
+                      selectedSchools={form.selectedSchools}
                       token={token}
                     />
                   ) : null}

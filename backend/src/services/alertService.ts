@@ -19,6 +19,8 @@ import {
   type CreateAlertInput,
   type School,
   type SchoolRow,
+  type SchoolSearchResult,
+  type SchoolSelectionInput,
   type UpdateAlertInput,
   type ValidatedCreateAlertInput,
   type ValidatedUpdateAlertInput,
@@ -29,8 +31,15 @@ const DEFAULT_ALERT_AUDIENCE: AlertAudience = 'GENERAL_PUBLIC';
 const SCHOOL_ALERT_AUDIENCE: AlertAudience = 'SCHOOL_EMERGENCY';
 const ALERT_TITLE_MAX_LENGTH = 150;
 const ALERT_AREA_MAX_LENGTH = 150;
+const SCHOOL_NAME_MAX_LENGTH = 150;
+const OSM_ID_MAX_LENGTH = 80;
+const OSM_TYPE_MAX_LENGTH = 20;
+const NOMINATIM_SEARCH_URL = 'https://nominatim.openstreetmap.org/search';
+const OVERPASS_INTERPRETER_URL = 'https://overpass-api.de/api/interpreter';
+const SCHOOL_SEARCH_CACHE_DURATION_MS = 10 * 60 * 1000;
 let auditTableReady: Promise<void> | null = null;
 let alertSchemaReady: Promise<void> | null = null;
+const schoolSearchCache = new Map<string, { expiresAt: number; schools: SchoolSearchResult[] }>();
 
 export class AlertServiceError extends Error {
   constructor(
@@ -55,14 +64,24 @@ function optionalTimestamp(value: Date | string | null) {
   return value ? formatTimestamp(value) : null;
 }
 
-function optionalNumber(value: number | string | null | undefined) {
+function optionalNumber(value: unknown) {
   if (value === null || value === undefined) {
+    return null;
+  }
+
+  if (typeof value !== 'number' && typeof value !== 'string') {
     return null;
   }
 
   const numericValue = Number(value);
 
   return Number.isFinite(numericValue) ? numericValue : null;
+}
+
+function optionalText(value: unknown) {
+  const text = trimmedText(value);
+
+  return text || null;
 }
 
 function canonicalOption<T extends string>(value: string, options: readonly T[]) {
@@ -76,6 +95,8 @@ function toSchool(row: SchoolRow): School {
     area: row.area,
     latitude: optionalNumber(row.latitude),
     longitude: optionalNumber(row.longitude),
+    osmId: row.osm_id ?? null,
+    osmType: row.osm_type ?? null,
     createdAt: formatTimestamp(row.created_at),
   };
 }
@@ -193,13 +214,24 @@ async function ensureAlertSchoolSchema() {
         area VARCHAR(150) NOT NULL,
         latitude DECIMAL(10, 7),
         longitude DECIMAL(10, 7),
+        osm_id VARCHAR(80),
+        osm_type VARCHAR(20),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `;
 
+    await sql`ALTER TABLE schools ADD COLUMN IF NOT EXISTS osm_id VARCHAR(80)`;
+    await sql`ALTER TABLE schools ADD COLUMN IF NOT EXISTS osm_type VARCHAR(20)`;
+
     await sql`
       CREATE INDEX IF NOT EXISTS idx_schools_area
       ON schools(area)
+    `;
+
+    await sql`
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_schools_osm_identity
+      ON schools(osm_type, osm_id)
+      WHERE osm_type IS NOT NULL AND osm_id IS NOT NULL
     `;
 
     await sql`
@@ -248,7 +280,7 @@ function toRiskHistoryPoint(row: AlertRiskHistoryRow): AlertRiskHistoryPoint {
 
 async function getSchoolsForArea(area: string) {
   const rows = await sql`
-    SELECT id, school_name, area, latitude, longitude, created_at
+    SELECT id, school_name, area, latitude, longitude, osm_id, osm_type, created_at
     FROM schools
     WHERE LOWER(area) = LOWER(${area})
     ORDER BY school_name ASC
@@ -269,31 +301,448 @@ function parseSchoolIds(value: unknown) {
   return [...new Set(ids)];
 }
 
+function parseSchoolSelections(value: unknown): SchoolSelectionInput[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.filter((item): item is SchoolSelectionInput => Boolean(item && typeof item === 'object'));
+}
+
+type NominatimResult = {
+  boundingbox?: string[];
+  display_name?: string;
+  lat?: string;
+  lon?: string;
+};
+
+type OverpassElement = {
+  center?: {
+    lat?: number;
+    lon?: number;
+  };
+  id: number;
+  lat?: number;
+  lon?: number;
+  tags?: Record<string, string | undefined>;
+  type: string;
+};
+
+type OverpassResponse = {
+  elements?: OverpassElement[];
+};
+
+function schoolSearchUserAgent() {
+  return trimmedText(process.env.RESQ1_OSM_USER_AGENT)
+    || 'ResQ1/1.0 school-alert-search (local development)';
+}
+
+function schoolSearchDedupeKey(school: SchoolSearchResult) {
+  if (school.osmId && school.osmType) {
+    return `osm:${school.osmType.toLowerCase()}:${school.osmId.toLowerCase()}`;
+  }
+
+  return [
+    school.schoolName.toLowerCase(),
+    school.area.toLowerCase(),
+    school.latitude ?? '',
+    school.longitude ?? '',
+  ].join('|');
+}
+
+function cachedSchoolSearch(area: string) {
+  const cacheKey = area.toLowerCase();
+  const cached = schoolSearchCache.get(cacheKey);
+
+  if (!cached || cached.expiresAt <= Date.now()) {
+    schoolSearchCache.delete(cacheKey);
+    return null;
+  }
+
+  return cached.schools;
+}
+
+function setCachedSchoolSearch(area: string, schools: SchoolSearchResult[]) {
+  schoolSearchCache.set(area.toLowerCase(), {
+    expiresAt: Date.now() + SCHOOL_SEARCH_CACHE_DURATION_MS,
+    schools,
+  });
+}
+
+function fallbackBounds(latitude: number, longitude: number) {
+  const latitudeDelta = 0.16;
+  const longitudeDelta = 0.16;
+
+  return {
+    east: longitude + longitudeDelta,
+    north: latitude + latitudeDelta,
+    south: latitude - latitudeDelta,
+    west: longitude - longitudeDelta,
+  };
+}
+
+function boundsFromGeocode(result: NominatimResult) {
+  const latitude = optionalNumber(result.lat);
+  const longitude = optionalNumber(result.lon);
+
+  if (latitude === null || longitude === null) {
+    return null;
+  }
+
+  const [southRaw, northRaw, westRaw, eastRaw] = result.boundingbox ?? [];
+  const south = optionalNumber(southRaw);
+  const north = optionalNumber(northRaw);
+  const west = optionalNumber(westRaw);
+  const east = optionalNumber(eastRaw);
+
+  if (south !== null && north !== null && west !== null && east !== null) {
+    return { east, north, south, west };
+  }
+
+  return fallbackBounds(latitude, longitude);
+}
+
+async function geocodeAreaForSchoolSearch(area: string) {
+  const url = new URL(NOMINATIM_SEARCH_URL);
+  url.searchParams.set('format', 'jsonv2');
+  url.searchParams.set('limit', '1');
+  url.searchParams.set('q', area);
+
+  let response: Response;
+
+  try {
+    response = await fetch(url, {
+      headers: {
+        Accept: 'application/json',
+        'User-Agent': schoolSearchUserAgent(),
+      },
+    });
+  } catch (error) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn('Nominatim area geocoding failed:', error);
+    }
+
+    throw new AlertServiceError(502, 'Unable to search school locations. Please try again.');
+  }
+
+  if (!response.ok) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn('Nominatim area geocoding error:', response.status);
+    }
+
+    throw new AlertServiceError(502, 'Unable to search school locations. Please try again.');
+  }
+
+  let results: NominatimResult[] = [];
+
+  try {
+    results = await response.json() as NominatimResult[];
+  } catch {
+    results = [];
+  }
+
+  const result = results[0];
+
+  if (!result) {
+    return null;
+  }
+
+  return boundsFromGeocode(result);
+}
+
+function buildOverpassSchoolQuery(bounds: { east: number; north: number; south: number; west: number }) {
+  const bbox = `${bounds.south},${bounds.west},${bounds.north},${bounds.east}`;
+
+  return `
+    [out:json][timeout:25];
+    (
+      node["amenity"="school"](${bbox});
+      way["amenity"="school"](${bbox});
+      relation["amenity"="school"](${bbox});
+    );
+    out center 50;
+  `;
+}
+
+async function queryOverpassSchools(bounds: { east: number; north: number; south: number; west: number }) {
+  let response: Response;
+
+  try {
+    response = await fetch(OVERPASS_INTERPRETER_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+        'User-Agent': schoolSearchUserAgent(),
+      },
+      body: new URLSearchParams({ data: buildOverpassSchoolQuery(bounds) }).toString(),
+    });
+  } catch (error) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn('Overpass school search failed:', error);
+    }
+
+    throw new AlertServiceError(502, 'Unable to search school locations. Please try again.');
+  }
+
+  if (!response.ok) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn('Overpass school search error:', response.status);
+    }
+
+    throw new AlertServiceError(502, 'Unable to search school locations. Please try again.');
+  }
+
+  try {
+    return await response.json() as OverpassResponse;
+  } catch {
+    throw new AlertServiceError(502, 'Unable to search school locations. Please try again.');
+  }
+}
+
+function addressText(tags: Record<string, string | undefined>, fallbackArea: string) {
+  return [
+    tags['addr:housenumber'],
+    tags['addr:street'],
+    tags['addr:suburb'],
+    tags['addr:city'],
+    tags['addr:district'],
+  ].filter(Boolean).join(', ') || fallbackArea;
+}
+
+function toSchoolSearchResult(element: OverpassElement, area: string): SchoolSearchResult | null {
+  const tags = element.tags ?? {};
+  const schoolName = trimmedText(tags.name ?? tags['name:en']);
+
+  if (!schoolName) {
+    return null;
+  }
+
+  const latitude = optionalNumber(element.lat ?? element.center?.lat);
+  const longitude = optionalNumber(element.lon ?? element.center?.lon);
+
+  if (latitude === null || longitude === null) {
+    return null;
+  }
+
+  return {
+    id: null,
+    schoolName,
+    area,
+    latitude,
+    longitude,
+    osmId: String(element.id),
+    osmType: element.type,
+    formattedAddress: addressText(tags, area),
+  };
+}
+
+async function hydrateExistingSchoolIds(results: SchoolSearchResult[]) {
+  const hydrated = await Promise.all(
+    results.map(async (result) => {
+      if (!result.osmId || !result.osmType) {
+        return result;
+      }
+
+      const rows = await sql`
+        SELECT id, school_name, area, latitude, longitude, osm_id, osm_type, created_at
+        FROM schools
+        WHERE osm_id = ${result.osmId}
+          AND osm_type = ${result.osmType}
+        LIMIT 1
+      `;
+      const existingSchool = (rows as SchoolRow[])[0];
+
+      return {
+        ...result,
+        id: existingSchool?.id ?? null,
+      };
+    }),
+  );
+
+  return hydrated;
+}
+
+export async function searchSchoolsByArea(area: string) {
+  await ensureAlertSchoolSchema();
+
+  const affectedArea = trimmedText(area);
+
+  if (!affectedArea) {
+    throw new AlertServiceError(400, 'Enter an affected area before searching schools.');
+  }
+
+  const cached = cachedSchoolSearch(affectedArea);
+
+  if (cached) {
+    return cached;
+  }
+
+  const bounds = await geocodeAreaForSchoolSearch(affectedArea);
+
+  if (!bounds) {
+    setCachedSchoolSearch(affectedArea, []);
+    return [];
+  }
+
+  const overpassData = await queryOverpassSchools(bounds);
+  const deduped = new Map<string, SchoolSearchResult>();
+
+  for (const element of overpassData.elements ?? []) {
+    const result = toSchoolSearchResult(element, affectedArea);
+
+    if (result) {
+      deduped.set(schoolSearchDedupeKey(result), result);
+    }
+  }
+
+  const schools = await hydrateExistingSchoolIds([...deduped.values()].slice(0, 50));
+  setCachedSchoolSearch(affectedArea, schools);
+
+  return schools;
+}
+
+async function getExistingSchoolById(schoolId: number) {
+  const rows = await sql`
+    SELECT id, school_name, area, latitude, longitude, osm_id, osm_type, created_at
+    FROM schools
+    WHERE id = ${schoolId}
+    LIMIT 1
+  `;
+
+  return (rows as SchoolRow[])[0] ? toSchool((rows as SchoolRow[])[0]) : null;
+}
+
+async function findExistingSchoolByNameAndArea(schoolName: string, area: string) {
+  const rows = await sql`
+    SELECT id, school_name, area, latitude, longitude, osm_id, osm_type, created_at
+    FROM schools
+    WHERE LOWER(school_name) = LOWER(${schoolName})
+      AND LOWER(area) = LOWER(${area})
+    LIMIT 1
+  `;
+
+  return (rows as SchoolRow[])[0] ? toSchool((rows as SchoolRow[])[0]) : null;
+}
+
+async function findExistingSchoolByNameAndCoordinates(
+  schoolName: string,
+  latitude: number | null,
+  longitude: number | null,
+) {
+  if (latitude === null || longitude === null) {
+    return null;
+  }
+
+  const rows = await sql`
+    SELECT id, school_name, area, latitude, longitude, osm_id, osm_type, created_at
+    FROM schools
+    WHERE LOWER(school_name) = LOWER(${schoolName})
+      AND latitude IS NOT NULL
+      AND longitude IS NOT NULL
+      AND ABS(CAST(latitude AS DOUBLE PRECISION) - ${latitude}) < 0.0001
+      AND ABS(CAST(longitude AS DOUBLE PRECISION) - ${longitude}) < 0.0001
+    LIMIT 1
+  `;
+
+  return (rows as SchoolRow[])[0] ? toSchool((rows as SchoolRow[])[0]) : null;
+}
+
+async function upsertSelectedSchool(affectedArea: string, selection: SchoolSelectionInput) {
+  const schoolId = Number(selection.id);
+
+  if (Number.isInteger(schoolId) && schoolId > 0) {
+    const existingSchool = await getExistingSchoolById(schoolId);
+
+    if (!existingSchool) {
+      return null;
+    }
+
+    if (existingSchool.area.toLowerCase() === affectedArea.toLowerCase() || existingSchool.osmId) {
+      return existingSchool.id;
+    }
+
+    if (!trimmedText(selection.osmId)) {
+      return null;
+    }
+  }
+
+  const schoolName = trimmedText(selection.schoolName).slice(0, SCHOOL_NAME_MAX_LENGTH);
+  const osmId = trimmedText(selection.osmId).slice(0, OSM_ID_MAX_LENGTH);
+  const osmType = trimmedText(selection.osmType).slice(0, OSM_TYPE_MAX_LENGTH);
+  const latitude = optionalNumber(selection.latitude);
+  const longitude = optionalNumber(selection.longitude);
+
+  if (!schoolName) {
+    return null;
+  }
+
+  if (osmId && osmType) {
+    const rows = await sql`
+      INSERT INTO schools (school_name, area, latitude, longitude, osm_id, osm_type)
+      VALUES (${schoolName}, ${affectedArea}, ${latitude}, ${longitude}, ${osmId}, ${osmType})
+      ON CONFLICT (osm_type, osm_id) WHERE osm_type IS NOT NULL AND osm_id IS NOT NULL
+      DO UPDATE SET
+        school_name = EXCLUDED.school_name,
+        area = EXCLUDED.area,
+        latitude = EXCLUDED.latitude,
+        longitude = EXCLUDED.longitude
+      RETURNING id, school_name, area, latitude, longitude, osm_id, osm_type, created_at
+    `;
+    const savedSchool = (rows as SchoolRow[])[0];
+
+    return savedSchool?.id ?? null;
+  }
+
+  const existingSchoolByCoordinates = await findExistingSchoolByNameAndCoordinates(schoolName, latitude, longitude);
+
+  if (existingSchoolByCoordinates) {
+    return existingSchoolByCoordinates.id;
+  }
+
+  const existingSchool = await findExistingSchoolByNameAndArea(schoolName, affectedArea);
+
+  if (existingSchool) {
+    return existingSchool.id;
+  }
+
+  const rows = await sql`
+    INSERT INTO schools (school_name, area, latitude, longitude)
+    VALUES (${schoolName}, ${affectedArea}, ${latitude}, ${longitude})
+    RETURNING id, school_name, area, latitude, longitude, osm_id, osm_type, created_at
+  `;
+  const savedSchool = (rows as SchoolRow[])[0];
+
+  return savedSchool?.id ?? null;
+}
+
 async function validateSelectedSchools(
   affectedArea: string,
   alertAudience: AlertAudience,
   schoolIds: number[],
+  schoolSelections: SchoolSelectionInput[],
   fieldErrors: Record<string, string>,
 ) {
   if (alertAudience !== SCHOOL_ALERT_AUDIENCE) {
     return [];
   }
 
-  if (schoolIds.length === 0) {
+  if (schoolIds.length === 0 && schoolSelections.length === 0) {
     fieldErrors.schoolIds = 'Select at least one school for a school emergency alert.';
     return [];
   }
 
-  const areaSchools = await getSchoolsForArea(affectedArea);
-  const schoolsById = new Map(areaSchools.map((school) => [school.id, school]));
-  const selectedSchools = schoolIds.map((schoolId) => schoolsById.get(schoolId)).filter(Boolean) as School[];
+  const selectedIds = await Promise.all([
+    ...schoolIds.map((schoolId) => upsertSelectedSchool(affectedArea, { id: schoolId })),
+    ...schoolSelections.map((school) => upsertSelectedSchool(affectedArea, school)),
+  ]);
+  const validSelectedIds = selectedIds.filter((schoolId): schoolId is number => Boolean(schoolId));
 
-  if (selectedSchools.length !== schoolIds.length) {
-    fieldErrors.schoolIds = 'Choose schools that exist in the selected affected area.';
+  if (validSelectedIds.length !== schoolIds.length + schoolSelections.length) {
+    fieldErrors.schoolIds = 'Choose real schools that belong to the selected affected area.';
     return [];
   }
 
-  return schoolIds;
+  return [...new Set(validSelectedIds)];
 }
 
 async function replaceAlertSchoolLinks(alertId: number, schoolIds: number[]) {
@@ -417,6 +866,7 @@ async function validateAlertFields(
   const message = trimmedText(input.message);
   const safetyInstructions = trimmedText(input.safetyInstructions);
   const schoolIds = parseSchoolIds(input.schoolIds);
+  const schoolSelections = parseSchoolSelections(input.schools);
 
   if (!title) {
     fieldErrors.title = 'Please enter an alert title.';
@@ -459,11 +909,24 @@ async function validateAlertFields(
   }
 
   const expiresAt = validateExpiresAt(input.expiresAt, fieldErrors);
-  const validatedSchoolIds = affectedArea && alertAudience
-    ? await validateSelectedSchools(affectedArea, alertAudience, schoolIds, fieldErrors)
-    : [];
+
+  if (alertAudience === SCHOOL_ALERT_AUDIENCE && schoolIds.length === 0 && schoolSelections.length === 0) {
+    fieldErrors.schoolIds = 'Select at least one school for a school emergency alert.';
+  }
 
   if (Object.keys(fieldErrors).length > 0 || !disasterType || !riskLevel || !alertAudience) {
+    return null;
+  }
+
+  const validatedSchoolIds = await validateSelectedSchools(
+    affectedArea,
+    alertAudience,
+    schoolIds,
+    schoolSelections,
+    fieldErrors,
+  );
+
+  if (Object.keys(fieldErrors).length > 0) {
     return null;
   }
 
@@ -545,6 +1008,8 @@ export async function getActiveAlerts(residentLocation: string | null | undefine
               'area', schools.area,
               'latitude', schools.latitude,
               'longitude', schools.longitude,
+              'osm_id', schools.osm_id,
+              'osm_type', schools.osm_type,
               'created_at', schools.created_at
             )
             ORDER BY schools.school_name
@@ -686,6 +1151,8 @@ export async function getAlertById(alertId: string) {
               'area', schools.area,
               'latitude', schools.latitude,
               'longitude', schools.longitude,
+              'osm_id', schools.osm_id,
+              'osm_type', schools.osm_type,
               'created_at', schools.created_at
             )
             ORDER BY schools.school_name
