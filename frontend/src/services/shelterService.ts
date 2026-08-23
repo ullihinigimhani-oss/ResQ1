@@ -1,5 +1,5 @@
 import { API_BASE_URL } from '@/services/authService';
-import type { EvacuationRoute, Shelter } from '@/types/shelter';
+import type { CreateShelterPayload, EvacuationRoute, Shelter, ShelterFieldErrors, UpdateShelterPayload } from '@/types/shelter';
 
 type ApiErrorBody = {
   message?: string;
@@ -45,7 +45,14 @@ async function parseJson(response: Response) {
   }
 }
 
-async function shelterRequest<T>(path: string, token: string) {
+async function shelterRequest<T>(
+  path: string,
+  token: string,
+  options: {
+    method?: 'GET' | 'POST' | 'PUT';
+    body?: unknown;
+  } = {},
+) {
   if (!token) {
     throw new ShelterApiError(401, 'Please log in to continue.');
   }
@@ -60,10 +67,12 @@ async function shelterRequest<T>(path: string, token: string) {
 
   try {
     response = await fetch(url, {
+      method: options.method ?? 'GET',
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
+      body: options.body ? JSON.stringify(options.body) : undefined,
     });
   } catch (error) {
     if (__DEV__) {
@@ -117,4 +126,30 @@ export async function getShelterRoutes(id: string, token: string) {
   const response = await shelterRequest<ApiShelterRoutesResponse>(`/api/shelters/${id}/routes`, token);
 
   return response.routes ?? [];
+}
+
+export async function createShelter(payload: CreateShelterPayload, token: string) {
+  const response = await shelterRequest<ApiShelterResponse>('/api/shelters', token, {
+    method: 'POST',
+    body: payload,
+  });
+
+  if (!response.shelter) {
+    throw new ShelterApiError(500, 'The server returned an unexpected response.');
+  }
+
+  return response.shelter;
+}
+
+export async function updateShelter(id: string, payload: UpdateShelterPayload, token: string) {
+  const response = await shelterRequest<ApiShelterResponse>(`/api/shelters/${id}`, token, {
+    method: 'PUT',
+    body: payload,
+  });
+
+  if (!response.shelter) {
+    throw new ShelterApiError(500, 'The server returned an unexpected response.');
+  }
+
+  return response.shelter;
 }

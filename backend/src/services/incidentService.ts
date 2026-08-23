@@ -266,3 +266,16 @@ export async function updateIncidentStatus(incidentId: string, input: UpdateInci
 
   return toIncident(incident);
 }
+
+export async function getAllIncidents() {
+  const rows = await sql`
+    SELECT id, incident_type, title, description, location, latitude, longitude, severity, photo_url, status, created_at, updated_at
+    FROM incidents
+    WHERE latitude IS NOT NULL
+      AND longitude IS NOT NULL
+      AND status != 'Resolved'
+    ORDER BY created_at DESC
+  `;
+
+  return (rows as IncidentRow[]).map(toIncident);
+}

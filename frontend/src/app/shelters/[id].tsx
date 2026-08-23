@@ -22,6 +22,10 @@ function firstParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
 }
 
+function canEditShelters(role: string) {
+  return role === 'admin' || role === 'authority';
+}
+
 function displayValue(value: string | null | undefined, fallback: string) {
   const text = value?.trim();
 
@@ -142,6 +146,7 @@ export default function ShelterDetailsScreen() {
   const coordinates = shelter ? coordinatesText(shelter) : null;
   const showInitialLoading = loadingShelter && !shelter;
   const showError = Boolean(errorMessage) && !shelter && !showInitialLoading;
+  const userCanEditShelters = canEditShelters(user.role);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -165,6 +170,18 @@ export default function ShelterDetailsScreen() {
             {shelter ? shelter.area : 'Verified emergency shelter information'}
           </Text>
         </View>
+
+        {userCanEditShelters && shelter ? (
+          <AuthButton
+            onPress={() => router.push({
+              pathname: '/shelters/[id]/edit',
+              params: { id: String(shelter.id) },
+            } as unknown as Href)}
+            style={styles.editButton}
+            title="Edit Shelter"
+            variant="primary"
+          />
+        ) : null}
 
         {errorMessage && shelter ? <StatusBanner message={errorMessage} type="error" /> : null}
 
@@ -278,6 +295,9 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     lineHeight: 21,
   },
+  editButton: {
+    marginTop: 4,
+  },
   summaryPanel: {
     backgroundColor: BrandColors.white,
     borderColor: BrandColors.border,
@@ -285,11 +305,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: 14,
     padding: 15,
-    shadowColor: BrandColors.navy,
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.07,
-    shadowRadius: 12,
-    elevation: 2,
   },
   summaryHeader: {
     alignItems: 'flex-start',

@@ -1,40 +1,37 @@
-import { StatusBar } from 'expo-status-bar';
 import { Redirect, useRouter, type Href } from 'expo-router';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { AuthButton, BackButton } from '@/components/common/auth-components';
-import { BrandColors } from '@/constants/brand';
+import {
+  AppHeader,
+  DemoNotice,
+  InfoRow,
+  LoadingState,
+  PrimaryButton,
+  ScreenContainer,
+  SectionCard,
+  StatusBadge,
+} from '@/components/ui/app-components';
+import { colors, radius, spacing } from '@/constants/design';
 import { useAuth } from '@/context/auth-context';
+import { formatRole, initials } from '@/utils/format';
 
-function initials(fullName: string) {
-  const parts = fullName.trim().split(/\s+/).filter(Boolean);
-
-  if (parts.length === 0) {
-    return 'R';
-  }
-
-  return parts
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join('')
-    .toUpperCase();
-}
-
-function formatRole(role: string) {
-  return role
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
-    .join(' ');
-}
-
-function InfoRow({ label, value }: { label: string; value: string }) {
+function ActionRow({
+  label,
+  onPress,
+  status,
+}: {
+  label: string;
+  onPress: () => void;
+  status?: string;
+}) {
   return (
-    <View style={styles.infoRow}>
-      <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={styles.infoValue}>{value}</Text>
-    </View>
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [styles.actionRow, pressed && styles.pressed]}>
+      <Text style={styles.actionLabel}>{label}</Text>
+      {status ? <StatusBadge label={status} tone="amber" /> : <Text style={styles.actionArrow}>{'>'}</Text>}
+    </Pressable>
   );
 }
 
@@ -48,11 +45,9 @@ export default function ProfileScreen() {
 
   if (isLoading || !user) {
     return (
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator color={BrandColors.red} size="large" />
-        </View>
-      </SafeAreaView>
+      <ScreenContainer bottomNav={false}>
+        <LoadingState message="Loading your resident profile..." />
+      </ScreenContainer>
     );
   }
 
@@ -62,150 +57,140 @@ export default function ProfileScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="dark" />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <BackButton onPress={() => router.replace('/dashboard' as Href)} />
+    <ScreenContainer>
+      <AppHeader
+        eyebrow="Resident Account"
+        title="My Profile"
+        subtitle="Your real Sprint 1 account details and future resident profile tools."
+      />
 
-        <View style={styles.header}>
-          <Text style={styles.eyebrow}>Resident Account</Text>
-          <Text style={styles.title}>My Profile</Text>
+      <View style={styles.identityPanel}>
+        <View style={styles.avatar}>
+          <Text style={styles.avatarText}>{initials(user.fullName)}</Text>
         </View>
-
-        <View style={styles.profileHeader}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{initials(user.fullName)}</Text>
+        <View style={styles.identityBlock}>
+          <Text style={styles.name}>{user.fullName}</Text>
+          <Text style={styles.email}>{user.email}</Text>
+          <View style={styles.identityBadges}>
+            <StatusBadge label={`Resident ID ${user.id}`} tone="blue" />
+            <StatusBadge label={formatRole(user.role)} tone="green" />
           </View>
-          <View style={styles.identityBlock}>
-            <Text style={styles.name}>{user.fullName}</Text>
-            <Text style={styles.email}>{user.email}</Text>
-          </View>
         </View>
+      </View>
 
-        <View style={styles.panel}>
-          <Text style={styles.sectionTitle}>Account Information</Text>
-          <InfoRow label="Full Name" value={user.fullName} />
-          <InfoRow label="Email Address" value={user.email} />
-          <InfoRow label="Area / Location" value={user.location || 'Not set'} />
-          <InfoRow label="Preferred Language" value={user.preferredLanguage} />
-          <InfoRow label="Role" value={formatRole(user.role)} />
-        </View>
+      <SectionCard title="Personal Details">
+        <InfoRow label="Full Name" value={user.fullName} />
+        <InfoRow label="Email" value={user.email} />
+        <InfoRow label="Preferred Language" value={user.preferredLanguage} />
+        <InfoRow label="Role" value={formatRole(user.role)} />
+      </SectionCard>
 
-        <View style={styles.signOutBlock}>
-          <AuthButton title="Sign Out" variant="danger" onPress={handleSignOut} />
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+      <SectionCard title="Location">
+        <InfoRow label="Registered Area" value={user.location || 'Not set'} />
+      </SectionCard>
+
+      <SectionCard title="Emergency Contact">
+        <DemoNotice text="Emergency contact storage is a Sprint 2 backend gap. This route is frontend-ready only." />
+        <ActionRow
+          label="Emergency Contacts"
+          onPress={() => router.push('/contacts' as Href)}
+          status="Configured later"
+        />
+      </SectionCard>
+
+      <SectionCard title="Account">
+        <ActionRow label="Edit Profile" onPress={() => router.push('/profile/edit' as Href)} />
+        <ActionRow
+          label="Change Password"
+          status="Future"
+          onPress={() => router.push('/profile/change-password' as Href)}
+        />
+        <ActionRow
+          label="Household Information"
+          status="Demo"
+          onPress={() => router.push('/household' as Href)}
+        />
+        <ActionRow label="Settings" onPress={() => router.push('/settings' as Href)} />
+      </SectionCard>
+
+      <PrimaryButton title="Sign Out" tone="red" onPress={handleSignOut} />
+    </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    backgroundColor: BrandColors.background,
-    flex: 1,
-  },
-  loadingContainer: {
+  identityPanel: {
     alignItems: 'center',
-    flex: 1,
-    justifyContent: 'center',
-  },
-  content: {
-    flexGrow: 1,
-    gap: 18,
-    paddingHorizontal: 22,
-    paddingVertical: 18,
-  },
-  header: {
-    gap: 6,
-  },
-  eyebrow: {
-    color: BrandColors.red,
-    fontSize: 12,
-    fontWeight: '900',
-    textTransform: 'uppercase',
-  },
-  title: {
-    color: BrandColors.navy,
-    fontSize: 30,
-    fontWeight: '900',
-    lineHeight: 36,
-  },
-  profileHeader: {
-    alignItems: 'center',
-    backgroundColor: BrandColors.navy,
-    borderRadius: 8,
+    backgroundColor: colors.navy,
+    borderColor: colors.deepBlue,
+    borderRadius: radius.md,
+    borderWidth: 1,
     flexDirection: 'row',
-    gap: 14,
-    padding: 18,
+    gap: spacing.md,
+    padding: spacing.lg,
   },
   avatar: {
     alignItems: 'center',
-    backgroundColor: BrandColors.white,
-    borderColor: BrandColors.sky,
-    borderRadius: 31,
+    backgroundColor: colors.white,
+    borderColor: colors.sky,
+    borderRadius: radius.md,
     borderWidth: 1,
-    height: 62,
+    height: 64,
     justifyContent: 'center',
-    width: 62,
+    width: 64,
   },
   avatarText: {
-    color: BrandColors.navy,
+    color: colors.navy,
     fontSize: 20,
     fontWeight: '900',
     lineHeight: 25,
   },
   identityBlock: {
     flex: 1,
-    gap: 4,
+    gap: spacing.xs,
   },
   name: {
-    color: BrandColors.white,
+    color: colors.white,
     fontSize: 21,
     fontWeight: '900',
     lineHeight: 27,
   },
   email: {
-    color: BrandColors.sky,
+    color: colors.sky,
     fontSize: 14,
     fontWeight: '700',
     lineHeight: 20,
   },
-  panel: {
-    backgroundColor: BrandColors.white,
-    borderColor: BrandColors.border,
-    borderRadius: 8,
-    borderWidth: 1,
-    gap: 0,
-    padding: 16,
+  identityBadges: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+    marginTop: spacing.xs,
   },
-  sectionTitle: {
-    color: BrandColors.navy,
-    fontSize: 18,
-    fontWeight: '900',
-    lineHeight: 24,
-    marginBottom: 4,
-  },
-  infoRow: {
-    borderTopColor: BrandColors.border,
+  actionRow: {
+    alignItems: 'center',
+    borderTopColor: colors.border,
     borderTopWidth: 1,
-    gap: 4,
-    paddingVertical: 13,
+    flexDirection: 'row',
+    gap: spacing.md,
+    justifyContent: 'space-between',
+    minHeight: 56,
+    paddingVertical: spacing.md,
   },
-  infoLabel: {
-    color: BrandColors.muted,
-    fontSize: 12,
-    fontWeight: '900',
-    lineHeight: 16,
-    textTransform: 'uppercase',
-  },
-  infoValue: {
-    color: BrandColors.text,
-    fontSize: 16,
+  actionLabel: {
+    color: colors.text,
+    flex: 1,
+    fontSize: 15,
     fontWeight: '800',
-    lineHeight: 22,
+    lineHeight: 21,
   },
-  signOutBlock: {
-    marginTop: 'auto',
-    paddingBottom: 8,
+  actionArrow: {
+    color: colors.deepBlue,
+    fontSize: 22,
+    fontWeight: '900',
+    lineHeight: 26,
+  },
+  pressed: {
+    opacity: 0.72,
   },
 });

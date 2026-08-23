@@ -1,579 +1,383 @@
-import { StatusBar } from 'expo-status-bar';
-import { Image } from 'expo-image';
-import { SymbolView } from 'expo-symbols';
 import { Redirect, useRouter, type Href } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import resq1Logo from '@/assets/images/resq1-logo.jfif';
-import { BrandColors } from '@/constants/brand';
+import {
+  DemoNotice,
+  HomeHeader,
+  LoadingState,
+  PrimaryButton,
+  QuickActionCard,
+  ScreenContainer,
+  SectionCard,
+  SecondaryButton,
+  StatusBadge,
+} from '@/components/ui/app-components';
+import { colors, radius, spacing, typography } from '@/constants/design';
 import { useAuth } from '@/context/auth-context';
-import { getActiveAlerts, isAlertApiError } from '@/services/alertService';
-import type { Alert } from '@/types/alert';
+import { getActiveAlerts } from '@/services/alertService';
+import { getMyIncidents } from '@/services/incidentService';
+import { getShelters } from '@/services/shelterService';
+import type { Alert, AlertRiskLevel } from '@/types/alert';
+import type { Incident } from '@/types/incident';
+import type { Shelter } from '@/types/shelter';
+import { firstName, formatDateTime, isAuthorityRole, plural, userArea } from '@/utils/format';
 
-function firstName(fullName: string) {
-  return fullName.trim().split(/\s+/)[0] || 'Resident';
-}
+const riskRank: Record<AlertRiskLevel | string, number> = {
+  Critical: 4,
+  High: 3,
+  Moderate: 2,
+  Low: 1,
+};
 
-function initials(fullName: string) {
-  const parts = fullName.trim().split(/\s+/).filter(Boolean);
+function greeting() {
+  const hour = new Date().getHours();
 
-  if (parts.length === 0) {
-    return 'R';
+  if (hour < 12) {
+    return 'Good morning';
   }
 
-  return parts
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join('')
-    .toUpperCase();
+  if (hour < 18) {
+    return 'Good afternoon';
+  }
+
+  return 'Good evening';
 }
 
-function plural(value: number, singular: string, pluralValue: string) {
-  return value === 1 ? singular : pluralValue;
+function topAlert(alerts: Alert[]) {
+  return [...alerts].sort((left, right) => {
+    const riskDelta = (riskRank[right.riskLevel] ?? 0) - (riskRank[left.riskLevel] ?? 0);
+
+    if (riskDelta !== 0) {
+      return riskDelta;
+    }
+
+    return new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime();
+  })[0] ?? null;
 }
 
-function canPublishAlerts(role: string) {
-  return role === 'admin' || role === 'authority';
+function riskTone(riskLevel: AlertRiskLevel | string | null) {
+  if (riskLevel === 'Critical' || riskLevel === 'High') {
+    return 'red' as const;
+  }
+
+  if (riskLevel === 'Moderate') {
+    return 'amber' as const;
+  }
+
+  return 'green' as const;
 }
 
-function DashboardAction({
-  accent,
-  description,
-  mark,
-  onPress,
-  symbolName,
-  title,
-  variant,
-}: {
-  accent: 'primary' | 'secondary';
-  description: string;
-  mark: string;
-  onPress: () => void;
-  symbolName: 'exclamationmark.triangle.fill' | 'clock.arrow.circlepath' | 'house.fill';
-  title: string;
-  variant: 'primary' | 'secondary';
-}) {
-  const primary = variant === 'primary';
+function availableSpaces(shelter: Shelter) {
+  if (shelter.availableSpaces !== null) {
+    return shelter.availableSpaces;
+  }
 
-  return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.actionButton,
-        primary ? styles.primaryAction : styles.secondaryAction,
-        pressed && styles.pressed,
-      ]}>
-      <View style={[styles.actionMark, accent === 'primary' ? styles.actionMarkEmergency : styles.actionMarkStandard]}>
-        <SymbolView
-          fallback={
-            <Text style={[styles.actionMarkText, accent === 'primary' ? styles.actionMarkTextEmergency : styles.actionMarkTextStandard]}>
-              {mark}
-            </Text>
-          }
-          name={symbolName}
-          size={22}
-          tintColor={accent === 'primary' ? BrandColors.white : BrandColors.deepBlue}
-          type="monochrome"
-          weight="bold"
-        />
-      </View>
-      <View style={styles.actionTextBlock}>
-        <Text style={[styles.actionTitle, primary && styles.primaryActionTitle]}>{title}</Text>
-        <Text style={[styles.actionDescription, primary && styles.primaryActionDescription]}>
-          {description}
-        </Text>
-      </View>
-      <Text style={[styles.actionArrow, primary && styles.primaryActionArrow]}>{'>'}</Text>
-    </Pressable>
-  );
-}
+  if (shelter.capacity !== null && shelter.currentOccupancy !== null) {
+    return Math.max(shelter.capacity - shelter.currentOccupancy, 0);
+  }
 
-function EmergencyStatusPanel({
-  alerts,
-  canPublish,
-  error,
-  loading,
-  onCreateAlert,
-  onViewAlerts,
-}: {
-  alerts: Alert[];
-  canPublish: boolean;
-  error: boolean;
-  loading: boolean;
-  onCreateAlert: () => void;
-  onViewAlerts: () => void;
-}) {
-  const criticalAlerts = alerts.filter((alert) => alert.riskLevel === 'Critical');
-  const nearCriticalAlert = criticalAlerts.find((alert) => alert.isRelevantToResident);
-  const topCriticalAlert = nearCriticalAlert ?? criticalAlerts[0];
-  const critical = criticalAlerts.length > 0;
-  const title = loading
-    ? 'Checking emergency alerts'
-    : error
-      ? 'Unable to check alerts'
-      : critical
-        ? `${criticalAlerts.length} Critical ${plural(criticalAlerts.length, 'Alert', 'Alerts')}${topCriticalAlert?.isRelevantToResident ? ' Near You' : ''}`
-        : alerts.length > 0
-          ? `${alerts.length} Active ${plural(alerts.length, 'Alert', 'Alerts')}`
-          : 'No active emergency alerts';
-  const copy = loading
-    ? 'Monitoring latest verified disaster warnings.'
-    : error
-      ? 'Open the alert center to retry loading verified warnings.'
-      : critical && topCriticalAlert
-        ? `${topCriticalAlert.affectedArea}: review the safety instructions now.`
-        : alerts.length > 0
-          ? 'Latest verified disaster alerts are available in the alert center.'
-          : 'There are currently no verified warnings for your area.';
-
-  return (
-    <View style={[styles.alertPanel, critical && styles.alertPanelCritical]}>
-      <View style={styles.alertPanelHeader}>
-        <View style={styles.alertPanelTitleBlock}>
-          <Text style={styles.sectionEyebrow}>Emergency Status</Text>
-          <Text style={[styles.alertPanelTitle, critical && styles.alertPanelTitleCritical]}>{title}</Text>
-          <Text style={styles.alertPanelCopy}>{copy}</Text>
-        </View>
-        {loading ? <ActivityIndicator color={BrandColors.red} size="small" /> : null}
-      </View>
-
-      <View style={styles.alertPanelActions}>
-        <Pressable
-          accessibilityLabel="View emergency alerts"
-          accessibilityRole="button"
-          onPress={onViewAlerts}
-          style={({ pressed }) => [
-            styles.alertActionButton,
-            critical && styles.alertActionButtonCritical,
-            pressed && styles.pressed,
-          ]}>
-          <Text style={[styles.alertActionText, critical && styles.alertActionTextCritical]}>View Alerts</Text>
-        </Pressable>
-
-        {canPublish ? (
-          <Pressable
-            accessibilityLabel="Send emergency alert"
-            accessibilityRole="button"
-            onPress={onCreateAlert}
-            style={({ pressed }) => [styles.alertSecondaryButton, pressed && styles.pressed]}>
-            <Text style={styles.alertSecondaryText}>Send Alert</Text>
-          </Pressable>
-        ) : null}
-      </View>
-    </View>
-  );
+  return null;
 }
 
 export default function DashboardScreen() {
   const router = useRouter();
   const { isLoading, token, user } = useAuth();
   const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [loadingAlerts, setLoadingAlerts] = useState(true);
-  const [alertLoadFailed, setAlertLoadFailed] = useState(false);
+  const [incidents, setIncidents] = useState<Incident[]>([]);
+  const [shelters, setShelters] = useState<Shelter[]>([]);
+  const [loadingSummary, setLoadingSummary] = useState(true);
+  const [summaryWarning, setSummaryWarning] = useState<string | null>(null);
 
-  const loadDashboardAlerts = useCallback(async () => {
+  const loadSummary = useCallback(async () => {
     if (!token) {
       return;
     }
 
-    setLoadingAlerts(true);
-    setAlertLoadFailed(false);
+    setLoadingSummary(true);
+    setSummaryWarning(null);
 
-    try {
-      const activeAlerts = await getActiveAlerts(token);
-      setAlerts(activeAlerts);
-    } catch (error) {
-      if (__DEV__ && !isAlertApiError(error)) {
-        console.warn('Unexpected dashboard alert summary error:', error);
-      }
+    const [alertResult, incidentResult, shelterResult] = await Promise.allSettled([
+      getActiveAlerts(token),
+      getMyIncidents(token),
+      getShelters(token),
+    ]);
 
-      setAlertLoadFailed(true);
-    } finally {
-      setLoadingAlerts(false);
+    if (alertResult.status === 'fulfilled') {
+      setAlerts(alertResult.value);
     }
+
+    if (incidentResult.status === 'fulfilled') {
+      setIncidents(incidentResult.value);
+    }
+
+    if (shelterResult.status === 'fulfilled') {
+      setShelters(shelterResult.value);
+    }
+
+    const failed = [alertResult, incidentResult, shelterResult].some((result) => result.status === 'rejected');
+
+    if (failed) {
+      setSummaryWarning('Some live dashboard data could not be refreshed.');
+    }
+
+    setLoadingSummary(false);
   }, [token]);
 
   useEffect(() => {
     if (token) {
-      void loadDashboardAlerts();
+      void loadSummary();
     }
-  }, [loadDashboardAlerts, token]);
+  }, [loadSummary, token]);
+
+  const currentAlert = useMemo(() => topAlert(alerts), [alerts]);
+  const latestIncident = incidents[0] ?? null;
+  const nearestShelter = shelters[0] ?? null;
 
   if (!isLoading && !user) {
     return <Redirect href={'/auth/welcome' as Href} />;
   }
 
-  if (!user) {
+  if (isLoading || !user) {
     return (
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.loadingContainer} />
-      </SafeAreaView>
+      <ScreenContainer bottomNav={false}>
+        <LoadingState message="Preparing your ResQ1 dashboard..." />
+      </ScreenContainer>
     );
   }
 
   const residentFirstName = firstName(user.fullName);
-  const userCanPublishAlerts = canPublishAlerts(user.role);
+  const canPublishAlerts = isAuthorityRole(user.role);
+  const alertCountLabel = `${alerts.length} active ${plural(alerts.length, 'alert', 'alerts')}`;
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="light" />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.topHeader}>
-          <View style={styles.brandBlock}>
-            <Image contentFit="contain" source={resq1Logo} style={styles.logo} />
-            <View>
-              <Text style={styles.brandName}>ResQ1</Text>
-              <Text style={styles.headerGreeting}>Hello, {residentFirstName}</Text>
-            </View>
+    <ScreenContainer>
+      <HomeHeader
+        greeting={`${greeting()}, ${residentFirstName}`}
+        userName={user.fullName}
+        onNotifications={() => router.push('/alerts/preferences' as Href)}
+        onProfile={() => router.push('/profile' as Href)}
+      />
+
+      <SectionCard tone={currentAlert ? (riskTone(currentAlert.riskLevel) === 'red' ? 'danger' : 'white') : 'blue'}>
+        <View style={styles.heroHeader}>
+          <View style={styles.heroTitleBlock}>
+            <Text style={styles.heroEyebrow}>Current Risk Level</Text>
+            <Text style={styles.heroTitle}>{currentAlert ? currentAlert.riskLevel : 'No Active Alerts'}</Text>
+            <Text style={styles.heroText}>
+              {currentAlert
+                ? `${currentAlert.title} for ${currentAlert.affectedArea}.`
+                : 'No active emergency alerts are verified for your area right now.'}
+            </Text>
           </View>
-          <Pressable
-            accessibilityLabel="Open profile"
-            accessibilityRole="button"
-            hitSlop={8}
-            onPress={() => router.push('/profile' as Href)}
-            style={({ pressed }) => [styles.avatarButton, pressed && styles.pressed]}>
-            <Text style={styles.avatarText}>{initials(user.fullName)}</Text>
-          </Pressable>
+          {loadingSummary ? <ActivityIndicator color={colors.red} /> : null}
         </View>
-
-        <View style={styles.welcomePanel}>
-          <Text style={styles.eyebrow}>Resident Dashboard</Text>
-          <Text style={styles.welcome}>Welcome back, {residentFirstName}</Text>
-          <Text style={styles.copy}>
-            Stay informed, report local flood incidents, and track emergency response progress.
-          </Text>
+        <View style={styles.heroMetaRow}>
+          <StatusBadge
+            label={currentAlert ? alertCountLabel : 'All clear'}
+            tone={currentAlert ? riskTone(currentAlert.riskLevel) : 'green'}
+          />
+          <StatusBadge label={userArea(user)} tone="blue" />
         </View>
-
-        <EmergencyStatusPanel
-          alerts={alerts}
-          canPublish={userCanPublishAlerts}
-          error={alertLoadFailed}
-          loading={loadingAlerts}
-          onCreateAlert={() => router.push('/alerts/create' as Href)}
-          onViewAlerts={() => router.push('/alerts' as Href)}
+        <PrimaryButton
+          title={currentAlert ? 'View Risk Details' : 'Open Alert Center'}
+          onPress={() => router.push(currentAlert ? '/alerts/risk-level' as Href : '/alerts' as Href)}
+          tone={currentAlert && riskTone(currentAlert.riskLevel) === 'red' ? 'red' : 'navy'}
         />
+      </SectionCard>
 
-        <View style={styles.panel}>
-          <Text style={styles.sectionEyebrow}>Emergency Response</Text>
-          <Text style={styles.panelTitle}>Shelter and route guidance</Text>
-          <Text style={styles.copy}>
-            Find verified safe shelters and follow official evacuation route information.
-          </Text>
-          <View style={styles.dashboardActions}>
-            <DashboardAction
-              accent="secondary"
-              description="Check current shelter availability and open safe route guidance."
-              mark="S"
-              symbolName="house.fill"
-              title="Find Safe Shelter"
-              variant="primary"
-              onPress={() => router.push('/shelters' as Href)}
-            />
-          </View>
-        </View>
+      {summaryWarning ? <DemoNotice text={summaryWarning} /> : null}
 
-        <View style={styles.panel}>
-          <Text style={styles.sectionEyebrow}>Incident Management</Text>
-          <Text style={styles.panelTitle}>Flood response tools</Text>
-          <Text style={styles.copy}>
-            Report verified flood conditions and monitor the response status of your reports.
-          </Text>
-          <View style={styles.dashboardActions}>
-            <DashboardAction
-              accent="primary"
-              description="Send verified flood details to support response teams."
-              mark="!"
-              symbolName="exclamationmark.triangle.fill"
-              title="Report Flood Incident"
-              variant="primary"
-              onPress={() => router.push('/incidents/report' as Href)}
+      <View style={styles.quickGrid}>
+        <QuickActionCard
+          body="Submit a verified flood report"
+          fallback="R"
+          name="exclamationmark.triangle.fill"
+          title="Report Incident"
+          tone="red"
+          onPress={() => router.push('/incidents/report' as Href)}
+        />
+        <QuickActionCard
+          body="Review live official warnings"
+          fallback="A"
+          name="bell.fill"
+          title="Emergency Alerts"
+          tone="blue"
+          onPress={() => router.push('/alerts' as Href)}
+        />
+        <QuickActionCard
+          body="Find shelter availability"
+          fallback="S"
+          name="house.and.flag.fill"
+          title="Find Safe Shelter"
+          tone="green"
+          onPress={() => router.push('/shelters' as Href)}
+        />
+        <QuickActionCard
+          body="Prepare a request for help"
+          fallback="H"
+          name="cross.case.fill"
+          title="Request Assistance"
+          tone="amber"
+          onPress={() => router.push('/assistance' as Href)}
+        />
+      </View>
+
+      <SectionCard title="Recent Alerts" subtitle="Real active alerts from the Sprint 1 backend.">
+        {currentAlert ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => router.push({
+              pathname: '/alerts/[id]',
+              params: { id: String(currentAlert.id) },
+            } as unknown as Href)}
+            style={({ pressed }) => [styles.compactRow, pressed && styles.pressed]}>
+            <View style={styles.compactTextBlock}>
+              <Text style={styles.compactTitle}>{currentAlert.title}</Text>
+              <Text style={styles.compactMeta}>{currentAlert.affectedArea}</Text>
+            </View>
+            <StatusBadge label={currentAlert.riskLevel} tone={riskTone(currentAlert.riskLevel)} />
+          </Pressable>
+        ) : (
+          <Text style={styles.mutedText}>No active emergency alerts.</Text>
+        )}
+      </SectionCard>
+
+      <SectionCard title="Latest Incident Status" subtitle="Your most recent report status from the backend.">
+        {latestIncident ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => router.push({
+              pathname: '/incidents/[id]',
+              params: { id: String(latestIncident.id) },
+            } as unknown as Href)}
+            style={({ pressed }) => [styles.compactRow, pressed && styles.pressed]}>
+            <View style={styles.compactTextBlock}>
+              <Text style={styles.compactTitle}>{latestIncident.title}</Text>
+              <Text style={styles.compactMeta}>Updated {formatDateTime(latestIncident.updatedAt)}</Text>
+            </View>
+            <StatusBadge
+              label={latestIncident.status}
+              tone={latestIncident.status === 'Resolved' ? 'green' : 'blue'}
             />
-            <DashboardAction
-              accent="secondary"
-              description="Review your submitted reports and current status."
-              mark="R"
-              symbolName="clock.arrow.circlepath"
-              title="My Incident Reports"
-              variant="secondary"
-              onPress={() => router.push('/incidents' as Href)}
-            />
-          </View>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+          </Pressable>
+        ) : (
+          <Text style={styles.mutedText}>No incident reports submitted yet.</Text>
+        )}
+        <SecondaryButton
+          title="My Incident Reports"
+          onPress={() => router.push('/incidents' as Href)}
+        />
+      </SectionCard>
+
+      <SectionCard title="Nearest Safe Shelter" subtitle="Verified shelter data from Neon.">
+        {nearestShelter ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => router.push({
+              pathname: '/shelters/[id]',
+              params: { id: String(nearestShelter.id) },
+            } as unknown as Href)}
+            style={({ pressed }) => [styles.compactRow, pressed && styles.pressed]}>
+            <View style={styles.compactTextBlock}>
+              <Text style={styles.compactTitle}>{nearestShelter.name}</Text>
+              <Text style={styles.compactMeta}>
+                {nearestShelter.area} | {availableSpaces(nearestShelter) ?? 'Capacity pending'} spaces available
+              </Text>
+            </View>
+            <StatusBadge label={nearestShelter.status} tone={nearestShelter.status === 'Open' ? 'green' : 'amber'} />
+          </Pressable>
+        ) : (
+          <Text style={styles.mutedText}>Shelter availability is not loaded yet.</Text>
+        )}
+      </SectionCard>
+
+      <SectionCard title="Safety Tip" tone="navy">
+        <Text style={styles.safetyText}>
+          Keep essentials ready, avoid flooded roads, and follow official evacuation instructions when alerts become active.
+        </Text>
+      </SectionCard>
+
+      {canPublishAlerts ? (
+        <SectionCard title="Authority Tools" subtitle="Visible only to admin and authority roles.">
+          <PrimaryButton title="Publish Emergency Alert" onPress={() => router.push('/alerts/create' as Href)} />
+        </SectionCard>
+      ) : null}
+    </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    backgroundColor: BrandColors.navy,
-    flex: 1,
-  },
-  loadingContainer: {
-    flex: 1,
-  },
-  content: {
-    flexGrow: 1,
-    gap: 18,
-    paddingHorizontal: 18,
-    paddingVertical: 18,
-  },
-  topHeader: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingTop: 4,
-  },
-  brandBlock: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    flex: 1,
-    gap: 10,
-  },
-  logo: {
-    backgroundColor: BrandColors.white,
-    borderRadius: 8,
-    height: 48,
-    width: 48,
-  },
-  brandName: {
-    color: BrandColors.white,
-    fontSize: 22,
-    fontWeight: '900',
-    lineHeight: 27,
-  },
-  headerGreeting: {
-    color: BrandColors.sky,
-    fontSize: 13,
-    fontWeight: '800',
-    lineHeight: 18,
-  },
-  avatarButton: {
-    alignItems: 'center',
-    backgroundColor: BrandColors.white,
-    borderColor: BrandColors.sky,
-    borderRadius: 24,
-    borderWidth: 1,
-    height: 48,
-    justifyContent: 'center',
-    width: 48,
-  },
-  avatarText: {
-    color: BrandColors.navy,
-    fontSize: 16,
-    fontWeight: '900',
-    lineHeight: 21,
-  },
-  welcomePanel: {
-    backgroundColor: BrandColors.lightBlue,
-    borderColor: BrandColors.sky,
-    borderRadius: 8,
-    borderWidth: 1,
-    gap: 8,
-    padding: 18,
-  },
-  panel: {
-    backgroundColor: BrandColors.white,
-    borderColor: BrandColors.border,
-    borderRadius: 8,
-    borderWidth: 1,
-    gap: 12,
-    padding: 18,
-  },
-  alertPanel: {
-    backgroundColor: BrandColors.white,
-    borderColor: BrandColors.border,
-    borderRadius: 8,
-    borderWidth: 1,
-    gap: 14,
-    padding: 16,
-  },
-  alertPanelCritical: {
-    borderColor: BrandColors.red,
-    borderLeftColor: BrandColors.red,
-    borderLeftWidth: 6,
-  },
-  alertPanelHeader: {
+  heroHeader: {
     alignItems: 'flex-start',
     flexDirection: 'row',
-    gap: 10,
+    gap: spacing.sm,
     justifyContent: 'space-between',
   },
-  alertPanelTitleBlock: {
+  heroTitleBlock: {
     flex: 1,
-    gap: 5,
+    gap: spacing.xs,
   },
-  alertPanelTitle: {
-    color: BrandColors.navy,
-    fontSize: 19,
+  heroEyebrow: {
+    color: colors.red,
+    ...typography.label,
+    textTransform: 'uppercase',
+  },
+  heroTitle: {
+    color: colors.navy,
+    fontSize: 25,
     fontWeight: '900',
-    lineHeight: 25,
+    lineHeight: 31,
   },
-  alertPanelTitleCritical: {
-    color: BrandColors.red,
+  heroText: {
+    color: colors.text,
+    ...typography.body,
   },
-  alertPanelCopy: {
-    color: BrandColors.muted,
-    fontSize: 14,
-    fontWeight: '700',
-    lineHeight: 20,
-  },
-  alertPanelActions: {
+  heroMetaRow: {
+    alignItems: 'center',
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
+    gap: spacing.sm,
   },
-  alertActionButton: {
+  quickGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  compactRow: {
     alignItems: 'center',
-    backgroundColor: BrandColors.navy,
-    borderColor: BrandColors.navy,
-    borderRadius: 8,
-    borderWidth: 1,
-    flexGrow: 1,
-    justifyContent: 'center',
-    minHeight: 46,
-    paddingHorizontal: 14,
-  },
-  alertActionButtonCritical: {
-    backgroundColor: BrandColors.red,
-    borderColor: BrandColors.red,
-  },
-  alertActionText: {
-    color: BrandColors.white,
-    fontSize: 14,
-    fontWeight: '900',
-    lineHeight: 19,
-  },
-  alertActionTextCritical: {
-    color: BrandColors.white,
-  },
-  alertSecondaryButton: {
-    alignItems: 'center',
-    backgroundColor: BrandColors.lightBlue,
-    borderColor: BrandColors.border,
-    borderRadius: 8,
-    borderWidth: 1,
-    flexGrow: 1,
-    justifyContent: 'center',
-    minHeight: 46,
-    paddingHorizontal: 14,
-  },
-  alertSecondaryText: {
-    color: BrandColors.deepBlue,
-    fontSize: 14,
-    fontWeight: '900',
-    lineHeight: 19,
-  },
-  eyebrow: {
-    color: BrandColors.red,
-    fontSize: 12,
-    fontWeight: '900',
-    textTransform: 'uppercase',
-  },
-  sectionEyebrow: {
-    color: BrandColors.red,
-    fontSize: 12,
-    fontWeight: '900',
-    textTransform: 'uppercase',
-  },
-  welcome: {
-    color: BrandColors.navy,
-    fontSize: 24,
-    fontWeight: '900',
-    lineHeight: 30,
-  },
-  panelTitle: {
-    color: BrandColors.navy,
-    fontSize: 20,
-    fontWeight: '900',
-    lineHeight: 26,
-  },
-  copy: {
-    color: BrandColors.muted,
-    fontSize: 15,
-    fontWeight: '600',
-    lineHeight: 22,
-  },
-  dashboardActions: {
-    gap: 10,
-    marginTop: 6,
-  },
-  actionButton: {
-    alignItems: 'center',
-    borderRadius: 8,
+    backgroundColor: colors.background,
+    borderColor: colors.border,
+    borderRadius: radius.md,
     borderWidth: 1,
     flexDirection: 'row',
-    gap: 12,
-    minHeight: 74,
-    padding: 14,
+    gap: spacing.md,
+    justifyContent: 'space-between',
+    padding: spacing.md,
   },
-  primaryAction: {
-    backgroundColor: BrandColors.navy,
-    borderColor: BrandColors.navy,
-  },
-  secondaryAction: {
-    backgroundColor: BrandColors.white,
-    borderColor: BrandColors.border,
-  },
-  actionMark: {
-    alignItems: 'center',
-    borderRadius: 8,
-    height: 42,
-    justifyContent: 'center',
-    width: 42,
-  },
-  actionMarkEmergency: {
-    backgroundColor: BrandColors.red,
-  },
-  actionMarkStandard: {
-    backgroundColor: BrandColors.lightBlue,
-    borderColor: BrandColors.border,
-    borderWidth: 1,
-  },
-  actionMarkText: {
-    fontSize: 18,
-    fontWeight: '900',
-    lineHeight: 22,
-  },
-  actionMarkTextEmergency: {
-    color: BrandColors.white,
-  },
-  actionMarkTextStandard: {
-    color: BrandColors.deepBlue,
-  },
-  actionTextBlock: {
+  compactTextBlock: {
     flex: 1,
     gap: 3,
   },
-  actionTitle: {
-    color: BrandColors.navy,
-    fontSize: 16,
+  compactTitle: {
+    color: colors.navy,
+    fontSize: 15,
     fontWeight: '900',
-    lineHeight: 21,
+    lineHeight: 20,
   },
-  primaryActionTitle: {
-    color: BrandColors.white,
+  compactMeta: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 17,
   },
-  actionDescription: {
-    color: BrandColors.muted,
-    fontSize: 13,
-    fontWeight: '600',
-    lineHeight: 18,
+  mutedText: {
+    color: colors.muted,
+    ...typography.body,
   },
-  primaryActionDescription: {
-    color: BrandColors.sky,
-  },
-  actionArrow: {
-    color: BrandColors.deepBlue,
-    fontSize: 25,
-    fontWeight: '900',
-    lineHeight: 28,
-  },
-  primaryActionArrow: {
-    color: BrandColors.white,
+  safetyText: {
+    color: colors.sky,
+    ...typography.body,
   },
   pressed: {
     opacity: 0.72,

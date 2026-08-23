@@ -4,7 +4,10 @@ import {
   AlertServiceError,
   createAlert,
   getActiveAlerts,
+  getAlertHistory,
   getAlertById,
+  getAlertRiskHistory,
+  updateAlert,
 } from '../services/alertService.js';
 
 const AUTHORIZED_ALERT_ROLES = new Set(['admin', 'authority']);
@@ -44,6 +47,16 @@ function requireAlertPublisher(req: Request) {
   return user;
 }
 
+function requireAlertManager(req: Request) {
+  const user = requireAuthenticatedUser(req);
+
+  if (!AUTHORIZED_ALERT_ROLES.has(String(user.role).toLowerCase())) {
+    throw new AlertServiceError(403, 'You are not authorized to manage emergency alerts.');
+  }
+
+  return user;
+}
+
 export async function listActiveAlerts(req: Request, res: Response) {
   try {
     const user = requireAuthenticatedUser(req);
@@ -52,6 +65,20 @@ export async function listActiveAlerts(req: Request, res: Response) {
     return res.status(200).json({
       success: true,
       alerts,
+    });
+  } catch (error) {
+    return sendAlertError(error, res);
+  }
+}
+
+export async function listAlertHistory(req: Request, res: Response) {
+  try {
+    requireAlertManager(req);
+    const history = await getAlertHistory();
+
+    return res.status(200).json({
+      success: true,
+      history,
     });
   } catch (error) {
     return sendAlertError(error, res);
@@ -78,6 +105,26 @@ export async function getEmergencyAlert(req: Request, res: Response) {
   }
 }
 
+export async function getEmergencyAlertRiskHistory(req: Request, res: Response) {
+  try {
+    requireAuthenticatedUser(req);
+    const alertId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+
+    if (!alertId) {
+      throw new AlertServiceError(400, 'Invalid alert id.');
+    }
+
+    const riskHistory = await getAlertRiskHistory(alertId);
+
+    return res.status(200).json({
+      success: true,
+      riskHistory,
+    });
+  } catch (error) {
+    return sendAlertError(error, res);
+  }
+}
+
 export async function createEmergencyAlert(req: Request, res: Response) {
   try {
     const user = requireAlertPublisher(req);
@@ -86,6 +133,27 @@ export async function createEmergencyAlert(req: Request, res: Response) {
     return res.status(201).json({
       success: true,
       message: 'Emergency alert published successfully.',
+      alert,
+    });
+  } catch (error) {
+    return sendAlertError(error, res);
+  }
+}
+
+export async function updateEmergencyAlert(req: Request, res: Response) {
+  try {
+    const user = requireAlertManager(req);
+    const alertId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+
+    if (!alertId) {
+      throw new AlertServiceError(400, 'Invalid alert id.');
+    }
+
+    const alert = await updateAlert(alertId, req.body, user.id);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Emergency alert updated successfully.',
       alert,
     });
   } catch (error) {

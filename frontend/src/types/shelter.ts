@@ -34,3 +34,36 @@ export interface EvacuationRoute {
   updatedAt: string | null;
   isAreaMatch: boolean;
 }
+
+export interface CreateShelterPayload {
+  name: string;
+  area: string;
+  address?: string;
+  latitude?: number;
+  longitude?: number;
+  capacity?: number;
+  currentOccupancy?: number;
+  status?: string;
+  contactNumber?: string;
+  facilities?: string[];
+}
+
+export interface ShelterFieldErrors {
+  name?: string;
+  area?: string;
+  capacity?: string;
+  currentOccupancy?: string;
+}
+
+export interface UpdateShelterPayload {
+  name?: string;
+  area?: string;
+  address?: string;
+  latitude?: number;
+  longitude?: number;
+  capacity?: number;
+  currentOccupancy?: number;
+  status?: string;
+  contactNumber?: string;
+  facilities?: string[];
+}

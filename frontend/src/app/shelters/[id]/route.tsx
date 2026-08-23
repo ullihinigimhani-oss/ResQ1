@@ -17,12 +17,14 @@ import { AuthButton, BackButton, StatusBanner } from '@/components/common/auth-c
 import { RoadStatusBadge, ShelterStatusBadge } from '@/components/shelters/shelter-ui';
 import { BrandColors } from '@/constants/brand';
 import { useAuth } from '@/context/auth-context';
+import { getAllIncidents, isIncidentApiError } from '@/services/incidentService';
 import {
   getShelterById,
   getShelterRoutes,
   isShelterApiError,
 } from '@/services/shelterService';
 import type { EvacuationRoute, Shelter } from '@/types/shelter';
+import type { Incident } from '@/types/incident';
 
 function firstParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
@@ -240,6 +242,11 @@ export default function ShelterRouteScreen() {
   const [loadingRoute, setLoadingRoute] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [routeActionMessage, setRouteActionMessage] = useState<string | null>(null);
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [incidents, setIncidents] = useState<Incident[]>([]);
+  const [loadingLocation, setLoadingLocation] = useState(false);
+  const [loadingIncidents, setLoadingIncidents] = useState(false);
 
   const loadRouteData = useCallback(async (refresh = false) => {
     if (!token || !shelterId) {
@@ -279,14 +286,72 @@ export default function ShelterRouteScreen() {
     }
   }, [shelterId, token]);
 
+  const loadUserLocation = useCallback(async () => {
+    setLoadingLocation(true);
+    try {
+      // TODO: Uncomment after installing expo-location
+      // const { status } = await Location.requestForegroundPermissionsAsync();
+      // if (status !== 'granted') {
+      //   console.warn('Location permission denied');
+      //   return;
+      // }
+      // const location = await Location.getCurrentPositionAsync({});
+      // setUserLocation({
+      //   latitude: location.coords.latitude,
+      //   longitude: location.coords.longitude,
+      // });
+      console.warn('Location package not installed yet');
+    } catch (error) {
+      console.warn('Failed to get location:', error);
+    } finally {
+      setLoadingLocation(false);
+    }
+  }, []);
+
+  const loadIncidents = useCallback(async () => {
+    if (!token) {
+      return;
+    }
+
+    setLoadingIncidents(true);
+    try {
+      const allIncidents = await getAllIncidents(token);
+      setIncidents(allIncidents);
+    } catch (error) {
+      if (__DEV__ && !isIncidentApiError(error)) {
+        console.warn('Failed to load incidents:', error);
+      }
+    } finally {
+      setLoadingIncidents(false);
+    }
+  }, [token]);
+
+  const fetchOSRMRoute = useCallback(async (startLat: number, startLng: number, endLat: number, endLng: number) => {
+    try {
+      const response = await fetch(
+        `https://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${endLng},${endLat}?overview=full&geometries=geojson`
+      );
+      const data = await response.json();
+      if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
+        return data.routes[0].geometry.coordinates;
+      }
+      return null;
+    } catch (error) {
+      console.warn('Failed to fetch OSRM route:', error);
+      return null;
+    }
+  }, []);
+
   useEffect(() => {
     if (token && shelterId) {
       void loadRouteData();
+      void loadUserLocation();
+      void loadIncidents();
     } else if (!shelterId) {
       setLoadingRoute(false);
       setErrorMessage('Unable to load the evacuation route.');
     }
-  }, [loadRouteData, shelterId, token]);
+  }, [loadRouteData, loadUserLocation, loadIncidents, shelterId, token]);
 
   const selectedRoute = useMemo(
     () => routes.find((route) => route.id === selectedRouteId) ?? routes[0] ?? null,
@@ -319,6 +384,18 @@ export default function ShelterRouteScreen() {
   const residentAreaMatches =
     selectedRoute ? selectedRoute.isAreaMatch || routeMatchesResidentArea(selectedRoute, user.location) : false;
   const fromLabel = user.location?.trim() || officialFrom;
+  const selectAlternativeRoute = () => {
+    if (!selectedRoute || routes.length < 2) {
+      return;
+    }
+
+    const currentIndex = routes.findIndex((route) => route.id === selectedRoute.id);
+    const nextRoute = routes[(currentIndex + 1) % routes.length];
+
+    if (nextRoute) {
+      setSelectedRouteId(nextRoute.id);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -349,6 +426,7 @@ export default function ShelterRouteScreen() {
         </View>
 
         {errorMessage && shelter ? <StatusBanner message={errorMessage} type="error" /> : null}
+        {routeActionMessage ? <StatusBanner message={routeActionMessage} type="success" /> : null}
 
         {showInitialLoading ? (
           <View style={styles.centerState}>
@@ -485,6 +563,34 @@ export default function ShelterRouteScreen() {
               <RouteField label="Start Area" value={officialFrom} />
               <RouteField label="Destination" value={shelter.name} />
               <RouteField label="Destination Coordinates" value={coordinatesText(shelter)} />
+            </View>
+
+            <View style={styles.panel}>
+              <Text style={styles.sectionTitle}>Route Actions</Text>
+              <Text style={styles.sectionCopy}>
+                Real-time turn-by-turn navigation is not enabled; use verified route instructions.
+              </Text>
+              <View style={styles.actionButtons}>
+                <AuthButton
+                  title="View Route Instructions"
+                  onPress={() => setRouteActionMessage('Verified route instructions are displayed on this screen. Real-time navigation is not enabled.')}
+                />
+                <AuthButton
+                  title="View Alternative Route"
+                  variant="secondary"
+                  onPress={selectAlternativeRoute}
+                />
+                <AuthButton
+                  title="Call Emergency Services"
+                  variant="secondary"
+                  onPress={() => router.push('/contacts' as Href)}
+                />
+                <AuthButton
+                  title="Refresh Route"
+                  variant="secondary"
+                  onPress={() => void loadRouteData(true)}
+                />
+              </View>
             </View>
 
             <View style={styles.safetyPanel}>
@@ -656,11 +762,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: 14,
     padding: 15,
-    shadowColor: BrandColors.navy,
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.07,
-    shadowRadius: 12,
-    elevation: 2,
   },
   routeTitleRow: {
     alignItems: 'flex-start',
@@ -922,6 +1023,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: 6,
     padding: 14,
+  },
+  actionButtons: {
+    gap: 10,
   },
   safetyTitle: {
     color: BrandColors.white,
