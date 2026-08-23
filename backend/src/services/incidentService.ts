@@ -10,7 +10,7 @@ import type {
   ValidatedIncidentInput,
 } from '../types/incident.js';
 
-const INCIDENT_TYPES = new Set<IncidentType>(['Flood']);
+const INCIDENT_TYPES = new Set<IncidentType>(['Flood', 'Fire', 'Landslide', 'Cyclone', 'Tsunami', 'Other']);
 const INCIDENT_SEVERITIES = new Set<IncidentSeverity>(['Low', 'Medium', 'High', 'Critical']);
 const INCIDENT_STATUSES = new Set<IncidentStatus>([
   'Reported',
@@ -107,10 +107,6 @@ function validateCreateIncidentInput(input: CreateIncidentInput): ValidatedIncid
     fieldErrors.title = 'Incident title must be 150 characters or fewer.';
   }
 
-  if (!description) {
-    fieldErrors.description = 'Please describe the flood incident.';
-  }
-
   if (!location) {
     fieldErrors.location = 'Please provide the affected location.';
   } else if (location.length > 150) {
@@ -118,7 +114,7 @@ function validateCreateIncidentInput(input: CreateIncidentInput): ValidatedIncid
   }
 
   if (!INCIDENT_TYPES.has(incidentType as IncidentType)) {
-    fieldErrors.incidentType = 'Incident type must be Flood.';
+    fieldErrors.incidentType = 'Please select a valid incident type.';
   }
 
   if (!severity) {

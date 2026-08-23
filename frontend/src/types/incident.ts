@@ -11,7 +11,9 @@ export type IncidentSeverity = (typeof incidentSeverityOptions)[number];
 
 export type IncidentStatus = (typeof incidentStatusWorkflow)[number];
 
-export type IncidentType = 'Flood';
+export const incidentTypeOptions = ['Flood', 'Fire', 'Landslide', 'Cyclone', 'Tsunami', 'Other'] as const;
+
+export type IncidentType = (typeof incidentTypeOptions)[number];
 
 export interface Incident {
   id: number;

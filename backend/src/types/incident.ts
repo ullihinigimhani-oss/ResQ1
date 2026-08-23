@@ -1,4 +1,4 @@
-export type IncidentType = 'Flood';
+export type IncidentType = 'Flood' | 'Fire' | 'Landslide' | 'Cyclone' | 'Tsunami' | 'Other';
 
 export type IncidentSeverity = 'Low' | 'Medium' | 'High' | 'Critical';
 

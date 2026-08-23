@@ -4,6 +4,7 @@ import { useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -25,12 +26,15 @@ import { useAuth } from '@/context/auth-context';
 import { createIncident, isIncidentApiError } from '@/services/incidentService';
 import {
   incidentSeverityOptions,
+  incidentTypeOptions,
   type CreateIncidentPayload,
   type IncidentFieldErrors,
   type IncidentSeverity,
+  type IncidentType,
 } from '@/types/incident';
 
 type IncidentForm = {
+  incidentType: IncidentType | '';
   title: string;
   description: string;
   location: string;
@@ -40,6 +44,7 @@ type IncidentForm = {
 };
 
 const initialForm: IncidentForm = {
+  incidentType: '',
   title: '',
   description: '',
   location: '',
@@ -89,10 +94,6 @@ function validateForm(form: IncidentForm) {
     errors.title = 'Please enter an incident title.';
   }
 
-  if (!description) {
-    errors.description = 'Please describe the flood incident.';
-  }
-
   if (!location) {
     errors.location = 'Please provide the affected location.';
   }
@@ -101,11 +102,15 @@ function validateForm(form: IncidentForm) {
     errors.severity = 'Please select the severity level.';
   }
 
+  if (!form.incidentType) {
+    errors.incidentType = 'Please select the disaster type.';
+  }
+
   const latitude = parseCoordinate(form.latitudeText, 'latitudeText', errors);
   const longitude = parseCoordinate(form.longitudeText, 'longitudeText', errors);
 
   const payload: CreateIncidentPayload = {
-    incidentType: 'Flood',
+    incidentType: form.incidentType as IncidentType,
     title,
     description,
     location,
@@ -128,6 +133,7 @@ export default function ReportIncidentScreen() {
   const [fieldErrors, setFieldErrors] = useState<IncidentFieldErrors>({});
   const [message, setMessage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [isTypeDropdownVisible, setIsTypeDropdownVisible] = useState(false);
 
   if (!isLoading && !user) {
     return <Redirect href={'/auth/welcome' as Href} />;
@@ -208,7 +214,7 @@ export default function ReportIncidentScreen() {
 
           <View style={styles.header}>
             <Text style={styles.eyebrow}>Resident Incident Report</Text>
-            <Text style={styles.title}>Report Flood Incident</Text>
+            <Text style={styles.title}>Report Disaster Incident</Text>
             <Text style={styles.subtitle}>
               Share accurate information to help emergency teams respond quickly.
             </Text>
@@ -227,6 +233,18 @@ export default function ReportIncidentScreen() {
           {message ? <StatusBanner message={message} type="error" /> : null}
 
           <View style={styles.form}>
+            <View style={styles.fieldGroup}>
+              <Text style={styles.label}>Disaster Type</Text>
+              <Pressable
+                style={[styles.dropdownButton, fieldErrors.incidentType && styles.selectorError]}
+                onPress={() => setIsTypeDropdownVisible(true)}>
+                <Text style={[styles.dropdownButtonText, !form.incidentType && styles.dropdownPlaceholder]}>
+                  {form.incidentType || 'Select disaster type...'}
+                </Text>
+              </Pressable>
+              {fieldErrors.incidentType ? <Text style={styles.errorText}>{fieldErrors.incidentType}</Text> : null}
+            </View>
+
             <AuthTextField
               autoCapitalize="sentences"
               error={fieldErrors.title}
@@ -295,12 +313,6 @@ export default function ReportIncidentScreen() {
               {fieldErrors.severity ? <Text style={styles.errorText}>{fieldErrors.severity}</Text> : null}
             </View>
 
-            <View style={styles.fieldGroup}>
-              <Text style={styles.label}>Incident Type</Text>
-              <View style={styles.fixedField}>
-                <Text style={styles.fixedFieldText}>Flood</Text>
-              </View>
-            </View>
 
             <View style={styles.coordinateGrid}>
               <View style={styles.coordinateField}>
@@ -347,6 +359,29 @@ export default function ReportIncidentScreen() {
           />
         </ScrollView>
       </KeyboardAvoidingView>
+      
+      <Modal visible={isTypeDropdownVisible} transparent animationType="fade">
+        <Pressable style={styles.modalOverlay} onPress={() => setIsTypeDropdownVisible(false)}>
+          <View style={styles.dropdownMenu}>
+            <Text style={styles.dropdownTitle}>Select Disaster Type</Text>
+            {incidentTypeOptions.map((type) => (
+              <Pressable
+                key={type}
+                style={styles.dropdownItem}
+                onPress={() => {
+                  setForm((current) => ({ ...current, incidentType: type }));
+                  setFieldErrors((current) => ({ ...current, incidentType: undefined }));
+                  setIsTypeDropdownVisible(false);
+                }}>
+                <Text style={[styles.dropdownItemText, form.incidentType === type && styles.dropdownItemTextSelected]}>
+                  {type}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </Pressable>
+      </Modal>
+
       <BottomNavigation />
     </SafeAreaView>
   );
@@ -491,8 +526,8 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
   },
-  fixedField: {
-    backgroundColor: BrandColors.lightBlue,
+  dropdownButton: {
+    backgroundColor: BrandColors.white,
     borderColor: BrandColors.border,
     borderRadius: 8,
     borderWidth: 1,
@@ -500,10 +535,55 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 14,
   },
-  fixedFieldText: {
+  dropdownButtonText: {
     color: BrandColors.navy,
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: '600',
+  },
+  dropdownPlaceholder: {
+    color: BrandColors.muted,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  dropdownMenu: {
+    backgroundColor: BrandColors.white,
+    borderRadius: 12,
+    overflow: 'hidden',
+    padding: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  dropdownTitle: {
+    color: BrandColors.navy,
+    fontSize: 18,
+    fontWeight: '900',
+    paddingHorizontal: 12,
+    paddingVertical: 16,
+    textAlign: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: BrandColors.border,
+    marginBottom: 8,
+  },
+  dropdownItem: {
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  dropdownItemText: {
+    color: BrandColors.text,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  dropdownItemTextSelected: {
+    color: BrandColors.deepBlue,
+    fontWeight: '900',
   },
   coordinateGrid: {
     flexDirection: 'row',
