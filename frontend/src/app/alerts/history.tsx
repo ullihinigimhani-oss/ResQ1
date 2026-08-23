@@ -66,6 +66,30 @@ function actionTone(action: string) {
   };
 }
 
+function eventAccent(action: string) {
+  if (action === 'PUBLISHED') {
+    return colors.navy;
+  }
+
+  if (action === 'UPDATED') {
+    return colors.blue;
+  }
+
+  if (action === 'CANCELLED') {
+    return colors.red;
+  }
+
+  if (action === 'RESOLVED') {
+    return colors.success;
+  }
+
+  if (action === 'EXPIRED') {
+    return colors.amber;
+  }
+
+  return colors.border;
+}
+
 function statusTone(status: string | null) {
   if (status === 'Active') {
     return {
@@ -161,11 +185,9 @@ function HistoryLoadingState() {
 
 function AlertHistoryRow({
   event,
-  isLast,
   onOpen,
 }: {
   event: AlertAuditEvent;
-  isLast: boolean;
   onOpen: (alertId: number) => void;
 }) {
   const action = displayValue(event.action, 'UPDATED').toUpperCase();
@@ -178,19 +200,17 @@ function AlertHistoryRow({
       onPress={() => onOpen(event.alertId)}
       style={({ pressed }) => [
         styles.historyRow,
-        isLast && styles.historyRowLast,
+        { borderLeftColor: eventAccent(action) },
         pressed && styles.pressed,
       ]}>
       <View style={styles.rowContent}>
-        <Text style={styles.timestampText}>{formatAuditDateTime(event.createdAt)}</Text>
-
-        <View style={styles.rowTitleLine}>
-          <View style={styles.rowTitleBlock}>
-            <Text numberOfLines={1} style={styles.alertTitle}>{event.title}</Text>
-            <Text numberOfLines={1} style={styles.areaText}>{event.affectedArea}</Text>
-          </View>
+        <View style={styles.rowTopLine}>
+          <Text style={styles.timestampText}>{formatAuditDateTime(event.createdAt)}</Text>
           <Text style={styles.chevronText}>&gt;</Text>
         </View>
+
+        <Text numberOfLines={1} style={styles.alertTitle}>{event.title}</Text>
+        <Text numberOfLines={1} style={styles.areaText}>{event.affectedArea}</Text>
 
         <View style={styles.badgeRow}>
           <AuditBadge label={action} tone={actionTone(action)} />
@@ -312,10 +332,9 @@ export default function AlertHistoryScreen() {
 
       {!showLoading && !showError && history.length > 0 ? (
         <View style={styles.historyList}>
-          {history.map((event, index) => (
+          {history.map((event) => (
             <AlertHistoryRow
               event={event}
-              isLast={index === history.length - 1}
               key={event.id}
               onOpen={handleViewDetails}
             />
@@ -328,40 +347,33 @@ export default function AlertHistoryScreen() {
 
 const styles = StyleSheet.create({
   historyList: {
-    backgroundColor: colors.white,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    overflow: 'hidden',
-    ...shadows.card,
+    gap: spacing.sm,
   },
   historyRow: {
-    borderBottomColor: colors.border,
-    borderBottomWidth: 1,
-  },
-  historyRowLast: {
-    borderBottomWidth: 0,
+    backgroundColor: colors.white,
+    borderColor: colors.border,
+    borderLeftWidth: 4,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    ...shadows.card,
   },
   rowContent: {
-    gap: spacing.xs,
+    gap: 6,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.sm,
   },
-  timestampText: {
-    color: colors.muted,
-    fontSize: 12,
-    fontWeight: '800',
-    lineHeight: 17,
-  },
-  rowTitleLine: {
+  rowTopLine: {
     alignItems: 'center',
     flexDirection: 'row',
     gap: spacing.sm,
+    justifyContent: 'space-between',
   },
-  rowTitleBlock: {
+  timestampText: {
+    color: colors.muted,
     flex: 1,
-    gap: 2,
-    minWidth: 0,
+    fontSize: 12,
+    fontWeight: '800',
+    lineHeight: 17,
   },
   alertTitle: {
     color: colors.navy,
@@ -385,7 +397,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.xs,
-    paddingTop: 2,
+    paddingTop: 4,
   },
   badge: {
     borderRadius: radius.sm,
