@@ -1,9 +1,12 @@
+import { randomInt } from 'node:crypto';
+
 import bcrypt from 'bcrypt';
 import jwt, { type SignOptions } from 'jsonwebtoken';
 
 import { sql } from '../config/database.js';
 import type {
   AuthResult,
+  ForgotPasswordInput,
   LoginResidentInput,
   PreferredLanguage,
   RegisterResidentInput,
@@ -15,6 +18,12 @@ import type {
 const PASSWORD_SALT_ROUNDS = 12;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PREFERRED_LANGUAGES = new Set<PreferredLanguage>(['English', 'Sinhala', 'Tamil']);
+const PASSWORD_RESET_GENERIC_MESSAGE =
+  'If an account exists for this email, a verification code has been generated.';
+const PASSWORD_RESET_OTP_MIN = 100000;
+const PASSWORD_RESET_OTP_MAX = 1000000;
+const PASSWORD_RESET_OTP_EXPIRES_IN_MINUTES = 5;
+const PASSWORD_RESET_RESEND_COOLDOWN_SECONDS = 60;
 
 export class AuthServiceError extends Error {
   constructor(
@@ -125,6 +134,23 @@ function validateLoginInput(input: LoginResidentInput) {
   return { email, password };
 }
 
+function validateForgotPasswordInput(input: ForgotPasswordInput) {
+  const email = normalizeEmail(input.email);
+  const fieldErrors: Record<string, string> = {};
+
+  if (!email) {
+    fieldErrors.email = 'Email address is required.';
+  } else if (!EMAIL_PATTERN.test(email)) {
+    fieldErrors.email = 'Enter a valid email address.';
+  }
+
+  if (Object.keys(fieldErrors).length > 0) {
+    throw new AuthServiceError(400, 'Please correct the highlighted fields.', fieldErrors);
+  }
+
+  return { email };
+}
+
 function validateProfileInput(input: UpdateProfileInput) {
   const fullName = trimmedText(input.fullName);
   const email = normalizeEmail(input.email);
@@ -188,6 +214,25 @@ function createAuthToken(user: SafeUser): string {
 
 function invalidCredentialsError() {
   return new AuthServiceError(401, 'Invalid email or password.');
+}
+
+function generateOtp() {
+  return String(randomInt(PASSWORD_RESET_OTP_MIN, PASSWORD_RESET_OTP_MAX));
+}
+
+function expiresAtFromNow(minutes: number) {
+  return new Date(Date.now() + minutes * 60 * 1000);
+}
+
+function maskEmail(email: string) {
+  const [name, domain] = email.split('@');
+
+  if (!name || !domain) {
+    return 'unknown email';
+  }
+
+  const visibleName = name.length <= 2 ? `${name[0] ?? '*'}***` : `${name.slice(0, 2)}***`;
+  return `${visibleName}@${domain}`;
 }
 
 export async function registerResident(input: RegisterResidentInput): Promise<AuthResult> {
@@ -258,6 +303,71 @@ export async function loginResident(input: LoginResidentInput): Promise<AuthResu
     user: safeUser,
     token: createAuthToken(safeUser),
   };
+}
+
+export async function requestPasswordReset(input: ForgotPasswordInput) {
+  const { email } = validateForgotPasswordInput(input);
+
+  const users = await sql`
+    SELECT id, email
+    FROM users
+    WHERE email = ${email}
+    LIMIT 1
+  `;
+  const user = users[0] as { id: number; email: string } | undefined;
+
+  if (!user) {
+    return { message: PASSWORD_RESET_GENERIC_MESSAGE };
+  }
+
+  const cooldownStartedAt = new Date(Date.now() - PASSWORD_RESET_RESEND_COOLDOWN_SECONDS * 1000);
+  const recentTokens = await sql`
+    SELECT id
+    FROM password_reset_tokens
+    WHERE user_id = ${user.id}
+      AND used = FALSE
+      AND created_at > ${cooldownStartedAt}
+    ORDER BY created_at DESC
+    LIMIT 1
+  `;
+
+  if (recentTokens.length > 0) {
+    return { message: PASSWORD_RESET_GENERIC_MESSAGE };
+  }
+
+  const otp = generateOtp();
+  const otpHash = await bcrypt.hash(otp, PASSWORD_SALT_ROUNDS);
+  const expiresAt = expiresAtFromNow(PASSWORD_RESET_OTP_EXPIRES_IN_MINUTES);
+
+  await sql`
+    UPDATE password_reset_tokens
+    SET used = TRUE
+    WHERE user_id = ${user.id}
+      AND used = FALSE
+  `;
+
+  await sql`
+    INSERT INTO password_reset_tokens (
+      user_id,
+      otp_hash,
+      expires_at,
+      attempt_count,
+      used
+    )
+    VALUES (
+      ${user.id},
+      ${otpHash},
+      ${expiresAt},
+      0,
+      FALSE
+    )
+  `;
+
+  if (process.env.NODE_ENV !== 'production') {
+    console.info(`[DEV] Password reset OTP for ${maskEmail(user.email)}: ${otp}`);
+  }
+
+  return { message: PASSWORD_RESET_GENERIC_MESSAGE };
 }
 
 export async function updateResidentProfile(

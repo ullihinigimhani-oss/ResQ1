@@ -46,6 +46,10 @@ export interface LoginResidentInput {
   password?: unknown;
 }
 
+export interface ForgotPasswordInput {
+  email?: unknown;
+}
+
 export interface UpdateProfileInput {
   fullName?: unknown;
   email?: unknown;
