@@ -485,13 +485,24 @@ export default function ShelterRouteScreen() {
         {errorMessage ? <StatusBanner message={errorMessage} type="error" /> : null}
 
         {shelter ? (
-          <View style={styles.mapContainer}>
-            <MapView
-              provider={PROVIDER_GOOGLE}
-              style={styles.map}
-              region={mapRegion}
-              showsUserLocation
-              showsMyLocationButton>
+          Platform.OS === 'web' ? (
+            <View style={styles.centerState}>
+              <Text style={styles.emptyTitle}>Map Not Available on Web</Text>
+              <Text style={styles.stateText}>
+                Please use the mobile app to view the live evacuation map.
+              </Text>
+              <TouchableOpacity style={styles.openMapButton} onPress={openInExternalMap}>
+                <Text style={styles.openMapButtonText}>Open in Maps App</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.mapContainer}>
+              <MapView
+                provider={PROVIDER_GOOGLE}
+                style={styles.map}
+                region={mapRegion}
+                showsUserLocation
+                showsMyLocationButton>
               {/* User location marker */}
               {userLocation && (
                 <Marker
@@ -566,6 +577,7 @@ export default function ShelterRouteScreen() {
               </TouchableOpacity>
             </View>
           </View>
+          )
         ) : (
           <View style={styles.centerState}>
             <Text style={styles.emptyTitle}>Unable to load shelter information.</Text>
