@@ -50,3 +50,21 @@ CREATE TABLE IF NOT EXISTS alert_subscriptions (
     area_type VARCHAR(50),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS alert_audit_events (
+    id SERIAL PRIMARY KEY,
+    alert_id INTEGER NOT NULL REFERENCES alerts(id) ON DELETE CASCADE,
+    action VARCHAR(20) NOT NULL,
+    previous_status VARCHAR(20),
+    new_status VARCHAR(20),
+    previous_risk_level VARCHAR(20),
+    new_risk_level VARCHAR(20),
+    changed_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_alert_audit_events_alert_id
+    ON alert_audit_events(alert_id);
+
+CREATE INDEX IF NOT EXISTS idx_alert_audit_events_created_at
+    ON alert_audit_events(created_at DESC);

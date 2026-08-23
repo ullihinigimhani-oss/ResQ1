@@ -2,7 +2,10 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { sql } from './config/database.js';
+import alertRoutes from './routes/alertRoutes.js';
 import authRoutes from './routes/authRoutes.js';
+import incidentRoutes from './routes/incidentRoutes.js';
+import shelterRoutes from './routes/shelterRoutes.js';
 
 dotenv.config();
 
@@ -15,6 +18,9 @@ app.use(cors());
 app.use(express.json());
 
 app.use('/api/auth', authRoutes);
+app.use('/api/alerts', alertRoutes);
+app.use('/api/incidents', incidentRoutes);
+app.use('/api/shelters', shelterRoutes);
 
 // Basic API test
 app.get('/', (_req, res) => {

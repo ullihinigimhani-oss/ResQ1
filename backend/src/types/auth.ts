@@ -25,6 +25,14 @@ export interface SafeUser {
   updatedAt: string;
 }
 
+export interface AuthenticatedUser {
+  id: number;
+  email: string;
+  role: UserRole | string;
+  location: string | null;
+  preferredLanguage: string;
+}
+
 export interface RegisterResidentInput {
   fullName?: unknown;
   email?: unknown;
@@ -36,6 +44,13 @@ export interface RegisterResidentInput {
 export interface LoginResidentInput {
   email?: unknown;
   password?: unknown;
+}
+
+export interface UpdateProfileInput {
+  fullName?: unknown;
+  email?: unknown;
+  location?: unknown;
+  preferredLanguage?: unknown;
 }
 
 export interface AuthResult {

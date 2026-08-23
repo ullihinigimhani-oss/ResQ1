@@ -55,17 +55,73 @@ Join our community of developers creating universal apps.
 - [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
 - [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
 
----
+### Sprint 1 - Resident Login Verification
 
-## ResQ1 Project Development
+The Resident Login feature was implemented and verified as part of Sprint 1.
 
-ResQ1 is a mobile-based disaster management application designed to support residents and authorities during local disaster and flood emergencies.
+- Jira Work Item: SCRUM-23
+- Feature: Resident Login
+- Users can log in using registered credentials.
+- Invalid credentials are rejected with an appropriate error message.
+- Successful login redirects the user to the authenticated application flow.
+- The authenticated session is maintained securely for protected screens.
 
-### Sprint 1 - User & Community Management
+### Sprint 1 - Report Flood Incident Verification
 
-The following core authentication features were implemented and verified during Sprint 1:
+The Report Flood Incident feature was implemented and verified as part of Sprint 1.
 
-- SCRUM-49: Resident Registration
-- SCRUM-23: Resident Login
+- Jira Work Item: SCRUM-28
+- Feature: Report Flood Incident
+- Users can submit flood incident information through the application.
+- Incident details are captured and submitted for further processing.
+- Submitted incident information supports disaster monitoring and response activities.git status
 
-These features provide the core authentication flow for residents to create an account and securely access the ResQ1 application.
+### Sprint 1 - Incident Status Tracking Verification
+
+The Incident Status Tracking feature was implemented and verified as part of Sprint 1.
+
+- Jira Work Item: SCRUM-30
+- Feature: Track Incident Status
+- Users can view the current status of submitted flood incident reports.
+- Incident progress can be tracked through the response process.
+- Status information helps users monitor the progress of their submitted reports.
+
+### Sprint 1 - Receive Early Warning Alerts Verification
+
+The Receive Early Warning Alerts feature was implemented and verified as part of Sprint 1.
+
+- Jira Work Item: SCRUM-34
+- Feature: Receive Early Warning Alerts
+- Users can receive disaster and flood early-warning alerts through the application.
+- Alerts provide relevant warning information to help users identify potential risks.
+- The feature supports timely communication of emergency information to affected users.
+
+### Sprint 1 - Send Emergency Alerts Verification
+
+The Send Emergency Alerts feature was implemented and verified as part of Sprint 1.
+
+- Jira Work Item: SCRUM-35
+- Feature: Send Emergency Alerts
+- Authorized users can send emergency alerts through the application.
+- Emergency alerts contain relevant disaster information and safety instructions.
+- The feature supports rapid communication of emergency information to affected users.
+
+### Sprint 1 - Find Nearby Safe Shelter Verification
+
+The Find Nearby Safe Shelter feature was implemented and verified as part of Sprint 1.
+
+- Jira Work Item: SCRUM-40
+- Feature: Find Nearby Safe Shelter
+- Residents can view available safe shelters through the application.
+- Shelter information helps users identify suitable emergency shelter locations.
+- Users can view relevant shelter details to support evacuation decisions during an emergency.
+
+### Sprint 1 - View Safe Evacuation Routes Verification
+
+The View Safe Evacuation Routes feature was implemented and verified as part of Sprint 1.
+
+- Jira Work Item: SCRUM-41
+- Feature: View Safe Evacuation Routes
+- Residents can view evacuation route information for selected safe shelters.
+- Route information helps users identify an appropriate path toward a safe shelter.
+- The feature provides relevant route and safety information to support evacuation during an emergency.
