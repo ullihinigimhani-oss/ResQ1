@@ -50,6 +50,11 @@ export interface ForgotPasswordInput {
   email?: unknown;
 }
 
+export interface VerifyResetOtpInput {
+  email?: unknown;
+  otp?: unknown;
+}
+
 export interface UpdateProfileInput {
   fullName?: unknown;
   email?: unknown;

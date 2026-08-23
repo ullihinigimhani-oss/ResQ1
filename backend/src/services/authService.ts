@@ -1,4 +1,4 @@
-import { randomInt } from 'node:crypto';
+import { createHash, randomBytes, randomInt } from 'node:crypto';
 
 import bcrypt from 'bcrypt';
 import jwt, { type SignOptions } from 'jsonwebtoken';
@@ -13,6 +13,7 @@ import type {
   SafeUser,
   UpdateProfileInput,
   UserRow,
+  VerifyResetOtpInput,
 } from '../types/auth.js';
 
 const PASSWORD_SALT_ROUNDS = 12;
@@ -24,6 +25,18 @@ const PASSWORD_RESET_OTP_MIN = 100000;
 const PASSWORD_RESET_OTP_MAX = 1000000;
 const PASSWORD_RESET_OTP_EXPIRES_IN_MINUTES = 5;
 const PASSWORD_RESET_RESEND_COOLDOWN_SECONDS = 60;
+const PASSWORD_RESET_MAX_ATTEMPTS = 5;
+const PASSWORD_RESET_TOKEN_BYTES = 32;
+const PASSWORD_RESET_TOKEN_EXPIRES_IN_MINUTES = 10;
+
+type PasswordResetTokenRow = {
+  id: number;
+  user_id: number;
+  otp_hash: string;
+  expires_at: Date | string;
+  attempt_count: number;
+  used: boolean;
+};
 
 export class AuthServiceError extends Error {
   constructor(
@@ -151,6 +164,30 @@ function validateForgotPasswordInput(input: ForgotPasswordInput) {
   return { email };
 }
 
+function validateVerifyResetOtpInput(input: VerifyResetOtpInput) {
+  const email = normalizeEmail(input.email);
+  const otp = trimmedText(input.otp);
+  const fieldErrors: Record<string, string> = {};
+
+  if (!email) {
+    fieldErrors.email = 'Email address is required.';
+  } else if (!EMAIL_PATTERN.test(email)) {
+    fieldErrors.email = 'Enter a valid email address.';
+  }
+
+  if (!otp) {
+    fieldErrors.otp = 'Verification code is required.';
+  } else if (!/^\d{6}$/.test(otp)) {
+    fieldErrors.otp = 'Enter the 6-digit verification code.';
+  }
+
+  if (Object.keys(fieldErrors).length > 0) {
+    throw new AuthServiceError(400, 'Please correct the highlighted fields.', fieldErrors);
+  }
+
+  return { email, otp };
+}
+
 function validateProfileInput(input: UpdateProfileInput) {
   const fullName = trimmedText(input.fullName);
   const email = normalizeEmail(input.email);
@@ -220,8 +257,20 @@ function generateOtp() {
   return String(randomInt(PASSWORD_RESET_OTP_MIN, PASSWORD_RESET_OTP_MAX));
 }
 
+function generateResetToken() {
+  return randomBytes(PASSWORD_RESET_TOKEN_BYTES).toString('hex');
+}
+
+function hashResetToken(token: string) {
+  return createHash('sha256').update(token).digest('hex');
+}
+
 function expiresAtFromNow(minutes: number) {
   return new Date(Date.now() + minutes * 60 * 1000);
+}
+
+function isPast(value: Date | string) {
+  return new Date(value).getTime() <= Date.now();
 }
 
 function maskEmail(email: string) {
@@ -368,6 +417,107 @@ export async function requestPasswordReset(input: ForgotPasswordInput) {
   }
 
   return { message: PASSWORD_RESET_GENERIC_MESSAGE };
+}
+
+export async function verifyResetOtp(input: VerifyResetOtpInput) {
+  const { email, otp } = validateVerifyResetOtpInput(input);
+
+  const users = await sql`
+    SELECT id
+    FROM users
+    WHERE email = ${email}
+    LIMIT 1
+  `;
+  const user = users[0] as { id: number } | undefined;
+
+  if (!user) {
+    throw new AuthServiceError(400, 'Invalid verification code.', {
+      otp: 'Invalid verification code.',
+    });
+  }
+
+  const tokenRows = await sql`
+    SELECT id, user_id, otp_hash, expires_at, attempt_count, used
+    FROM password_reset_tokens
+    WHERE user_id = ${user.id}
+      AND used = FALSE
+    ORDER BY created_at DESC
+    LIMIT 1
+  `;
+  const resetRecord = tokenRows[0] as PasswordResetTokenRow | undefined;
+
+  if (!resetRecord) {
+    throw new AuthServiceError(400, 'Your verification code has expired. Please request a new code.', {
+      otp: 'Your verification code has expired. Please request a new code.',
+    });
+  }
+
+  if (isPast(resetRecord.expires_at)) {
+    await sql`
+      UPDATE password_reset_tokens
+      SET used = TRUE
+      WHERE id = ${resetRecord.id}
+    `;
+
+    throw new AuthServiceError(400, 'Your verification code has expired. Please request a new code.', {
+      otp: 'Your verification code has expired. Please request a new code.',
+    });
+  }
+
+  if (resetRecord.attempt_count >= PASSWORD_RESET_MAX_ATTEMPTS) {
+    await sql`
+      UPDATE password_reset_tokens
+      SET used = TRUE
+      WHERE id = ${resetRecord.id}
+    `;
+
+    throw new AuthServiceError(429, 'Too many incorrect attempts. Please request a new code.', {
+      otp: 'Too many incorrect attempts. Please request a new code.',
+    });
+  }
+
+  const otpMatches = await bcrypt.compare(otp, resetRecord.otp_hash);
+
+  if (!otpMatches) {
+    const nextAttemptCount = resetRecord.attempt_count + 1;
+    const attemptsExceeded = nextAttemptCount >= PASSWORD_RESET_MAX_ATTEMPTS;
+
+    await sql`
+      UPDATE password_reset_tokens
+      SET
+        attempt_count = ${nextAttemptCount},
+        used = ${attemptsExceeded}
+      WHERE id = ${resetRecord.id}
+    `;
+
+    throw new AuthServiceError(
+      attemptsExceeded ? 429 : 400,
+      attemptsExceeded ? 'Too many incorrect attempts. Please request a new code.' : 'Invalid verification code.',
+      {
+        otp: attemptsExceeded
+          ? 'Too many incorrect attempts. Please request a new code.'
+          : 'Invalid verification code.',
+      },
+    );
+  }
+
+  const resetToken = generateResetToken();
+  const resetTokenHash = hashResetToken(resetToken);
+  const resetTokenExpiresAt = expiresAtFromNow(PASSWORD_RESET_TOKEN_EXPIRES_IN_MINUTES);
+
+  await sql`
+    UPDATE password_reset_tokens
+    SET
+      verified_at = CURRENT_TIMESTAMP,
+      reset_token_hash = ${resetTokenHash},
+      reset_token_expires_at = ${resetTokenExpiresAt}
+    WHERE id = ${resetRecord.id}
+  `;
+
+  return {
+    message: 'Verification successful.',
+    resetToken,
+  };
 }
 
 export async function updateResidentProfile(
