@@ -376,6 +376,16 @@ export default function AlertDetailsScreen() {
                 ) : null}
               </View>
 
+              <View style={styles.riskTrendTopSection}>
+                <FloodRiskTrendChart
+                  error={riskHistoryError}
+                  history={riskHistory}
+                  language={displayLanguage}
+                  loading={loadingRiskHistory}
+                  riskLevel={alert.riskLevel}
+                />
+              </View>
+
               <View style={styles.detailInfoList}>
                 <DetailInfoRow fallback="A" label={detailCopy.area} name="house.fill" value={alert.affectedArea} />
                 <DetailInfoRow
@@ -384,23 +394,6 @@ export default function AlertDetailsScreen() {
                   name="exclamationmark.triangle.fill"
                   value={translateDisasterType(alert.disasterType, displayLanguage)}
                 />
-                <DetailInfoRow fallback="R" label={detailCopy.riskLevel} name="gauge.with.dots.needle.33percent">
-                  <View style={styles.riskTrendBlock}>
-                    <DetailPill
-                      backgroundColor={alertTone.pillBackground}
-                      borderColor={alertTone.pillBorder}
-                      label={translateRiskLevel(alert.riskLevel, displayLanguage)}
-                      textColor={alertTone.pillText}
-                    />
-                    <FloodRiskTrendChart
-                      error={riskHistoryError}
-                      history={riskHistory}
-                      language={displayLanguage}
-                      loading={loadingRiskHistory}
-                      riskLevel={alert.riskLevel}
-                    />
-                  </View>
-                </DetailInfoRow>
                 <DetailInfoRow
                   fallback="D"
                   label={detailCopy.description}
@@ -654,8 +647,12 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     lineHeight: 21,
   },
-  riskTrendBlock: {
-    gap: 10,
+  riskTrendTopSection: {
+    backgroundColor: BrandColors.background,
+    borderBottomColor: BrandColors.border,
+    borderBottomWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
   safetyBulletList: {
     gap: 4,
