@@ -1,6 +1,12 @@
 import { StatusBar } from 'expo-status-bar';
 import * as Location from 'expo-location';
 import { Redirect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
+import * as Location from 'expo-location';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  Platform,
+  Pressable,
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -15,6 +21,19 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
+
+let MapView: any = null;
+let Marker: any = null;
+let Polyline: any = null;
+let PROVIDER_DEFAULT: any = null;
+
+if (Platform.OS !== 'web') {
+  const Maps = require('react-native-maps');
+  MapView = Maps.default;
+  Marker = Maps.Marker;
+  Polyline = Maps.Polyline;
+  PROVIDER_DEFAULT = Maps.PROVIDER_DEFAULT;
+}
 
 import { AuthButton, BackButton, StatusBanner } from '@/components/common/auth-components';
 import { ShelterStatusBadge } from '@/components/shelters/shelter-ui';
@@ -57,6 +76,14 @@ export default function ShelterRouteScreen() {
   const [shelter, setShelter] = useState<Shelter | null>(null);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [incidents, setIncidents] = useState<Incident[]>([]);
+  const [loadingLocation, setLoadingLocation] = useState(false);
+  const [loadingIncidents, setLoadingIncidents] = useState(false);
+  const [routeCoordinates, setRouteCoordinates] = useState<Array<{ latitude: number; longitude: number }>>([]);
+  const [alternativeRoutes, setAlternativeRoutes] = useState<Array<Array<{ latitude: number; longitude: number }>>>([]);
+  const [loadingOSRMRoute, setLoadingOSRMRoute] = useState(false);
+  const [selectedRouteIndex, setSelectedRouteIndex] = useState(0);
+
+  const loadRouteData = useCallback(async (refresh = false) => {
   const [safeRoutes, setSafeRoutes] = useState<SafeRoute[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -136,6 +163,18 @@ export default function ShelterRouteScreen() {
     }
   }, [token]);
 
+  const calculateDistance = useCallback((lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }, []);
+
+  const fetchOSRMRoute = useCallback(async (startLat: number, startLng: number, endLat: number, endLng: number, alternatives = true) => {
   const generateSafeRoutes = useCallback(async () => {
     if (!userLocation || !shelter || !shelter.latitude || !shelter.longitude) {
       return;
@@ -253,16 +292,27 @@ export default function ShelterRouteScreen() {
     try {
       const coords = [startLng, startLat, ...waypoints].join(';');
       const response = await fetch(
+        `https://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${endLng},${endLat}?overview=full&geometries=geojson&alternatives=${alternatives ? 'true' : 'false'}`
         `https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`
       );
       const data = await response.json();
       if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
-        return data.routes[0].geometry.coordinates;
+        return data.routes.map((route: any) => {
+          const coords = route.geometry.coordinates.map((coord: number[]) => ({
+            latitude: coord[1],
+            longitude: coord[0],
+          }));
+          return {
+            coordinates: coords,
+            distance: route.distance,
+            duration: route.duration,
+          };
+        });
       }
-      return null;
+      return [];
     } catch (error) {
       console.warn('Failed to fetch OSRM route:', error);
-      return null;
+      return [];
     }
   };
 
@@ -322,6 +372,71 @@ export default function ShelterRouteScreen() {
     setRefreshing(false);
   }, [loadShelter, loadUserLocation, loadIncidents]);
 
+  const calculateRouteSafety = useCallback((routeCoords: Array<{ latitude: number; longitude: number }>, incidentPoints: Incident[]) => {
+    let minDistanceToIncident = Infinity;
+    let incidentCountNearRoute = 0;
+
+    incidentPoints.forEach((incident) => {
+      if (incident.latitude === null || incident.longitude === null) return;
+
+      routeCoords.forEach((coord) => {
+        const distance = calculateDistance(coord.latitude, coord.longitude, incident.latitude!, incident.longitude!);
+        if (distance < 0.5) {
+          incidentCountNearRoute++;
+        }
+        if (distance < minDistanceToIncident) {
+          minDistanceToIncident = distance;
+        }
+      });
+    });
+
+    return {
+      minDistanceToIncident,
+      incidentCountNearRoute,
+      safetyScore: incidentCountNearRoute === 0 ? 100 : Math.max(0, 100 - (incidentCountNearRoute * 20) - (minDistanceToIncident < 1 ? 30 : 0)),
+    };
+  }, [calculateDistance]);
+
+  const loadRoutesWithSafety = useCallback(async () => {
+    if (!userLocation || !shelter || !shelter.latitude || !shelter.longitude) {
+      return;
+    }
+
+    setLoadingOSRMRoute(true);
+    try {
+      const routes = await fetchOSRMRoute(
+        userLocation.latitude,
+        userLocation.longitude,
+        shelter.latitude,
+        shelter.longitude,
+        true
+      );
+
+      if (routes.length === 0) {
+        setRouteCoordinates([]);
+        setAlternativeRoutes([]);
+        return;
+      }
+
+      const routesWithSafety = routes.map((route: any) => {
+        const safety = calculateRouteSafety(route.coordinates, incidents);
+        return {
+          ...route,
+          safety,
+        };
+      });
+
+      routesWithSafety.sort((a: any, b: any) => b.safety.safetyScore - a.safety.safetyScore);
+
+      setRouteCoordinates(routesWithSafety[0].coordinates);
+      setAlternativeRoutes(routesWithSafety.slice(1).map((r: any) => r.coordinates));
+    } catch (error) {
+      console.warn('Failed to load routes:', error);
+    } finally {
+      setLoadingOSRMRoute(false);
+    }
+  }, [userLocation, shelter, incidents, fetchOSRMRoute, calculateRouteSafety]);
+
   useEffect(() => {
     if (token && shelterId) {
       const init = async () => {
@@ -334,6 +449,19 @@ export default function ShelterRouteScreen() {
   }, [token, shelterId, loadShelter, loadUserLocation, loadIncidents]);
 
   useEffect(() => {
+    if (userLocation && shelter && shelter.latitude && shelter.longitude && incidents.length >= 0) {
+      void loadRoutesWithSafety();
+    }
+  }, [userLocation, shelter, incidents, loadRoutesWithSafety]);
+
+  const selectedRoute = useMemo(
+    () => routes.find((route) => route.id === selectedRouteId) ?? routes[0] ?? null,
+    [routes, selectedRouteId],
+  );
+  const instructionSteps = useMemo(
+    () => selectedRoute ? parseInstructionSteps(selectedRoute.routeInstructions) : [],
+    [selectedRoute],
+  );
     if (userLocation && shelter && incidents.length > 0) {
       generateSafeRoutes();
     }
@@ -461,6 +589,175 @@ export default function ShelterRouteScreen() {
                   <View style={[styles.legendLine, { backgroundColor: '#000000', borderStyle: 'dashed' }]} />
                   <Text style={styles.legendText}>Alternative Routes</Text>
                 </View>
+              )}
+            </View>
+
+            <RouteVisualization
+              destination={shelter.name}
+              from={officialFrom}
+              routeName={currentRouteTitle}
+              shelter={shelter}
+            />
+
+            <View style={styles.mapSummaryPanel}>
+              <Text style={styles.sectionTitle}>Live Map</Text>
+              {Platform.OS === 'web' ? (
+                <View style={styles.centerState}>
+                  <Text style={styles.emptyTitle}>Map Not Available on Web</Text>
+                  <Text style={styles.stateText}>
+                    Please use the mobile app to view the live map with evacuation routes.
+                  </Text>
+                </View>
+              ) : loadingOSRMRoute ? (
+                <View style={styles.centerState}>
+                  <ActivityIndicator color={BrandColors.red} size="large" />
+                  <Text style={styles.stateText}>Loading safe routes...</Text>
+                </View>
+              ) : userLocation && shelter && shelter.latitude && shelter.longitude ? (
+                <View style={styles.mapContainer}>
+                  <MapView
+                    provider={PROVIDER_DEFAULT}
+                    style={styles.map}
+                    initialRegion={{
+                      latitude: (userLocation.latitude + shelter.latitude) / 2,
+                      longitude: (userLocation.longitude + shelter.longitude) / 2,
+                      latitudeDelta: Math.abs(userLocation.latitude - shelter.latitude) * 1.5,
+                      longitudeDelta: Math.abs(userLocation.longitude - shelter.longitude) * 1.5,
+                    }}>
+                    {userLocation && (
+                      <Marker
+                        coordinate={{
+                          latitude: userLocation.latitude,
+                          longitude: userLocation.longitude,
+                        }}
+                        title="Your Location"
+                        description="Current position"
+                        pinColor={BrandColors.blue}
+                      />
+                    )}
+
+                    {shelter && shelter.latitude && shelter.longitude && (
+                      <Marker
+                        coordinate={{
+                          latitude: shelter.latitude,
+                          longitude: shelter.longitude,
+                        }}
+                        title={shelter.name}
+                        description="Safe Shelter"
+                        pinColor={BrandColors.success}
+                      />
+                    )}
+
+                    {routeCoordinates.length > 0 && (
+                      <Polyline
+                        coordinates={routeCoordinates}
+                        strokeColor="#22C55E"
+                        strokeWidth={5}
+                      />
+                    )}
+
+                    {alternativeRoutes.map((altRoute, index) => (
+                      <Polyline
+                        key={index}
+                        coordinates={altRoute}
+                        strokeColor="#000000"
+                        strokeWidth={3}
+                        lineDashPattern={[10, 5]}
+                      />
+                    ))}
+
+                    {incidents.map((incident) => (
+                      incident.latitude && incident.longitude ? (
+                        <Marker
+                          key={incident.id}
+                          coordinate={{
+                            latitude: incident.latitude,
+                            longitude: incident.longitude,
+                          }}
+                          title={incident.title}
+                          description={`Severity: ${incident.severity}`}
+                          pinColor={BrandColors.red}
+                        />
+                      ) : null
+                    ))}
+                  </MapView>
+
+                  <View style={styles.mapLegend}>
+                    <View style={styles.legendItem}>
+                      <View style={[styles.legendDot, { backgroundColor: BrandColors.blue }]} />
+                      <Text style={styles.legendText}>Your Location</Text>
+                    </View>
+                    <View style={styles.legendItem}>
+                      <View style={[styles.legendLine, { backgroundColor: '#22C55E' }]} />
+                      <Text style={styles.legendText}>Safest Route</Text>
+                    </View>
+                    <View style={styles.legendItem}>
+                      <View style={[styles.legendLine, { backgroundColor: '#000000', borderStyle: 'dashed' }]} />
+                      <Text style={styles.legendText}>Alternative Routes</Text>
+                    </View>
+                    <View style={styles.legendItem}>
+                      <View style={[styles.legendDot, { backgroundColor: BrandColors.red }]} />
+                      <Text style={styles.legendText}>Disaster Points</Text>
+                    </View>
+                  </View>
+                </View>
+              ) : (
+                <View style={styles.centerState}>
+                  <Text style={styles.emptyTitle}>Map Unavailable</Text>
+                  <Text style={styles.stateText}>
+                    {userLocation ? 'Shelter coordinates missing' : 'Location permission required'}
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            <View style={styles.panel}>
+              <Text style={styles.sectionTitle}>Route Actions</Text>
+              <Text style={styles.sectionCopy}>
+                Real-time turn-by-turn navigation is not enabled; use verified route instructions.
+              </Text>
+              <View style={styles.actionButtons}>
+                <AuthButton
+                  title="View Route on Map"
+                  onPress={() => {
+                    if (userLocation && shelter && shelter.latitude && shelter.longitude) {
+                      router.push({
+                        pathname: '/shelters/[id]/route/map',
+                        params: {
+                          id: shelterId ?? '',
+                          userLat: String(userLocation.latitude),
+                          userLng: String(userLocation.longitude),
+                          shelterLat: String(shelter.latitude),
+                          shelterLng: String(shelter.longitude),
+                          shelterName: shelter.name,
+                          routeCoordinates: JSON.stringify(routeCoordinates),
+                          alternativeRoutes: JSON.stringify(alternativeRoutes),
+                          incidents: JSON.stringify(incidents),
+                        },
+                      } as unknown as Href);
+                    }
+                  }}
+                />
+                <AuthButton
+                  title="View Route Instructions"
+                  variant="secondary"
+                  onPress={() => setRouteActionMessage('Verified route instructions are displayed on this screen. Real-time navigation is not enabled.')}
+                />
+                <AuthButton
+                  title="View Alternative Route"
+                  variant="secondary"
+                  onPress={selectAlternativeRoute}
+                />
+                <AuthButton
+                  title="Call Emergency Services"
+                  variant="secondary"
+                  onPress={() => router.push('/contacts' as Href)}
+                />
+                <AuthButton
+                  title="Refresh Route"
+                  variant="secondary"
+                  onPress={() => void loadRouteData(true)}
+                />
               </View>
 
               <TouchableOpacity style={styles.openMapButton} onPress={openInExternalMap}>
@@ -591,6 +888,90 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     lineHeight: 22,
   },
+  visualCard: {
+    backgroundColor: BrandColors.white,
+    borderColor: BrandColors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 14,
+    padding: 15,
+  },
+  visualTimeline: {
+    alignItems: 'stretch',
+    flexDirection: 'row',
+    gap: 12,
+  },
+  visualIconRail: {
+    alignItems: 'center',
+    paddingVertical: 2,
+    width: 38,
+  },
+  visualIconShell: {
+    alignItems: 'center',
+    backgroundColor: BrandColors.lightBlue,
+    borderColor: BrandColors.sky,
+    borderRadius: 8,
+    borderWidth: 1,
+    height: 38,
+    justifyContent: 'center',
+    width: 38,
+  },
+  visualIconShellDestination: {
+    backgroundColor: BrandColors.successSoft,
+    borderColor: BrandColors.success,
+  },
+  visualConnector: {
+    backgroundColor: BrandColors.sky,
+    flex: 1,
+    minHeight: 30,
+    width: 3,
+  },
+  routeIconFallback: {
+    fontSize: 13,
+    fontWeight: '900',
+    lineHeight: 17,
+  },
+  visualContent: {
+    flex: 1,
+    gap: 12,
+  },
+  visualNode: {
+    backgroundColor: BrandColors.background,
+    borderColor: BrandColors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 3,
+    minHeight: 58,
+    paddingHorizontal: 11,
+    paddingVertical: 9,
+  },
+  visualNodeLabel: {
+    color: BrandColors.muted,
+    fontSize: 11,
+    fontWeight: '900',
+    lineHeight: 15,
+    textTransform: 'uppercase',
+  },
+  visualNodeTitle: {
+    color: BrandColors.text,
+    fontSize: 14,
+    fontWeight: '900',
+    lineHeight: 20,
+  },
+  visualNodeMeta: {
+    color: BrandColors.muted,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 17,
+  },
+  mapSummaryPanel: {
+    backgroundColor: BrandColors.white,
+    borderColor: BrandColors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 13,
+    padding: 15,
+  },
   centerState: {
     alignItems: 'center',
     backgroundColor: BrandColors.white,
@@ -616,6 +997,94 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     lineHeight: 22,
     textAlign: 'center',
+  },
+  mapContainer: {
+    borderRadius: 8,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  map: {
+    height: 300,
+    width: '100%',
+  },
+  mapLegend: {
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 8,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    padding: 10,
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    right: 10,
+  },
+  legendItem: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 4,
+  },
+  legendDot: {
+    borderRadius: 4,
+    height: 8,
+    width: 8,
+  },
+  legendLine: {
+    borderRadius: 2,
+    height: 3,
+    width: 20,
+  },
+  legendText: {
+    color: BrandColors.text,
+    fontSize: 11,
+    fontWeight: '700',
+    lineHeight: 15,
+  },
+  mapLine: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    height: 34,
+    paddingHorizontal: 10,
+  },
+  mapPointStart: {
+    backgroundColor: BrandColors.deepBlue,
+    borderRadius: 8,
+    height: 16,
+    width: 16,
+  },
+  mapConnector: {
+    backgroundColor: BrandColors.sky,
+    flex: 1,
+    height: 5,
+  },
+  mapPointEnd: {
+    backgroundColor: BrandColors.success,
+    borderRadius: 8,
+    height: 16,
+    width: 16,
+  },
+  safetyPanel: {
+    backgroundColor: BrandColors.navy,
+    borderColor: BrandColors.deepBlue,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 6,
+    padding: 14,
+  },
+  actionButtons: {
+    gap: 10,
+  },
+  safetyTitle: {
+    color: BrandColors.white,
+    fontSize: 14,
+    fontWeight: '900',
+    lineHeight: 19,
+  },
+  safetyText: {
+    color: BrandColors.sky,
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 19,
   },
   stateButton: {
     marginTop: 4,
