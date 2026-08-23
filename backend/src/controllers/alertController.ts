@@ -9,6 +9,7 @@ import {
   getAlertRiskHistory,
   updateAlert,
 } from '../services/alertService.js';
+import { sendAlertPushNotifications } from '../services/notificationService.js';
 
 const AUTHORIZED_ALERT_ROLES = new Set(['admin', 'authority']);
 
@@ -129,6 +130,10 @@ export async function createEmergencyAlert(req: Request, res: Response) {
   try {
     const user = requireAlertPublisher(req);
     const alert = await createAlert(user.id, req.body);
+
+    sendAlertPushNotifications(alert).catch((error) => {
+      console.error('Alert push notification dispatch failed:', error);
+    });
 
     return res.status(201).json({
       success: true,
