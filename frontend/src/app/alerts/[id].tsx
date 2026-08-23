@@ -18,12 +18,18 @@ import { BrandColors } from '@/constants/brand';
 import { useAuth } from '@/context/auth-context';
 import { getAlertById, isAlertApiError } from '@/services/alertService';
 import type { Alert } from '@/types/alert';
+import {
+  alertDisplayThemeOrNull,
+  alertDisplayThemeStyles,
+  getResidentAlertDisplayTheme,
+} from '@/utils/alert-display';
 import { isAuthorityRole } from '@/utils/format';
 import {
   alertDetailUiText,
   fallbackSafetyInstruction,
   preferredLanguageLabels,
   preferredLanguageOrNull,
+  residentAlertUiText,
   toPreferredLanguage,
   translateAlertMessage,
   translateAlertStatus,
@@ -175,6 +181,7 @@ export default function AlertDetailsScreen() {
   const alertId = firstParam(params.id);
   const published = firstParam(params.published) === '1';
   const routeLanguage = preferredLanguageOrNull(firstParam(params.language));
+  const routeAlertDisplayTheme = alertDisplayThemeOrNull(firstParam(params.alertDisplayTheme));
   const { isLoading, token, user } = useAuth();
   const [alert, setAlert] = useState<Alert | null>(null);
   const [loadingAlert, setLoadingAlert] = useState(true);
@@ -186,6 +193,7 @@ export default function AlertDetailsScreen() {
   const showResidentLanguage = user ? !isAuthorityRole(user.role) : true;
   const displayLanguage = showResidentLanguage ? selectedLanguage : 'English';
   const detailCopy = alertDetailUiText[displayLanguage];
+  const residentListCopy = residentAlertUiText[displayLanguage];
 
   const loadAlert = useCallback(async (refresh = false) => {
     if (!token || !alertId) {
@@ -250,7 +258,12 @@ export default function AlertDetailsScreen() {
   const showError = Boolean(errorMessage) && !alert && !showInitialLoading;
   const publishedAt = formatDateTime(alert?.createdAt ?? null);
   const expiresAt = formatDateTime(alert?.expiresAt ?? null);
-  const alertTone = alertToneForRisk(alert?.riskLevel);
+  const residentAlertDisplayTheme = routeAlertDisplayTheme ?? (
+    alert ? getResidentAlertDisplayTheme(alert, user.location) : 'danger'
+  );
+  const alertTone = showResidentLanguage
+    ? alertDisplayThemeStyles[residentAlertDisplayTheme]
+    : alertToneForRisk(alert?.riskLevel);
   const handleBackToAlerts = () => {
     if (showResidentLanguage) {
       router.replace({
@@ -271,7 +284,7 @@ export default function AlertDetailsScreen() {
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            tintColor={BrandColors.red}
+            tintColor={alertTone.accent}
             onRefresh={() => void loadAlert(true)}
           />
         }
@@ -317,20 +330,32 @@ export default function AlertDetailsScreen() {
           <>
             <View style={[styles.detailCard, { borderColor: alertTone.borderColor }]}>
               <View style={[styles.detailHero, { backgroundColor: alertTone.backgroundColor }]}>
-                <View style={styles.detailHeroTitleRow}>
-                  <View style={[styles.detailHeroIcon, { backgroundColor: alertTone.accent }]}>
-                    <AppIcon fallback="!" name="exclamationmark.triangle.fill" size={30} tintColor={BrandColors.white} />
+                <View style={styles.detailHeroTopRow}>
+                  <View style={styles.detailHeroTitleRow}>
+                    <View style={[styles.detailHeroIcon, { backgroundColor: alertTone.accent }]}>
+                      <AppIcon fallback="!" name="exclamationmark.triangle.fill" size={30} tintColor={BrandColors.white} />
+                    </View>
+                    <Text style={[styles.detailHeroTitle, { color: alertTone.titleColor }]}>
+                      {translateAlertTitle(alert, displayLanguage)}
+                    </Text>
                   </View>
-                  <Text style={[styles.detailHeroTitle, { color: alertTone.titleColor }]}>
-                    {translateAlertTitle(alert, displayLanguage)}
-                  </Text>
+                  <DetailPill
+                    backgroundColor={BrandColors.lightBlue}
+                    borderColor={BrandColors.sky}
+                    label={translateAlertStatus(alert.status, displayLanguage)}
+                    textColor={BrandColors.deepBlue}
+                  />
                 </View>
-                <DetailPill
-                  backgroundColor={BrandColors.lightBlue}
-                  borderColor={BrandColors.sky}
-                  label={translateAlertStatus(alert.status, displayLanguage)}
-                  textColor={BrandColors.deepBlue}
-                />
+                {showResidentLanguage ? (
+                  <View style={styles.detailHeroMetaRow}>
+                    <Text style={[styles.detailDisplayBadge, { backgroundColor: alertTone.accent }]}>
+                      {residentAlertDisplayTheme === 'danger' ? residentListCopy.yourArea : residentListCopy.warning}
+                    </Text>
+                    <Text style={[styles.detailHeroRiskText, { color: alertTone.titleColor }]}>
+                      {residentListCopy.risk}: {translateRiskLevel(alert.riskLevel, displayLanguage)}
+                    </Text>
+                  </View>
+                ) : null}
               </View>
 
               <View style={styles.detailInfoList}>
@@ -497,14 +522,23 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   detailHero: {
-    alignItems: 'center',
     borderBottomColor: BrandColors.border,
     borderBottomWidth: 1,
+    gap: 12,
+    padding: 16,
+  },
+  detailHeroTopRow: {
+    alignItems: 'center',
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 12,
     justifyContent: 'space-between',
-    padding: 16,
+  },
+  detailHeroMetaRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
   },
   detailHeroTitleRow: {
     alignItems: 'center',
@@ -525,6 +559,21 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '900',
     lineHeight: 28,
+  },
+  detailDisplayBadge: {
+    borderRadius: 4,
+    color: BrandColors.white,
+    fontSize: 11,
+    fontWeight: '900',
+    lineHeight: 15,
+    overflow: 'hidden',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+  },
+  detailHeroRiskText: {
+    fontSize: 13,
+    fontWeight: '900',
+    lineHeight: 18,
   },
   detailPill: {
     alignSelf: 'flex-start',

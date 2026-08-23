@@ -10,7 +10,12 @@ import { useAuth } from '@/context/auth-context';
 import { getActiveAlerts, isAlertApiError, updateAlert } from '@/services/alertService';
 import type { Alert, AlertRiskLevel } from '@/types/alert';
 import type { PreferredLanguage } from '@/types/auth';
-import { formatDateTime, isAuthorityRole, normalize } from '@/utils/format';
+import {
+  alertDisplayThemeStyles,
+  getResidentAlertDisplayTheme,
+  type AlertDisplayTheme,
+} from '@/utils/alert-display';
+import { formatDateTime, isAuthorityRole } from '@/utils/format';
 import {
   preferredLanguageLabels,
   preferredLanguageOrNull,
@@ -27,7 +32,7 @@ type DashboardStateProps = {
   errorMessage: string | null;
   loadingAlerts: boolean;
   onRetry: () => void;
-  onViewAlert: (alertId: number, language?: PreferredLanguage) => void;
+  onViewAlert: (alertId: number, language?: PreferredLanguage, alertDisplayTheme?: AlertDisplayTheme) => void;
 };
 
 type ResidentDashboardProps = DashboardStateProps & {
@@ -38,17 +43,6 @@ type ResidentDashboardProps = DashboardStateProps & {
 
 function firstParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
-}
-
-function normalizedArea(value: string | null | undefined) {
-  return normalize(value).replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
-}
-
-function areaMatches(residentArea: string | null | undefined, alertArea: string | null | undefined) {
-  const resident = normalizedArea(residentArea);
-  const affected = normalizedArea(alertArea);
-
-  return Boolean(resident && affected && (resident === affected || affected.includes(resident) || resident.includes(affected)));
 }
 
 const severityRank: Record<AlertRiskLevel, number> = {
@@ -120,21 +114,6 @@ const authoritySeverityTheme: Record<AlertRiskLevel, {
     badgeText: colors.success,
   },
 };
-
-const residentAlertTheme = {
-  highRisk: {
-    accent: colors.red,
-    backgroundColor: colors.redSoft,
-    borderColor: colors.red,
-    titleColor: colors.red,
-  },
-  warning: {
-    accent: colors.amber,
-    backgroundColor: colors.warningSoft,
-    borderColor: colors.amber,
-    titleColor: '#8A4B00',
-  },
-} as const;
 
 function AlertAction({ label, onPress }: { label: string; onPress: () => void }) {
   return (
@@ -235,10 +214,11 @@ function ResidentRiskAlertCard({
   selectedLanguage,
 }: {
   alert: Alert;
-  onViewAlert: (alertId: number, language: PreferredLanguage) => void;
+  onViewAlert: (alertId: number, language: PreferredLanguage, alertDisplayTheme: AlertDisplayTheme) => void;
   selectedLanguage: PreferredLanguage;
 }) {
-  const theme = residentAlertTheme.highRisk;
+  const displayTheme: AlertDisplayTheme = 'danger';
+  const theme = alertDisplayThemeStyles[displayTheme];
   const copy = residentAlertUiText[selectedLanguage];
 
   return (
@@ -272,7 +252,10 @@ function ResidentRiskAlertCard({
       </View>
 
       <View style={styles.alertActionRow}>
-        <AlertAction label={`${copy.viewAlert} ->`} onPress={() => onViewAlert(alert.id, selectedLanguage)} />
+        <AlertAction
+          label={`${copy.viewAlert} ->`}
+          onPress={() => onViewAlert(alert.id, selectedLanguage, displayTheme)}
+        />
       </View>
     </View>
   );
@@ -284,10 +267,11 @@ function ResidentWarningAlertCard({
   selectedLanguage,
 }: {
   alert: Alert;
-  onViewAlert: (alertId: number, language: PreferredLanguage) => void;
+  onViewAlert: (alertId: number, language: PreferredLanguage, alertDisplayTheme: AlertDisplayTheme) => void;
   selectedLanguage: PreferredLanguage;
 }) {
-  const theme = residentAlertTheme.warning;
+  const displayTheme: AlertDisplayTheme = 'warning';
+  const theme = alertDisplayThemeStyles[displayTheme];
   const copy = residentAlertUiText[selectedLanguage];
 
   return (
@@ -321,7 +305,10 @@ function ResidentWarningAlertCard({
       </View>
 
       <View style={styles.alertActionRow}>
-        <AlertAction label={`${copy.viewAlert} ->`} onPress={() => onViewAlert(alert.id, selectedLanguage)} />
+        <AlertAction
+          label={`${copy.viewAlert} ->`}
+          onPress={() => onViewAlert(alert.id, selectedLanguage, displayTheme)}
+        />
       </View>
     </View>
   );
@@ -538,7 +525,7 @@ function ResidentDashboard({
   const prioritizedAlerts = [...alerts].sort(compareAlertsBySeverity);
   const alertGroups = prioritizedAlerts.reduce(
     (groups, alert) => {
-      if (areaMatches(residentArea, alert.affectedArea)) {
+      if (getResidentAlertDisplayTheme(alert, residentArea) === 'danger') {
         groups.residentAreaAlerts.push(alert);
       } else {
         groups.otherAreaAlerts.push(alert);
@@ -821,12 +808,17 @@ export default function AlertsScreen() {
     router.push('/alerts/create' as Href);
   }, [router]);
 
-  const handleViewAlert = useCallback((alertId: number, language?: PreferredLanguage) => {
+  const handleViewAlert = useCallback((
+    alertId: number,
+    language?: PreferredLanguage,
+    alertDisplayTheme?: AlertDisplayTheme,
+  ) => {
     router.push({
       pathname: '/alerts/[id]',
       params: {
         id: String(alertId),
         ...(language ? { language } : {}),
+        ...(alertDisplayTheme ? { alertDisplayTheme } : {}),
       },
     } as unknown as Href);
   }, [router]);
