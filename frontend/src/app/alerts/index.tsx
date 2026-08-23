@@ -226,8 +226,41 @@ function ResidentAudienceTabs({
   );
 }
 
-function primarySchoolName(alert: Alert) {
-  return alert.schools[0]?.schoolName ?? null;
+function schoolSummaryText(alert: Alert, language: PreferredLanguage) {
+  if (alert.alertAudience !== 'SCHOOL_EMERGENCY' || alert.schools.length === 0) {
+    return null;
+  }
+
+  if (alert.schools.length === 1) {
+    return alert.schools[0].schoolName;
+  }
+
+  return `${alert.schools.length} ${residentAlertUiText[language].schoolsTargeted}`;
+}
+
+function ResidentLocationSummary({
+  alert,
+  language,
+}: {
+  alert: Alert;
+  language: PreferredLanguage;
+}) {
+  const schoolSummary = schoolSummaryText(alert, language);
+
+  if (!schoolSummary) {
+    return <Text numberOfLines={1} style={styles.residentAreaText}>{alert.affectedArea}</Text>;
+  }
+
+  return (
+    <View style={styles.residentLocationBlock}>
+      <Text numberOfLines={1} style={styles.residentSchoolSummaryText}>
+        {'\u{1F3EB}'} {schoolSummary}
+      </Text>
+      <Text numberOfLines={1} style={styles.residentAreaText}>
+        {'\u{1F4CD}'} {alert.affectedArea}
+      </Text>
+    </View>
+  );
 }
 
 function TabEmptyState({
@@ -315,7 +348,6 @@ function ResidentRiskAlertCard({
   const displayTheme: AlertDisplayTheme = 'danger';
   const theme = alertDisplayThemeStyles[displayTheme];
   const copy = residentAlertUiText[selectedLanguage];
-  const schoolName = primarySchoolName(alert);
 
   return (
     <View
@@ -337,8 +369,7 @@ function ResidentRiskAlertCard({
           <Text numberOfLines={1} style={[styles.alertTitle, { color: theme.titleColor }]}>
             {translateAlertTitle(alert, selectedLanguage)}
           </Text>
-          <Text numberOfLines={1} style={styles.residentAreaText}>{schoolName ?? alert.affectedArea}</Text>
-          {schoolName ? <Text numberOfLines={1} style={styles.residentSchoolAreaText}>{alert.affectedArea}</Text> : null}
+          <ResidentLocationSummary alert={alert} language={selectedLanguage} />
         </View>
         <ResidentStatusBadge language={selectedLanguage} status={alert.status} />
       </View>
@@ -375,7 +406,6 @@ function ResidentWarningAlertCard({
   const displayTheme: AlertDisplayTheme = 'warning';
   const theme = alertDisplayThemeStyles[displayTheme];
   const copy = residentAlertUiText[selectedLanguage];
-  const schoolName = primarySchoolName(alert);
 
   return (
     <View
@@ -397,8 +427,7 @@ function ResidentWarningAlertCard({
           <Text numberOfLines={1} style={[styles.alertTitle, { color: theme.titleColor }]}>
             {translateAlertTitle(alert, selectedLanguage)}
           </Text>
-          <Text numberOfLines={1} style={styles.residentAreaText}>{schoolName ?? alert.affectedArea}</Text>
-          {schoolName ? <Text numberOfLines={1} style={styles.residentSchoolAreaText}>{alert.affectedArea}</Text> : null}
+          <ResidentLocationSummary alert={alert} language={selectedLanguage} />
         </View>
         <ResidentStatusBadge language={selectedLanguage} status={alert.status} />
       </View>
@@ -1767,17 +1796,20 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     lineHeight: 18,
   },
+  residentLocationBlock: {
+    gap: 1,
+  },
+  residentSchoolSummaryText: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: '900',
+    lineHeight: 16,
+  },
   residentAreaText: {
     color: colors.text,
     fontSize: 12,
     fontWeight: '800',
     lineHeight: 16,
-  },
-  residentSchoolAreaText: {
-    color: colors.muted,
-    fontSize: 11,
-    fontWeight: '800',
-    lineHeight: 15,
   },
   compactInfoRow: {
     alignItems: 'center',

@@ -43,6 +43,7 @@ type ResidentAlertUiKey =
   | 'schoolAlertsDisabledBody'
   | 'schoolEmergency'
   | 'schoolEmergencyContext'
+  | 'schoolsTargeted'
   | 'subtitle'
   | 'unableLoadAlerts'
   | 'viewAlert'
@@ -116,6 +117,7 @@ export const residentAlertUiText: Record<PreferredLanguage, Record<ResidentAlert
     schoolAlertsDisabledBody: 'Enable School Alerts in Preferences to receive school-specific warnings.',
     schoolEmergency: 'School Emergency',
     schoolEmergencyContext: 'SCHOOL EMERGENCY',
+    schoolsTargeted: 'Schools Targeted',
     subtitle: 'Verified emergency warnings for your area',
     unableLoadAlerts: 'Unable to load emergency alerts.',
     viewAlert: 'View Alert',
@@ -146,6 +148,7 @@ export const residentAlertUiText: Record<PreferredLanguage, Record<ResidentAlert
     schoolAlertsDisabledBody: 'පාසල්-විශේෂිත අනතුරු ඇඟවීම් ලබා ගැනීමට අභිරුචි තුළ පාසල් අනතුරු ඇඟවීම් සක්‍රීය කරන්න.',
     schoolEmergency: 'පාසල් හදිසි',
     schoolEmergencyContext: 'පාසල් හදිසි',
+    schoolsTargeted: 'ඉලක්ක කළ පාසල්',
     subtitle: 'ඔබගේ ප්‍රදේශය සඳහා තහවුරු කළ හදිසි අනතුරු ඇඟවීම්',
     unableLoadAlerts: 'හදිසි අනතුරු ඇඟවීම් පූරණය කළ නොහැක.',
     viewAlert: 'අනතුරු ඇඟවීම බලන්න',
@@ -176,6 +179,7 @@ export const residentAlertUiText: Record<PreferredLanguage, Record<ResidentAlert
     schoolAlertsDisabledBody: 'பள்ளி சார்ந்த எச்சரிக்கைகளைப் பெற விருப்பங்களில் பள்ளி எச்சரிக்கைகளை இயக்கவும்.',
     schoolEmergency: 'பள்ளி அவசரம்',
     schoolEmergencyContext: 'பள்ளி அவசரம்',
+    schoolsTargeted: 'இலக்கு பள்ளிகள்',
     subtitle: 'உங்கள் பகுதிக்கான உறுதிப்படுத்தப்பட்ட அவசர எச்சரிக்கைகள்',
     unableLoadAlerts: 'அவசர எச்சரிக்கைகளை ஏற்ற முடியவில்லை.',
     viewAlert: 'எச்சரிக்கையை பார்க்க',
@@ -245,7 +249,7 @@ export const alertDetailUiText: Record<PreferredLanguage, Record<AlertDetailUiKe
     riskLevel: 'Risk Level',
     safetyInstructions: 'Safety Instructions',
     schoolEmergency: 'School Emergency',
-    selectedSchools: 'Selected School(s)',
+    selectedSchools: 'Target Schools',
     reportIncident: 'Report Incident',
     status: 'Status',
     unableLoadAlert: 'Unable to load this emergency alert.',
@@ -277,7 +281,7 @@ export const alertDetailUiText: Record<PreferredLanguage, Record<AlertDetailUiKe
     riskLevel: 'අවදානම් මට්ටම',
     safetyInstructions: 'ආරක්ෂක උපදෙස්',
     schoolEmergency: 'පාසල් හදිසි',
-    selectedSchools: 'තෝරාගත් පාසල්',
+    selectedSchools: 'ඉලක්ක පාසල්',
     reportIncident: 'සිද්ධියක් වාර්තා කරන්න',
     status: 'තත්ත්වය',
     unableLoadAlert: 'මෙම හදිසි අනතුරු ඇඟවීම පූරණය කළ නොහැක.',
@@ -309,7 +313,7 @@ export const alertDetailUiText: Record<PreferredLanguage, Record<AlertDetailUiKe
     riskLevel: 'அபாய நிலை',
     safetyInstructions: 'பாதுகாப்பு வழிமுறைகள்',
     schoolEmergency: 'பள்ளி அவசரம்',
-    selectedSchools: 'தேர்ந்தெடுக்கப்பட்ட பள்ளிகள்',
+    selectedSchools: 'இலக்கு பள்ளிகள்',
     reportIncident: 'சம்பவத்தை அறிக்கை செய்',
     status: 'நிலை',
     unableLoadAlert: 'இந்த அவசர எச்சரிக்கையை ஏற்ற முடியவில்லை.',

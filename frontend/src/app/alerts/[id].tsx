@@ -398,7 +398,10 @@ export default function AlertDetailsScreen() {
                   />
                 ) : null}
                 {alert.alertAudience === 'SCHOOL_EMERGENCY' && alert.schools.length > 0 ? (
-                  <DetailInfoRow fallback="S" label={detailCopy.selectedSchools} name="house.fill">
+                  <DetailInfoRow
+                    fallback="S"
+                    label={`${detailCopy.selectedSchools} (${alert.schools.length})`}
+                    name="house.fill">
                     <View style={styles.schoolList}>
                       {alert.schools.map((school) => (
                         <Text key={school.id} style={styles.schoolListText}>
