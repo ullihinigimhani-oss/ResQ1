@@ -5,6 +5,8 @@ import * as Location from 'expo-location';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
+  Linking,
   Platform,
   Pressable,
   RefreshControl,
@@ -446,6 +448,52 @@ export default function ShelterRouteScreen() {
     }
   }, [userLocation, shelter, incidents, fetchOSRMRoute, calculateRouteSafety]);
 
+  const openInExternalMap = useCallback(() => {
+    if (!userLocation || !shelter || !shelter.latitude || !shelter.longitude) {
+      Alert.alert('Error', 'Location or shelter coordinates not available');
+      return;
+    }
+
+    // Use the safest route (routeCoordinates) for waypoints
+    if (routeCoordinates.length > 2) {
+      // Include waypoints from the safest route
+      const waypointCount = Math.min(routeCoordinates.length, 5);
+      const step = Math.floor(routeCoordinates.length / waypointCount);
+      
+      const waypoints: string[] = [];
+      for (let i = step; i < routeCoordinates.length - 1; i += step) {
+        if (waypoints.length < 3) { // Limit to 3 waypoints max
+          waypoints.push(`${routeCoordinates[i].latitude},${routeCoordinates[i].longitude}`);
+        }
+      }
+
+      const url = Platform.select({
+        ios: `maps://app?saddr=${userLocation.latitude},${userLocation.longitude}&daddr=${shelter.latitude},${shelter.longitude}&dirflg=d`,
+        android: waypoints.length > 0
+          ? `google.navigation:q=${shelter.latitude},${shelter.longitude}&waypoints=${waypoints.join('|')}`
+          : `google.navigation:q=${shelter.latitude},${shelter.longitude}`,
+      });
+
+      if (url) {
+        Linking.openURL(url).catch(() => {
+          Alert.alert('Error', 'Unable to open maps application');
+        });
+      }
+    } else {
+      // Fallback to direct route if no route coordinates available
+      const url = Platform.select({
+        ios: `maps://app?saddr=${userLocation.latitude},${userLocation.longitude}&daddr=${shelter.latitude},${shelter.longitude}`,
+        android: `google.navigation:q=${shelter.latitude},${shelter.longitude}`,
+      });
+
+      if (url) {
+        Linking.openURL(url).catch(() => {
+          Alert.alert('Error', 'Unable to open maps application');
+        });
+      }
+    }
+  }, [userLocation, shelter, routeCoordinates]);
+
   useEffect(() => {
     if (token && shelterId) {
       void loadRouteData();
@@ -787,7 +835,12 @@ export default function ShelterRouteScreen() {
               </Text>
               <View style={styles.actionButtons}>
                 <AuthButton
+                  title="Open in Maps App"
+                  onPress={openInExternalMap}
+                />
+                <AuthButton
                   title="View Route on Map"
+                  variant="secondary"
                   onPress={() => {
                     if (userLocation && shelter && shelter.latitude && shelter.longitude) {
                       router.push({
