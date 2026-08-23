@@ -1,5 +1,5 @@
 import { StatusBar } from 'expo-status-bar';
-import { Redirect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
+import { Redirect, useFocusEffect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppIcon, BottomNavigation, EmptyState, LoadingState, PrimaryButton } from '@/components/ui/app-components';
 import { colors, radius, shadows, spacing, typography } from '@/constants/design';
 import { useAuth } from '@/context/auth-context';
-import { getActiveAlerts, isAlertApiError, updateAlert } from '@/services/alertService';
+import { getActiveAlerts, getAlertPreferences, isAlertApiError, updateAlert } from '@/services/alertService';
 import type { Alert, AlertRiskLevel } from '@/types/alert';
 import type { PreferredLanguage } from '@/types/auth';
 import {
@@ -793,7 +793,57 @@ export default function AlertsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
+  const [savedPreferredLanguage, setSavedPreferredLanguage] = useState<PreferredLanguage | null>(null);
+  const [loadingPreferredLanguage, setLoadingPreferredLanguage] = useState(true);
   const [selectedLanguage, setSelectedLanguage] = useState<PreferredLanguage | null>(null);
+  const routeLanguage = preferredLanguageOrNull(firstParam(params.language));
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!token || !user || isAuthorityRole(user.role)) {
+        setLoadingPreferredLanguage(false);
+        return undefined;
+      }
+
+      let isActive = true;
+      const fallbackLanguage = toPreferredLanguage(user.preferredLanguage);
+
+      if (routeLanguage) {
+        setSelectedLanguage(routeLanguage);
+        setLoadingPreferredLanguage(false);
+      } else {
+        setSelectedLanguage(null);
+        setLoadingPreferredLanguage(true);
+      }
+
+      void getAlertPreferences(token)
+        .then((preferences) => {
+          if (!isActive) {
+            return;
+          }
+
+          setSavedPreferredLanguage(toPreferredLanguage(preferences.preferredLanguage, fallbackLanguage));
+        })
+        .catch((error) => {
+          if (__DEV__ && !isAlertApiError(error)) {
+            console.warn('Unexpected alert preference language error:', error);
+          }
+
+          if (isActive) {
+            setSavedPreferredLanguage(fallbackLanguage);
+          }
+        })
+        .finally(() => {
+          if (isActive) {
+            setLoadingPreferredLanguage(false);
+          }
+        });
+
+      return () => {
+        isActive = false;
+      };
+    }, [routeLanguage, token, user?.preferredLanguage, user?.role]),
+  );
 
   const loadAlerts = useCallback(async (refresh = false) => {
     if (!token) {
@@ -927,12 +977,13 @@ export default function AlertsScreen() {
     );
   }
 
-  const routeLanguage = preferredLanguageOrNull(firstParam(params.language));
-  const activeLanguage = selectedLanguage ?? routeLanguage ?? toPreferredLanguage(user.preferredLanguage);
+  const userPreferredLanguage = toPreferredLanguage(user.preferredLanguage);
+  const activeLanguage = selectedLanguage ?? routeLanguage ?? savedPreferredLanguage ?? userPreferredLanguage;
+  const residentLoadingAlerts = loadingAlerts || (!isAuthorityRole(user.role) && loadingPreferredLanguage && !routeLanguage);
   const dashboardProps: DashboardStateProps = {
     alerts,
     errorMessage,
-    loadingAlerts,
+    loadingAlerts: isAuthorityRole(user.role) ? loadingAlerts : residentLoadingAlerts,
     onRetry: () => void loadAlerts(),
     onViewAlert: handleViewAlert,
   };

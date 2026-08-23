@@ -157,19 +157,20 @@ export default function AlertPreferencesScreen() {
   const router = useRouter();
   const { isLoading, token, updateUser, user } = useAuth();
   const [preferences, setPreferences] = useState<UpdateAlertPreferencesPayload | null>(null);
+  const [savedLanguage, setSavedLanguage] = useState<PreferredLanguage | null>(null);
   const [loadingPreferences, setLoadingPreferences] = useState(true);
   const [savingPreferences, setSavingPreferences] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const navigateBack = useCallback(() => {
-    const language = preferences?.preferredLanguage ?? toPreferredLanguage(user?.preferredLanguage);
+    const language = savedLanguage ?? toPreferredLanguage(user?.preferredLanguage);
 
     router.replace({
       pathname: '/alerts',
       params: { language },
     } as unknown as Href);
-  }, [preferences?.preferredLanguage, router, user?.preferredLanguage]);
+  }, [router, savedLanguage, user?.preferredLanguage]);
 
   const loadPreferences = useCallback(async () => {
     if (!token) {
@@ -184,6 +185,7 @@ export default function AlertPreferencesScreen() {
       const loadedPreferences = await getAlertPreferences(token);
 
       setPreferences(toPreferencePayload(loadedPreferences));
+      setSavedLanguage(loadedPreferences.preferredLanguage);
     } catch {
       setErrorMessage('Unable to load alert preferences.');
     } finally {
@@ -241,14 +243,18 @@ export default function AlertPreferencesScreen() {
       const savedPreferences = await updateAlertPreferences(toPreferencePayload(preferences), token);
 
       setPreferences(toPreferencePayload(savedPreferences));
+      setSavedLanguage(savedPreferences.preferredLanguage);
       await updateUser({ preferredLanguage: savedPreferences.preferredLanguage });
-      setSuccessMessage('Preferences saved successfully.');
+      router.replace({
+        pathname: '/alerts',
+        params: { language: savedPreferences.preferredLanguage },
+      } as unknown as Href);
     } catch {
       setErrorMessage('Unable to save preferences. Please try again.');
     } finally {
       setSavingPreferences(false);
     }
-  }, [preferences, savingPreferences, token, updateUser]);
+  }, [preferences, router, savingPreferences, token, updateUser]);
 
   if (!isLoading && !user) {
     return <Redirect href={'/auth/welcome' as Href} />;
