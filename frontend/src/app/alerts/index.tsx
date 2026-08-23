@@ -15,7 +15,11 @@ import {
   preferredLanguageLabels,
   preferredLanguageOrNull,
   preferredLanguages,
+  residentAlertUiText,
   toPreferredLanguage,
+  translateAlertStatus,
+  translateAlertTitle,
+  translateRiskLevel,
 } from '@/utils/language';
 
 type DashboardStateProps = {
@@ -143,10 +147,16 @@ function AlertAction({ label, onPress }: { label: string; onPress: () => void })
   );
 }
 
-function ResidentStatusBadge({ status }: { status: string }) {
+function ResidentStatusBadge({
+  language,
+  status,
+}: {
+  language: PreferredLanguage;
+  status: string;
+}) {
   return (
     <View style={styles.residentStatusBadge}>
-      <Text style={styles.residentStatusBadgeText}>{status.toUpperCase()}</Text>
+      <Text style={styles.residentStatusBadgeText}>{translateAlertStatus(status, language)}</Text>
     </View>
   );
 }
@@ -158,9 +168,11 @@ function ResidentLanguageSelector({
   onChange: (language: PreferredLanguage) => void;
   selectedLanguage: PreferredLanguage;
 }) {
+  const copy = residentAlertUiText[selectedLanguage];
+
   return (
     <View style={styles.languageSelector}>
-      <Text style={styles.languageLabel}>Language</Text>
+      <Text style={styles.languageLabel}>{copy.language}</Text>
       <View style={styles.languageOptions}>
         {preferredLanguages.map((language) => {
           const selected = selectedLanguage === language;
@@ -206,11 +218,13 @@ function SeverityBadge({ riskLevel }: { riskLevel: AlertRiskLevel }) {
   );
 }
 
-function ResidentLoadingState() {
+function ResidentLoadingState({ language }: { language: PreferredLanguage }) {
+  const copy = residentAlertUiText[language];
+
   return (
     <View style={styles.residentLoadingState}>
       <ActivityIndicator color={colors.red} size="large" />
-      <Text style={styles.loadingStateText}>Checking verified alerts...</Text>
+      <Text style={styles.loadingStateText}>{copy.loadingAlerts}</Text>
     </View>
   );
 }
@@ -225,6 +239,7 @@ function ResidentRiskAlertCard({
   selectedLanguage: PreferredLanguage;
 }) {
   const theme = residentAlertTheme.highRisk;
+  const copy = residentAlertUiText[selectedLanguage];
 
   return (
     <View
@@ -239,23 +254,25 @@ function ResidentRiskAlertCard({
         </View>
         <View style={styles.residentTitleBlock}>
           <Text numberOfLines={1} style={[styles.alertTitle, { color: theme.titleColor }]}>
-            {alert.title}
+            {translateAlertTitle(alert, selectedLanguage)}
           </Text>
           <Text numberOfLines={1} style={styles.residentAreaText}>{alert.affectedArea}</Text>
         </View>
-        <ResidentStatusBadge status={alert.status} />
+        <ResidentStatusBadge language={selectedLanguage} status={alert.status} />
       </View>
 
       <View style={styles.compactInfoRow}>
         <View style={styles.riskMetaGroup}>
-          <Text style={[styles.areaMatchBadge, styles.yourAreaBadge]}>YOUR AREA</Text>
-          <Text style={[styles.riskText, { color: theme.titleColor }]}>Risk: {alert.riskLevel.toUpperCase()}</Text>
+          <Text style={[styles.areaMatchBadge, styles.yourAreaBadge]}>{copy.yourArea}</Text>
+          <Text style={[styles.riskText, { color: theme.titleColor }]}>
+            {copy.risk}: {translateRiskLevel(alert.riskLevel, selectedLanguage)}
+          </Text>
         </View>
-        <Text style={styles.issuedText}>Issued: {formatCompactDateTime(alert.createdAt)}</Text>
+        <Text style={styles.issuedText}>{copy.issued}: {formatCompactDateTime(alert.createdAt)}</Text>
       </View>
 
       <View style={styles.alertActionRow}>
-        <AlertAction label="View Alert ->" onPress={() => onViewAlert(alert.id, selectedLanguage)} />
+        <AlertAction label={`${copy.viewAlert} ->`} onPress={() => onViewAlert(alert.id, selectedLanguage)} />
       </View>
     </View>
   );
@@ -271,6 +288,7 @@ function ResidentWarningAlertCard({
   selectedLanguage: PreferredLanguage;
 }) {
   const theme = residentAlertTheme.warning;
+  const copy = residentAlertUiText[selectedLanguage];
 
   return (
     <View
@@ -285,23 +303,25 @@ function ResidentWarningAlertCard({
         </View>
         <View style={styles.residentTitleBlock}>
           <Text numberOfLines={1} style={[styles.alertTitle, { color: theme.titleColor }]}>
-            {alert.title}
+            {translateAlertTitle(alert, selectedLanguage)}
           </Text>
           <Text numberOfLines={1} style={styles.residentAreaText}>{alert.affectedArea}</Text>
         </View>
-        <ResidentStatusBadge status={alert.status} />
+        <ResidentStatusBadge language={selectedLanguage} status={alert.status} />
       </View>
 
       <View style={styles.compactInfoRow}>
         <View style={styles.riskMetaGroup}>
-          <Text style={[styles.areaMatchBadge, styles.warningAreaBadge]}>WARNING</Text>
-          <Text style={[styles.riskText, { color: theme.titleColor }]}>Risk: {alert.riskLevel.toUpperCase()}</Text>
+          <Text style={[styles.areaMatchBadge, styles.warningAreaBadge]}>{copy.warning}</Text>
+          <Text style={[styles.riskText, { color: theme.titleColor }]}>
+            {copy.risk}: {translateRiskLevel(alert.riskLevel, selectedLanguage)}
+          </Text>
         </View>
-        <Text style={styles.issuedText}>Issued: {formatCompactDateTime(alert.createdAt)}</Text>
+        <Text style={styles.issuedText}>{copy.issued}: {formatCompactDateTime(alert.createdAt)}</Text>
       </View>
 
       <View style={styles.alertActionRow}>
-        <AlertAction label="View Alert ->" onPress={() => onViewAlert(alert.id, selectedLanguage)} />
+        <AlertAction label={`${copy.viewAlert} ->`} onPress={() => onViewAlert(alert.id, selectedLanguage)} />
       </View>
     </View>
   );
@@ -309,26 +329,29 @@ function ResidentWarningAlertCard({
 
 function AllClearState({
   hasOtherAreaAlerts,
+  language,
   residentArea,
 }: {
   hasOtherAreaAlerts: boolean;
+  language: PreferredLanguage;
   residentArea: string | null;
 }) {
   const areaName = residentArea?.trim();
+  const copy = residentAlertUiText[language];
 
   return (
     <View style={styles.allClearCard}>
-      <Text style={styles.allClearLabel}>ALL CLEAR</Text>
+      <Text style={styles.allClearLabel}>{copy.allClear}</Text>
       <Text style={styles.allClearTitle}>
-        {hasOtherAreaAlerts ? 'Your Area is Currently Clear' : 'All Clear'}
+        {hasOtherAreaAlerts ? copy.yourAreaClear : copy.noActiveAlerts}
       </Text>
       {hasOtherAreaAlerts && areaName ? (
-        <Text style={styles.allClearArea}>Registered area: {areaName}</Text>
+        <Text style={styles.allClearArea}>{copy.registeredArea}: {areaName}</Text>
       ) : null}
       <Text style={styles.allClearText}>
         {hasOtherAreaAlerts
-          ? 'No active emergency alert is currently affecting your registered area.'
-          : 'There are currently no active emergency alerts.'}
+          ? copy.noResidentAreaAlert
+          : copy.noActiveEmergencyAlerts}
       </Text>
     </View>
   );
@@ -511,6 +534,7 @@ function ResidentDashboard({
   const showError = Boolean(errorMessage) && alerts.length === 0 && !showInitialLoading;
   const showRiskIndicators = !showInitialLoading && !showError;
   const residentAreaName = residentArea?.trim() || null;
+  const copy = residentAlertUiText[selectedLanguage];
   const prioritizedAlerts = [...alerts].sort(compareAlertsBySeverity);
   const alertGroups = prioritizedAlerts.reduce(
     (groups, alert) => {
@@ -533,26 +557,26 @@ function ResidentDashboard({
     <>
       <View style={styles.header}>
         <View style={styles.headerTextBlock}>
-          <Text style={styles.title}>Emergency Alerts</Text>
-          <Text style={styles.subtitle}>Verified emergency warnings for your area</Text>
+          <Text style={styles.title}>{copy.emergencyAlerts}</Text>
+          <Text style={styles.subtitle}>{copy.subtitle}</Text>
         </View>
         <ResidentLanguageSelector selectedLanguage={selectedLanguage} onChange={onLanguageChange} />
       </View>
 
       {errorMessage && alerts.length > 0 ? (
         <View style={styles.inlineError}>
-          <Text style={styles.inlineErrorText}>{errorMessage}</Text>
-          <AlertAction label="Retry" onPress={onRetry} />
+          <Text style={styles.inlineErrorText}>{copy.unableLoadAlerts}</Text>
+          <AlertAction label={copy.retry} onPress={onRetry} />
         </View>
       ) : null}
 
-      {showInitialLoading ? <ResidentLoadingState /> : null}
+      {showInitialLoading ? <ResidentLoadingState language={selectedLanguage} /> : null}
 
       {showError ? (
         <EmptyState
-          body="Check your connection and try again."
-          title="Unable to load emergency alerts."
-          action={<PrimaryButton title="Retry" onPress={onRetry} />}
+          body={copy.checkConnection}
+          title={copy.unableLoadAlerts}
+          action={<PrimaryButton title={copy.retry} onPress={onRetry} />}
         />
       ) : null}
 
@@ -570,7 +594,11 @@ function ResidentDashboard({
       ) : null}
 
       {showRiskIndicators && residentAreaAlerts.length === 0 ? (
-        <AllClearState hasOtherAreaAlerts={otherAreaAlerts.length > 0} residentArea={residentAreaName} />
+        <AllClearState
+          hasOtherAreaAlerts={otherAreaAlerts.length > 0}
+          language={selectedLanguage}
+          residentArea={residentAreaName}
+        />
       ) : null}
 
       {showRiskIndicators && otherAreaAlerts.length > 0 ? (
