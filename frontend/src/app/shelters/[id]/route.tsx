@@ -17,12 +17,14 @@ import { AuthButton, BackButton, StatusBanner } from '@/components/common/auth-c
 import { RoadStatusBadge, ShelterStatusBadge } from '@/components/shelters/shelter-ui';
 import { BrandColors } from '@/constants/brand';
 import { useAuth } from '@/context/auth-context';
+import { getAllIncidents, isIncidentApiError } from '@/services/incidentService';
 import {
   getShelterById,
   getShelterRoutes,
   isShelterApiError,
 } from '@/services/shelterService';
 import type { EvacuationRoute, Shelter } from '@/types/shelter';
+import type { Incident } from '@/types/incident';
 
 function firstParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
@@ -241,6 +243,10 @@ export default function ShelterRouteScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [routeActionMessage, setRouteActionMessage] = useState<string | null>(null);
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [incidents, setIncidents] = useState<Incident[]>([]);
+  const [loadingLocation, setLoadingLocation] = useState(false);
+  const [loadingIncidents, setLoadingIncidents] = useState(false);
 
   const loadRouteData = useCallback(async (refresh = false) => {
     if (!token || !shelterId) {
@@ -280,14 +286,72 @@ export default function ShelterRouteScreen() {
     }
   }, [shelterId, token]);
 
+  const loadUserLocation = useCallback(async () => {
+    setLoadingLocation(true);
+    try {
+      // TODO: Uncomment after installing expo-location
+      // const { status } = await Location.requestForegroundPermissionsAsync();
+      // if (status !== 'granted') {
+      //   console.warn('Location permission denied');
+      //   return;
+      // }
+      // const location = await Location.getCurrentPositionAsync({});
+      // setUserLocation({
+      //   latitude: location.coords.latitude,
+      //   longitude: location.coords.longitude,
+      // });
+      console.warn('Location package not installed yet');
+    } catch (error) {
+      console.warn('Failed to get location:', error);
+    } finally {
+      setLoadingLocation(false);
+    }
+  }, []);
+
+  const loadIncidents = useCallback(async () => {
+    if (!token) {
+      return;
+    }
+
+    setLoadingIncidents(true);
+    try {
+      const allIncidents = await getAllIncidents(token);
+      setIncidents(allIncidents);
+    } catch (error) {
+      if (__DEV__ && !isIncidentApiError(error)) {
+        console.warn('Failed to load incidents:', error);
+      }
+    } finally {
+      setLoadingIncidents(false);
+    }
+  }, [token]);
+
+  const fetchOSRMRoute = useCallback(async (startLat: number, startLng: number, endLat: number, endLng: number) => {
+    try {
+      const response = await fetch(
+        `https://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${endLng},${endLat}?overview=full&geometries=geojson`
+      );
+      const data = await response.json();
+      if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
+        return data.routes[0].geometry.coordinates;
+      }
+      return null;
+    } catch (error) {
+      console.warn('Failed to fetch OSRM route:', error);
+      return null;
+    }
+  }, []);
+
   useEffect(() => {
     if (token && shelterId) {
       void loadRouteData();
+      void loadUserLocation();
+      void loadIncidents();
     } else if (!shelterId) {
       setLoadingRoute(false);
       setErrorMessage('Unable to load the evacuation route.');
     }
-  }, [loadRouteData, shelterId, token]);
+  }, [loadRouteData, loadUserLocation, loadIncidents, shelterId, token]);
 
   const selectedRoute = useMemo(
     () => routes.find((route) => route.id === selectedRouteId) ?? routes[0] ?? null,

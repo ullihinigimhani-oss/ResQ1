@@ -2,10 +2,11 @@ import type { Request, Response } from 'express';
 
 import {
   createIncident,
+  getAllIncidents,
   getIncidentById,
   getMyIncidents,
   IncidentServiceError,
-  updateIncidentStatus,
+  updateIncidentStatus as updateIncidentStatusService,
 } from '../services/incidentService.js';
 
 function sendIncidentError(error: unknown, res: Response) {
@@ -41,6 +42,10 @@ function requireIncidentManager(req: Request) {
   }
 
   return user;
+}
+
+function firstParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
 }
 
 export async function createIncidentReport(req: Request, res: Response) {
@@ -92,21 +97,35 @@ export async function getMyIncidentReport(req: Request, res: Response) {
   }
 }
 
-export async function updateIncidentReportStatus(req: Request, res: Response) {
+export async function updateIncidentStatus(req: Request, res: Response) {
   try {
-    requireIncidentManager(req);
-    const incidentId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const user = requireAuthenticatedUser(req);
+    const incidentId = firstParam(req.params.id);
 
     if (!incidentId) {
       throw new IncidentServiceError(400, 'Invalid incident id.');
     }
 
-    const incident = await updateIncidentStatus(incidentId, req.body);
+    const incident = await updateIncidentStatusService(incidentId, req.body);
 
     return res.status(200).json({
       success: true,
       message: 'Incident status updated successfully.',
       incident,
+    });
+  } catch (error) {
+    return sendIncidentError(error, res);
+  }
+}
+
+export async function listAllIncidents(req: Request, res: Response) {
+  try {
+    requireAuthenticatedUser(req);
+    const incidents = await getAllIncidents();
+
+    return res.status(200).json({
+      success: true,
+      incidents,
     });
   } catch (error) {
     return sendIncidentError(error, res);
