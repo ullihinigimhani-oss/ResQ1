@@ -17,6 +17,8 @@ import { BrandColors } from '@/constants/brand';
 import { useAuth } from '@/context/auth-context';
 import { getAlertById, isAlertApiError } from '@/services/alertService';
 import type { Alert } from '@/types/alert';
+import { isAuthorityRole } from '@/utils/format';
+import { preferredLanguageLabels, preferredLanguageOrNull, toPreferredLanguage } from '@/utils/language';
 
 function firstParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
@@ -140,6 +142,7 @@ export default function AlertDetailsScreen() {
   const params = useLocalSearchParams();
   const alertId = firstParam(params.id);
   const published = firstParam(params.published) === '1';
+  const routeLanguage = preferredLanguageOrNull(firstParam(params.language));
   const { isLoading, token, user } = useAuth();
   const [alert, setAlert] = useState<Alert | null>(null);
   const [loadingAlert, setLoadingAlert] = useState(true);
@@ -208,6 +211,19 @@ export default function AlertDetailsScreen() {
   const publishedAt = formatDateTime(alert?.createdAt ?? null);
   const expiresAt = formatDateTime(alert?.expiresAt ?? null);
   const alertTone = alertToneForRisk(alert?.riskLevel);
+  const selectedLanguage = routeLanguage ?? toPreferredLanguage(user.preferredLanguage);
+  const showResidentLanguage = !isAuthorityRole(user.role);
+  const handleBackToAlerts = () => {
+    if (showResidentLanguage) {
+      router.replace({
+        pathname: '/alerts',
+        params: { language: selectedLanguage },
+      } as unknown as Href);
+      return;
+    }
+
+    router.replace('/alerts' as Href);
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -223,9 +239,16 @@ export default function AlertDetailsScreen() {
         }
         showsVerticalScrollIndicator={false}>
         <View style={styles.topBar}>
-          <BackButton onPress={() => router.replace('/alerts' as Href)} />
+          <BackButton onPress={handleBackToAlerts} />
           <Text style={styles.topBarTitle}>Alert Details</Text>
         </View>
+
+        {showResidentLanguage ? (
+          <View style={styles.languageContext}>
+            <Text style={styles.languageContextLabel}>Language</Text>
+            <Text style={styles.languageContextValue}>{preferredLanguageLabels[selectedLanguage]}</Text>
+          </View>
+        ) : null}
 
         {published ? <StatusBanner message="Emergency alert published successfully." type="success" /> : null}
 
@@ -373,6 +396,31 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '900',
     lineHeight: 23,
+  },
+  languageContext: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: BrandColors.white,
+    borderColor: BrandColors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 8,
+    minHeight: 34,
+    paddingHorizontal: 10,
+  },
+  languageContextLabel: {
+    color: BrandColors.muted,
+    fontSize: 11,
+    fontWeight: '900',
+    lineHeight: 15,
+    textTransform: 'uppercase',
+  },
+  languageContextValue: {
+    color: BrandColors.navy,
+    fontSize: 13,
+    fontWeight: '900',
+    lineHeight: 18,
   },
   detailCard: {
     backgroundColor: BrandColors.white,

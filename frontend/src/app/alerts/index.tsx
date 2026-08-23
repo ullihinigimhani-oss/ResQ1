@@ -1,5 +1,5 @@
 import { StatusBar } from 'expo-status-bar';
-import { Redirect, useRouter, type Href } from 'expo-router';
+import { Redirect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -9,19 +9,32 @@ import { colors, radius, shadows, spacing, typography } from '@/constants/design
 import { useAuth } from '@/context/auth-context';
 import { getActiveAlerts, isAlertApiError, updateAlert } from '@/services/alertService';
 import type { Alert, AlertRiskLevel } from '@/types/alert';
+import type { PreferredLanguage } from '@/types/auth';
 import { formatDateTime, isAuthorityRole, normalize } from '@/utils/format';
+import {
+  preferredLanguageLabels,
+  preferredLanguageOrNull,
+  preferredLanguages,
+  toPreferredLanguage,
+} from '@/utils/language';
 
 type DashboardStateProps = {
   alerts: Alert[];
   errorMessage: string | null;
   loadingAlerts: boolean;
   onRetry: () => void;
-  onViewAlert: (alertId: number) => void;
+  onViewAlert: (alertId: number, language?: PreferredLanguage) => void;
 };
 
 type ResidentDashboardProps = DashboardStateProps & {
+  onLanguageChange: (language: PreferredLanguage) => void;
   residentArea: string | null;
+  selectedLanguage: PreferredLanguage;
 };
+
+function firstParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
 
 function normalizedArea(value: string | null | undefined) {
   return normalize(value).replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
@@ -138,6 +151,42 @@ function ResidentStatusBadge({ status }: { status: string }) {
   );
 }
 
+function ResidentLanguageSelector({
+  onChange,
+  selectedLanguage,
+}: {
+  onChange: (language: PreferredLanguage) => void;
+  selectedLanguage: PreferredLanguage;
+}) {
+  return (
+    <View style={styles.languageSelector}>
+      <Text style={styles.languageLabel}>Language</Text>
+      <View style={styles.languageOptions}>
+        {preferredLanguages.map((language) => {
+          const selected = selectedLanguage === language;
+
+          return (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ selected }}
+              key={language}
+              onPress={() => onChange(language)}
+              style={({ pressed }) => [
+                styles.languageOption,
+                selected && styles.languageOptionSelected,
+                pressed && styles.pressed,
+              ]}>
+              <Text style={[styles.languageOptionText, selected && styles.languageOptionTextSelected]}>
+                {preferredLanguageLabels[language]}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
 function SeverityBadge({ riskLevel }: { riskLevel: AlertRiskLevel }) {
   const severity = authoritySeverityTheme[riskLevel];
 
@@ -169,9 +218,11 @@ function ResidentLoadingState() {
 function ResidentRiskAlertCard({
   alert,
   onViewAlert,
+  selectedLanguage,
 }: {
   alert: Alert;
-  onViewAlert: (alertId: number) => void;
+  onViewAlert: (alertId: number, language: PreferredLanguage) => void;
+  selectedLanguage: PreferredLanguage;
 }) {
   const theme = residentAlertTheme.highRisk;
 
@@ -204,13 +255,21 @@ function ResidentRiskAlertCard({
       </View>
 
       <View style={styles.alertActionRow}>
-        <AlertAction label="View Alert ->" onPress={() => onViewAlert(alert.id)} />
+        <AlertAction label="View Alert ->" onPress={() => onViewAlert(alert.id, selectedLanguage)} />
       </View>
     </View>
   );
 }
 
-function ResidentWarningAlertCard({ alert, onViewAlert }: { alert: Alert; onViewAlert: (alertId: number) => void }) {
+function ResidentWarningAlertCard({
+  alert,
+  onViewAlert,
+  selectedLanguage,
+}: {
+  alert: Alert;
+  onViewAlert: (alertId: number, language: PreferredLanguage) => void;
+  selectedLanguage: PreferredLanguage;
+}) {
   const theme = residentAlertTheme.warning;
 
   return (
@@ -242,7 +301,7 @@ function ResidentWarningAlertCard({ alert, onViewAlert }: { alert: Alert; onView
       </View>
 
       <View style={styles.alertActionRow}>
-        <AlertAction label="View Alert ->" onPress={() => onViewAlert(alert.id)} />
+        <AlertAction label="View Alert ->" onPress={() => onViewAlert(alert.id, selectedLanguage)} />
       </View>
     </View>
   );
@@ -442,9 +501,11 @@ function ResidentDashboard({
   alerts,
   errorMessage,
   loadingAlerts,
+  onLanguageChange,
   onRetry,
   onViewAlert,
   residentArea,
+  selectedLanguage,
 }: ResidentDashboardProps) {
   const showInitialLoading = loadingAlerts && alerts.length === 0;
   const showError = Boolean(errorMessage) && alerts.length === 0 && !showInitialLoading;
@@ -471,8 +532,11 @@ function ResidentDashboard({
   return (
     <>
       <View style={styles.header}>
-        <Text style={styles.title}>Emergency Alerts</Text>
-        <Text style={styles.subtitle}>Verified emergency warnings for your area</Text>
+        <View style={styles.headerTextBlock}>
+          <Text style={styles.title}>Emergency Alerts</Text>
+          <Text style={styles.subtitle}>Verified emergency warnings for your area</Text>
+        </View>
+        <ResidentLanguageSelector selectedLanguage={selectedLanguage} onChange={onLanguageChange} />
       </View>
 
       {errorMessage && alerts.length > 0 ? (
@@ -499,6 +563,7 @@ function ResidentDashboard({
               alert={alert}
               key={alert.id}
               onViewAlert={onViewAlert}
+              selectedLanguage={selectedLanguage}
             />
           ))}
         </View>
@@ -511,7 +576,12 @@ function ResidentDashboard({
       {showRiskIndicators && otherAreaAlerts.length > 0 ? (
         <View style={styles.alertList}>
           {otherAreaAlerts.map((alert) => (
-            <ResidentWarningAlertCard alert={alert} key={alert.id} onViewAlert={onViewAlert} />
+            <ResidentWarningAlertCard
+              alert={alert}
+              key={alert.id}
+              onViewAlert={onViewAlert}
+              selectedLanguage={selectedLanguage}
+            />
           ))}
         </View>
       ) : null}
@@ -678,6 +748,7 @@ function CancelAlertDialog({
 
 export default function AlertsScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
   const { isLoading, token, user } = useAuth();
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [cancelTarget, setCancelTarget] = useState<Alert | null>(null);
@@ -686,6 +757,7 @@ export default function AlertsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
+  const [selectedLanguage, setSelectedLanguage] = useState<PreferredLanguage | null>(null);
 
   const loadAlerts = useCallback(async (refresh = false) => {
     if (!token) {
@@ -721,10 +793,13 @@ export default function AlertsScreen() {
     router.push('/alerts/create' as Href);
   }, [router]);
 
-  const handleViewAlert = useCallback((alertId: number) => {
+  const handleViewAlert = useCallback((alertId: number, language?: PreferredLanguage) => {
     router.push({
       pathname: '/alerts/[id]',
-      params: { id: String(alertId) },
+      params: {
+        id: String(alertId),
+        ...(language ? { language } : {}),
+      },
     } as unknown as Href);
   }, [router]);
 
@@ -802,6 +877,8 @@ export default function AlertsScreen() {
     );
   }
 
+  const routeLanguage = preferredLanguageOrNull(firstParam(params.language));
+  const activeLanguage = selectedLanguage ?? routeLanguage ?? toPreferredLanguage(user.preferredLanguage);
   const dashboardProps: DashboardStateProps = {
     alerts,
     errorMessage,
@@ -829,7 +906,12 @@ export default function AlertsScreen() {
             onEditAlert={handleEditAlert}
           />
         ) : (
-          <ResidentDashboard {...dashboardProps} residentArea={user.location} />
+          <ResidentDashboard
+            {...dashboardProps}
+            onLanguageChange={setSelectedLanguage}
+            residentArea={user.location}
+            selectedLanguage={activeLanguage}
+          />
         )}
       </ScrollView>
       <BottomNavigation />
@@ -856,6 +938,9 @@ const styles = StyleSheet.create({
     paddingTop: spacing.lg,
   },
   header: {
+    gap: spacing.sm,
+  },
+  headerTextBlock: {
     gap: spacing.xs,
   },
   title: {
@@ -940,6 +1025,52 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '900',
     lineHeight: 15,
+  },
+  languageSelector: {
+    backgroundColor: colors.white,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    gap: spacing.xs,
+    padding: spacing.sm,
+  },
+  languageLabel: {
+    color: colors.muted,
+    fontSize: 11,
+    fontWeight: '900',
+    lineHeight: 15,
+    textTransform: 'uppercase',
+  },
+  languageOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+  },
+  languageOption: {
+    alignItems: 'center',
+    backgroundColor: colors.lightBlue,
+    borderColor: colors.sky,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    flexGrow: 1,
+    justifyContent: 'center',
+    minHeight: 34,
+    minWidth: '30%',
+    paddingHorizontal: spacing.sm,
+  },
+  languageOptionSelected: {
+    backgroundColor: colors.navy,
+    borderColor: colors.navy,
+  },
+  languageOptionText: {
+    color: colors.deepBlue,
+    fontSize: 12,
+    fontWeight: '900',
+    lineHeight: 16,
+    textAlign: 'center',
+  },
+  languageOptionTextSelected: {
+    color: colors.white,
   },
   allClearCard: {
     backgroundColor: colors.successSoft,
