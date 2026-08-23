@@ -3,6 +3,7 @@ import { Redirect, useLocalSearchParams, useRouter, type Href } from 'expo-route
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -11,12 +12,26 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { AuthButton, BackButton, StatusBanner } from '@/components/common/auth-components';
+import { AuthButton, StatusBanner } from '@/components/common/auth-components';
 import { AppIcon } from '@/components/ui/app-components';
 import { BrandColors } from '@/constants/brand';
 import { useAuth } from '@/context/auth-context';
 import { getAlertById, isAlertApiError } from '@/services/alertService';
 import type { Alert } from '@/types/alert';
+import { isAuthorityRole } from '@/utils/format';
+import {
+  alertDetailUiText,
+  fallbackSafetyInstruction,
+  preferredLanguageLabels,
+  preferredLanguageOrNull,
+  toPreferredLanguage,
+  translateAlertMessage,
+  translateAlertStatus,
+  translateAlertTitle,
+  translateDisasterType,
+  translateRiskLevel,
+  translateSafetyInstruction,
+} from '@/utils/language';
 
 function firstParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
@@ -42,7 +57,7 @@ function formatDateTime(value: string | null) {
   });
 }
 
-function safetyInstructionLines(value: string) {
+function safetyInstructionLines(value: string, fallback: string) {
   const instructions = value
     .split(/\r?\n|;/)
     .map((item) => item.replace(/^\s*(?:[-*]|\d+[.)])\s*/, '').trim())
@@ -52,7 +67,7 @@ function safetyInstructionLines(value: string) {
     return instructions;
   }
 
-  return ['Follow official evacuation and safety instructions from emergency authorities.'];
+  return [fallback];
 }
 
 function alertToneForRisk(riskLevel: Alert['riskLevel'] | undefined) {
@@ -109,6 +124,25 @@ function DetailPill({
   );
 }
 
+function DetailBackButton({
+  label,
+  onPress,
+}: {
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityLabel={label}
+      accessibilityRole="button"
+      hitSlop={8}
+      onPress={onPress}
+      style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
+      <Text style={styles.backButtonText}>{label}</Text>
+    </Pressable>
+  );
+}
+
 function DetailInfoRow({
   children,
   fallback,
@@ -140,12 +174,18 @@ export default function AlertDetailsScreen() {
   const params = useLocalSearchParams();
   const alertId = firstParam(params.id);
   const published = firstParam(params.published) === '1';
+  const routeLanguage = preferredLanguageOrNull(firstParam(params.language));
   const { isLoading, token, user } = useAuth();
   const [alert, setAlert] = useState<Alert | null>(null);
   const [loadingAlert, setLoadingAlert] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [acknowledged, setAcknowledged] = useState(false);
+  const userLanguage = toPreferredLanguage(user?.preferredLanguage);
+  const selectedLanguage = routeLanguage ?? userLanguage;
+  const showResidentLanguage = user ? !isAuthorityRole(user.role) : true;
+  const displayLanguage = showResidentLanguage ? selectedLanguage : 'English';
+  const detailCopy = alertDetailUiText[displayLanguage];
 
   const loadAlert = useCallback(async (refresh = false) => {
     if (!token || !alertId) {
@@ -185,8 +225,11 @@ export default function AlertDetailsScreen() {
   }, [alertId, loadAlert, token]);
 
   const safetyInstructions = useMemo(
-    () => safetyInstructionLines(alert?.safetyInstructions ?? ''),
-    [alert?.safetyInstructions],
+    () => safetyInstructionLines(
+      alert?.safetyInstructions ?? '',
+      fallbackSafetyInstruction(displayLanguage),
+    ).map((instruction) => translateSafetyInstruction(instruction, displayLanguage)),
+    [alert?.safetyInstructions, displayLanguage],
   );
 
   if (!isLoading && !user) {
@@ -208,6 +251,17 @@ export default function AlertDetailsScreen() {
   const publishedAt = formatDateTime(alert?.createdAt ?? null);
   const expiresAt = formatDateTime(alert?.expiresAt ?? null);
   const alertTone = alertToneForRisk(alert?.riskLevel);
+  const handleBackToAlerts = () => {
+    if (showResidentLanguage) {
+      router.replace({
+        pathname: '/alerts',
+        params: { language: selectedLanguage },
+      } as unknown as Href);
+      return;
+    }
+
+    router.replace('/alerts' as Href);
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -223,29 +277,36 @@ export default function AlertDetailsScreen() {
         }
         showsVerticalScrollIndicator={false}>
         <View style={styles.topBar}>
-          <BackButton onPress={() => router.replace('/alerts' as Href)} />
-          <Text style={styles.topBarTitle}>Alert Details</Text>
+          <DetailBackButton label={detailCopy.back} onPress={handleBackToAlerts} />
+          <Text style={styles.topBarTitle}>{detailCopy.alertDetails}</Text>
         </View>
 
-        {published ? <StatusBanner message="Emergency alert published successfully." type="success" /> : null}
+        {showResidentLanguage ? (
+          <View style={styles.languageContext}>
+            <Text style={styles.languageContextLabel}>{detailCopy.language}</Text>
+            <Text style={styles.languageContextValue}>{preferredLanguageLabels[displayLanguage]}</Text>
+          </View>
+        ) : null}
 
-        {errorMessage && alert ? <StatusBanner message={errorMessage} type="error" /> : null}
+        {published ? <StatusBanner message={detailCopy.publishedSuccess} type="success" /> : null}
+
+        {errorMessage && alert ? <StatusBanner message={detailCopy.unableLoadAlert} type="error" /> : null}
 
         {showInitialLoading ? (
           <View style={styles.centerState}>
             <ActivityIndicator color={BrandColors.red} size="large" />
-            <Text style={styles.stateTitle}>Loading alert details...</Text>
-            <Text style={styles.stateText}>Retrieving the latest verified warning.</Text>
+            <Text style={styles.stateTitle}>{detailCopy.loadingTitle}</Text>
+            <Text style={styles.stateText}>{detailCopy.loadingBody}</Text>
           </View>
         ) : null}
 
         {showError ? (
           <View style={styles.centerState}>
-            <Text style={styles.emptyTitle}>Unable to load this emergency alert.</Text>
-            <Text style={styles.stateText}>Check your connection and try again.</Text>
+            <Text style={styles.emptyTitle}>{detailCopy.unableLoadAlert}</Text>
+            <Text style={styles.stateText}>{detailCopy.checkConnection}</Text>
             <AuthButton
               style={styles.stateButton}
-              title="Retry"
+              title={detailCopy.retry}
               variant="secondary"
               onPress={() => void loadAlert()}
             />
@@ -260,41 +321,53 @@ export default function AlertDetailsScreen() {
                   <View style={[styles.detailHeroIcon, { backgroundColor: alertTone.accent }]}>
                     <AppIcon fallback="!" name="exclamationmark.triangle.fill" size={30} tintColor={BrandColors.white} />
                   </View>
-                  <Text style={[styles.detailHeroTitle, { color: alertTone.titleColor }]}>{alert.title}</Text>
+                  <Text style={[styles.detailHeroTitle, { color: alertTone.titleColor }]}>
+                    {translateAlertTitle(alert, displayLanguage)}
+                  </Text>
                 </View>
                 <DetailPill
                   backgroundColor={BrandColors.lightBlue}
                   borderColor={BrandColors.sky}
-                  label={alert.status}
+                  label={translateAlertStatus(alert.status, displayLanguage)}
                   textColor={BrandColors.deepBlue}
                 />
               </View>
 
               <View style={styles.detailInfoList}>
-                <DetailInfoRow fallback="A" label="Area" name="house.fill" value={alert.affectedArea} />
-                <DetailInfoRow fallback="T" label="Emergency Type" name="exclamationmark.triangle.fill" value={alert.disasterType} />
-                <DetailInfoRow fallback="R" label="Risk Level" name="gauge.with.dots.needle.33percent">
+                <DetailInfoRow fallback="A" label={detailCopy.area} name="house.fill" value={alert.affectedArea} />
+                <DetailInfoRow
+                  fallback="T"
+                  label={detailCopy.emergencyType}
+                  name="exclamationmark.triangle.fill"
+                  value={translateDisasterType(alert.disasterType, displayLanguage)}
+                />
+                <DetailInfoRow fallback="R" label={detailCopy.riskLevel} name="gauge.with.dots.needle.33percent">
                   <DetailPill
                     backgroundColor={alertTone.pillBackground}
                     borderColor={alertTone.pillBorder}
-                    label={alert.riskLevel}
+                    label={translateRiskLevel(alert.riskLevel, displayLanguage)}
                     textColor={alertTone.pillText}
                   />
                 </DetailInfoRow>
-                <DetailInfoRow fallback="D" label="Description" name="slider.horizontal.3" value={alert.message} />
-                <DetailInfoRow fallback="I" label="Issued" name="clock.fill" value={publishedAt ?? 'Not available'} />
+                <DetailInfoRow
+                  fallback="D"
+                  label={detailCopy.description}
+                  name="slider.horizontal.3"
+                  value={translateAlertMessage(alert, displayLanguage)}
+                />
+                <DetailInfoRow fallback="I" label={detailCopy.issued} name="clock.fill" value={publishedAt ?? ''} />
                 {expiresAt ? (
-                  <DetailInfoRow fallback="E" label="Expires" name="clock.fill" value={expiresAt} />
+                  <DetailInfoRow fallback="E" label={detailCopy.expires} name="clock.fill" value={expiresAt} />
                 ) : null}
-                <DetailInfoRow fallback="S" label="Status" name="bell.fill">
+                <DetailInfoRow fallback="S" label={detailCopy.status} name="bell.fill">
                   <DetailPill
                     backgroundColor={BrandColors.lightBlue}
                     borderColor={BrandColors.sky}
-                    label={alert.status}
+                    label={translateAlertStatus(alert.status, displayLanguage)}
                     textColor={BrandColors.deepBlue}
                   />
                 </DetailInfoRow>
-                <DetailInfoRow fallback="!" label="Safety Instructions" name="cross.case.fill">
+                <DetailInfoRow fallback="!" label={detailCopy.safetyInstructions} name="cross.case.fill">
                   <View style={styles.safetyBulletList}>
                     {safetyInstructions.map((instruction, index) => (
                       <Text key={`${instruction}-${index}`} style={styles.safetyBulletText}>
@@ -307,33 +380,33 @@ export default function AlertDetailsScreen() {
             </View>
 
             <View style={styles.panel}>
-              <Text style={styles.sectionTitle}>Emergency Actions</Text>
+              <Text style={styles.sectionTitle}>{detailCopy.emergencyActions}</Text>
               <Text style={styles.sectionCopy}>
-                Use verified ResQ1 routes, shelters, and incident tools for this alert.
+                {detailCopy.emergencyActionsCopy}
               </Text>
               {acknowledged ? (
                 <StatusBanner
-                  message="Alert acknowledged on this device only. Backend acknowledgement persistence is not connected in the current frontend service layer."
+                  message={detailCopy.acknowledgedMessage}
                   type="success"
                 />
               ) : null}
               <View style={styles.actionButtons}>
                 <AuthButton
-                  title="View Safe Evacuation Route"
+                  title={detailCopy.viewSafeEvacuationRoute}
                   variant="secondary"
                   onPress={() => router.push('/shelters' as Href)}
                 />
                 <AuthButton
-                  title="Find Nearest Safe Shelter"
+                  title={detailCopy.findNearestSafeShelter}
                   variant="secondary"
                   onPress={() => router.push('/shelters' as Href)}
                 />
                 <AuthButton
-                  title="Report Incident"
+                  title={detailCopy.reportIncident}
                   onPress={() => router.push('/incidents/report' as Href)}
                 />
                 <AuthButton
-                  title={acknowledged ? 'Acknowledged' : 'Acknowledge Alert'}
+                  title={acknowledged ? detailCopy.acknowledged : detailCopy.acknowledgeAlert}
                   variant="secondary"
                   onPress={() => setAcknowledged(true)}
                 />
@@ -373,6 +446,48 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '900',
     lineHeight: 23,
+  },
+  backButton: {
+    alignItems: 'center',
+    backgroundColor: BrandColors.white,
+    borderColor: BrandColors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    justifyContent: 'center',
+    minHeight: 44,
+    minWidth: 44,
+    paddingHorizontal: 10,
+  },
+  backButtonText: {
+    color: BrandColors.navy,
+    fontSize: 12,
+    fontWeight: '800',
+    lineHeight: 16,
+  },
+  languageContext: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: BrandColors.white,
+    borderColor: BrandColors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 8,
+    minHeight: 34,
+    paddingHorizontal: 10,
+  },
+  languageContextLabel: {
+    color: BrandColors.muted,
+    fontSize: 11,
+    fontWeight: '900',
+    lineHeight: 15,
+    textTransform: 'uppercase',
+  },
+  languageContextValue: {
+    color: BrandColors.navy,
+    fontSize: 13,
+    fontWeight: '900',
+    lineHeight: 18,
   },
   detailCard: {
     backgroundColor: BrandColors.white,
@@ -525,5 +640,8 @@ const styles = StyleSheet.create({
   stateButton: {
     marginTop: 4,
     width: '100%',
+  },
+  pressed: {
+    opacity: 0.72,
   },
 });
