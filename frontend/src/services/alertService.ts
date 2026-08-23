@@ -5,6 +5,7 @@ import type {
   AlertFieldErrors,
   AlertRiskHistoryPoint,
   CreateAlertPayload,
+  School,
   UpdateAlertPayload,
 } from '@/types/alert';
 import type {
@@ -42,6 +43,11 @@ type ApiAlertPreferencesResponse = ApiErrorBody & {
   success: boolean;
   message?: string;
   preferences?: AlertPreferences;
+};
+
+type ApiSchoolListResponse = ApiErrorBody & {
+  success: boolean;
+  schools?: School[];
 };
 
 type ApiPushTokenResponse = ApiErrorBody & {
@@ -160,6 +166,15 @@ export async function getAlertPreferences(token: string) {
   }
 
   return response.preferences;
+}
+
+export async function getSchoolsByArea(area: string, token: string) {
+  const response = await alertRequest<ApiSchoolListResponse>(
+    `/api/alerts/schools?area=${encodeURIComponent(area)}`,
+    token,
+  );
+
+  return response.schools ?? [];
 }
 
 export async function getAlertById(id: string, token: string) {

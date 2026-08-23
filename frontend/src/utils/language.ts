@@ -1,4 +1,4 @@
-import type { Alert, AlertRiskLevel } from '@/types/alert';
+import type { Alert, AlertAudience, AlertRiskLevel } from '@/types/alert';
 import type { PreferredLanguage } from '@/types/auth';
 
 export const preferredLanguages = ['English', 'Sinhala', 'Tamil'] as const satisfies readonly PreferredLanguage[];
@@ -24,15 +24,25 @@ type ResidentAlertUiKey =
   | 'allClear'
   | 'checkConnection'
   | 'emergencyAlerts'
+  | 'generalPublic'
   | 'issued'
   | 'language'
   | 'loadingAlerts'
   | 'noActiveAlerts'
   | 'noActiveEmergencyAlerts'
+  | 'noGeneralPublicAlerts'
+  | 'noGeneralPublicAlertsBody'
   | 'noResidentAreaAlert'
+  | 'noSchoolEmergencyAlerts'
+  | 'noSchoolEmergencyAlertsBody'
+  | 'openPreferences'
   | 'registeredArea'
   | 'retry'
   | 'risk'
+  | 'schoolAlertsDisabled'
+  | 'schoolAlertsDisabledBody'
+  | 'schoolEmergency'
+  | 'schoolEmergencyContext'
   | 'subtitle'
   | 'unableLoadAlerts'
   | 'viewAlert'
@@ -45,6 +55,8 @@ type AlertDetailUiKey =
   | 'acknowledged'
   | 'acknowledgedMessage'
   | 'alertDetails'
+  | 'alertAudience'
+  | 'allAudience'
   | 'area'
   | 'back'
   | 'checkConnection'
@@ -54,6 +66,7 @@ type AlertDetailUiKey =
   | 'emergencyType'
   | 'expires'
   | 'findNearestSafeShelter'
+  | 'generalPublic'
   | 'issued'
   | 'language'
   | 'loadingBody'
@@ -62,6 +75,8 @@ type AlertDetailUiKey =
   | 'retry'
   | 'riskLevel'
   | 'safetyInstructions'
+  | 'schoolEmergency'
+  | 'selectedSchools'
   | 'reportIncident'
   | 'status'
   | 'unableLoadAlert'
@@ -82,15 +97,25 @@ export const residentAlertUiText: Record<PreferredLanguage, Record<ResidentAlert
     allClear: 'All Clear',
     checkConnection: 'Check your connection and try again.',
     emergencyAlerts: 'Emergency Alerts',
+    generalPublic: 'General Public',
     issued: 'Issued',
     language: 'Language',
     loadingAlerts: 'Checking verified alerts...',
     noActiveAlerts: 'No Active Alerts',
     noActiveEmergencyAlerts: 'There are currently no active emergency alerts.',
+    noGeneralPublicAlerts: 'No General Public Alerts',
+    noGeneralPublicAlertsBody: 'There are currently no active general public alerts.',
     noResidentAreaAlert: 'No active emergency alert is currently affecting your registered area.',
+    noSchoolEmergencyAlerts: 'No School Emergency Alerts',
+    noSchoolEmergencyAlertsBody: 'There are currently no active school emergency alerts.',
+    openPreferences: 'Open Preferences',
     registeredArea: 'Registered area',
     retry: 'Retry',
     risk: 'Risk',
+    schoolAlertsDisabled: 'School emergency alerts are disabled.',
+    schoolAlertsDisabledBody: 'Enable School Alerts in Preferences to receive school-specific warnings.',
+    schoolEmergency: 'School Emergency',
+    schoolEmergencyContext: 'SCHOOL EMERGENCY',
     subtitle: 'Verified emergency warnings for your area',
     unableLoadAlerts: 'Unable to load emergency alerts.',
     viewAlert: 'View Alert',
@@ -102,15 +127,25 @@ export const residentAlertUiText: Record<PreferredLanguage, Record<ResidentAlert
     allClear: 'සියල්ල ආරක්ෂිතයි',
     checkConnection: 'ඔබගේ සම්බන්ධතාව පරීක්ෂා කර නැවත උත්සාහ කරන්න.',
     emergencyAlerts: 'හදිසි අනතුරු ඇඟවීම්',
+    generalPublic: 'සාමාන්‍ය ජනතාව',
     issued: 'නිකුත් කළේ',
     language: 'භාෂාව',
     loadingAlerts: 'තහවුරු කළ අනතුරු ඇඟවීම් පරීක්ෂා කරමින්...',
     noActiveAlerts: 'සක්‍රීය අනතුරු ඇඟවීම් නැත',
     noActiveEmergencyAlerts: 'දැනට සක්‍රීය හදිසි අනතුරු ඇඟවීම් නොමැත.',
+    noGeneralPublicAlerts: 'සාමාන්‍ය ජනතාව සඳහා අනතුරු ඇඟවීම් නැත',
+    noGeneralPublicAlertsBody: 'දැනට සාමාන්‍ය ජනතාව සඳහා සක්‍රීය අනතුරු ඇඟවීම් නොමැත.',
     noResidentAreaAlert: 'ඔබගේ ලියාපදිංචි ප්‍රදේශයට දැනට සක්‍රීය හදිසි අනතුරු ඇඟවීමක් බලපාන්නේ නැත.',
+    noSchoolEmergencyAlerts: 'පාසල් හදිසි අනතුරු ඇඟවීම් නැත',
+    noSchoolEmergencyAlertsBody: 'දැනට සක්‍රීය පාසල් හදිසි අනතුරු ඇඟවීම් නොමැත.',
+    openPreferences: 'අභිරුචි විවෘත කරන්න',
     registeredArea: 'ලියාපදිංචි ප්‍රදේශය',
     retry: 'නැවත උත්සාහ කරන්න',
     risk: 'අවදානම',
+    schoolAlertsDisabled: 'පාසල් හදිසි අනතුරු ඇඟවීම් අක්‍රිය කර ඇත.',
+    schoolAlertsDisabledBody: 'පාසල්-විශේෂිත අනතුරු ඇඟවීම් ලබා ගැනීමට අභිරුචි තුළ පාසල් අනතුරු ඇඟවීම් සක්‍රීය කරන්න.',
+    schoolEmergency: 'පාසල් හදිසි',
+    schoolEmergencyContext: 'පාසල් හදිසි',
     subtitle: 'ඔබගේ ප්‍රදේශය සඳහා තහවුරු කළ හදිසි අනතුරු ඇඟවීම්',
     unableLoadAlerts: 'හදිසි අනතුරු ඇඟවීම් පූරණය කළ නොහැක.',
     viewAlert: 'අනතුරු ඇඟවීම බලන්න',
@@ -122,15 +157,25 @@ export const residentAlertUiText: Record<PreferredLanguage, Record<ResidentAlert
     allClear: 'அனைத்தும் தெளிவு',
     checkConnection: 'உங்கள் இணைப்பைச் சரிபார்த்து மீண்டும் முயற்சிக்கவும்.',
     emergencyAlerts: 'அவசர எச்சரிக்கைகள்',
+    generalPublic: 'பொது மக்கள்',
     issued: 'வெளியிடப்பட்டது',
     language: 'மொழி',
     loadingAlerts: 'உறுதிப்படுத்தப்பட்ட எச்சரிக்கைகள் சரிபார்க்கப்படுகின்றன...',
     noActiveAlerts: 'செயலில் உள்ள எச்சரிக்கைகள் இல்லை',
     noActiveEmergencyAlerts: 'தற்போது செயலில் உள்ள அவசர எச்சரிக்கைகள் இல்லை.',
+    noGeneralPublicAlerts: 'பொது மக்கள் எச்சரிக்கைகள் இல்லை',
+    noGeneralPublicAlertsBody: 'தற்போது செயலில் உள்ள பொது மக்கள் எச்சரிக்கைகள் இல்லை.',
     noResidentAreaAlert: 'உங்கள் பதிவு செய்யப்பட்ட பகுதியை தற்போது எந்த செயலில் உள்ள அவசர எச்சரிக்கையும் பாதிக்கவில்லை.',
+    noSchoolEmergencyAlerts: 'பள்ளி அவசர எச்சரிக்கைகள் இல்லை',
+    noSchoolEmergencyAlertsBody: 'தற்போது செயலில் உள்ள பள்ளி அவசர எச்சரிக்கைகள் இல்லை.',
+    openPreferences: 'விருப்பங்களைத் திற',
     registeredArea: 'பதிவு செய்யப்பட்ட பகுதி',
     retry: 'மீண்டும் முயற்சி',
     risk: 'அபாயம்',
+    schoolAlertsDisabled: 'பள்ளி அவசர எச்சரிக்கைகள் முடக்கப்பட்டுள்ளன.',
+    schoolAlertsDisabledBody: 'பள்ளி சார்ந்த எச்சரிக்கைகளைப் பெற விருப்பங்களில் பள்ளி எச்சரிக்கைகளை இயக்கவும்.',
+    schoolEmergency: 'பள்ளி அவசரம்',
+    schoolEmergencyContext: 'பள்ளி அவசரம்',
     subtitle: 'உங்கள் பகுதிக்கான உறுதிப்படுத்தப்பட்ட அவசர எச்சரிக்கைகள்',
     unableLoadAlerts: 'அவசர எச்சரிக்கைகளை ஏற்ற முடியவில்லை.',
     viewAlert: 'எச்சரிக்கையை பார்க்க',
@@ -179,6 +224,8 @@ export const alertDetailUiText: Record<PreferredLanguage, Record<AlertDetailUiKe
     acknowledged: 'Acknowledged',
     acknowledgedMessage: 'Alert acknowledged on this device only. Backend acknowledgement persistence is not connected in the current frontend service layer.',
     alertDetails: 'Alert Details',
+    alertAudience: 'Alert Audience',
+    allAudience: 'All',
     area: 'Area',
     back: 'Back',
     checkConnection: 'Check your connection and try again.',
@@ -188,6 +235,7 @@ export const alertDetailUiText: Record<PreferredLanguage, Record<AlertDetailUiKe
     emergencyType: 'Emergency Type',
     expires: 'Expires',
     findNearestSafeShelter: 'Find Nearest Safe Shelter',
+    generalPublic: 'General Public',
     issued: 'Issued',
     language: 'Language',
     loadingBody: 'Retrieving the latest verified warning.',
@@ -196,6 +244,8 @@ export const alertDetailUiText: Record<PreferredLanguage, Record<AlertDetailUiKe
     retry: 'Retry',
     riskLevel: 'Risk Level',
     safetyInstructions: 'Safety Instructions',
+    schoolEmergency: 'School Emergency',
+    selectedSchools: 'Selected School(s)',
     reportIncident: 'Report Incident',
     status: 'Status',
     unableLoadAlert: 'Unable to load this emergency alert.',
@@ -206,6 +256,8 @@ export const alertDetailUiText: Record<PreferredLanguage, Record<AlertDetailUiKe
     acknowledged: 'තහවුරු කර ඇත',
     acknowledgedMessage: 'මෙම උපාංගයේ පමණක් අනතුරු ඇඟවීම තහවුරු කර ඇත. පසුපස සේවා තහවුරු කිරීමේ සුරැකීම තවම සම්බන්ධ කර නැත.',
     alertDetails: 'අනතුරු ඇඟවීමේ විස්තර',
+    alertAudience: 'අනතුරු ඇඟවීමේ ප්‍රේක්ෂකයින්',
+    allAudience: 'සියල්ල',
     area: 'ප්‍රදේශය',
     back: 'ආපසු',
     checkConnection: 'ඔබගේ සම්බන්ධතාව පරීක්ෂා කර නැවත උත්සාහ කරන්න.',
@@ -215,6 +267,7 @@ export const alertDetailUiText: Record<PreferredLanguage, Record<AlertDetailUiKe
     emergencyType: 'හදිසි තත්ත්ව වර්ගය',
     expires: 'කල් ඉකුත් වන්නේ',
     findNearestSafeShelter: 'ළඟම ආරක්ෂිත ස්ථානය සොයන්න',
+    generalPublic: 'සාමාන්‍ය ජනතාව',
     issued: 'නිකුත් කළේ',
     language: 'භාෂාව',
     loadingBody: 'නවතම තහවුරු කළ අනතුරු ඇඟවීම ලබා ගනිමින්...',
@@ -223,6 +276,8 @@ export const alertDetailUiText: Record<PreferredLanguage, Record<AlertDetailUiKe
     retry: 'නැවත උත්සාහ කරන්න',
     riskLevel: 'අවදානම් මට්ටම',
     safetyInstructions: 'ආරක්ෂක උපදෙස්',
+    schoolEmergency: 'පාසල් හදිසි',
+    selectedSchools: 'තෝරාගත් පාසල්',
     reportIncident: 'සිද්ධියක් වාර්තා කරන්න',
     status: 'තත්ත්වය',
     unableLoadAlert: 'මෙම හදිසි අනතුරු ඇඟවීම පූරණය කළ නොහැක.',
@@ -233,6 +288,8 @@ export const alertDetailUiText: Record<PreferredLanguage, Record<AlertDetailUiKe
     acknowledged: 'உறுதிப்படுத்தப்பட்டது',
     acknowledgedMessage: 'இந்த சாதனத்தில் மட்டும் எச்சரிக்கை உறுதிப்படுத்தப்பட்டது. பின்புல உறுதிப்படுத்தல் சேமிப்பு தற்போது இணைக்கப்படவில்லை.',
     alertDetails: 'எச்சரிக்கை விவரங்கள்',
+    alertAudience: 'எச்சரிக்கை பெறுநர்கள்',
+    allAudience: 'அனைவரும்',
     area: 'பகுதி',
     back: 'பின்',
     checkConnection: 'உங்கள் இணைப்பைச் சரிபார்த்து மீண்டும் முயற்சிக்கவும்.',
@@ -242,6 +299,7 @@ export const alertDetailUiText: Record<PreferredLanguage, Record<AlertDetailUiKe
     emergencyType: 'அவசர நிலை வகை',
     expires: 'காலாவதியாகும்',
     findNearestSafeShelter: 'அருகிலுள்ள பாதுகாப்பான தங்குமிடத்தை கண்டறி',
+    generalPublic: 'பொது மக்கள்',
     issued: 'வெளியிடப்பட்டது',
     language: 'மொழி',
     loadingBody: 'சமீபத்திய உறுதிப்படுத்தப்பட்ட எச்சரிக்கை பெறப்படுகிறது.',
@@ -250,6 +308,8 @@ export const alertDetailUiText: Record<PreferredLanguage, Record<AlertDetailUiKe
     retry: 'மீண்டும் முயற்சி',
     riskLevel: 'அபாய நிலை',
     safetyInstructions: 'பாதுகாப்பு வழிமுறைகள்',
+    schoolEmergency: 'பள்ளி அவசரம்',
+    selectedSchools: 'தேர்ந்தெடுக்கப்பட்ட பள்ளிகள்',
     reportIncident: 'சம்பவத்தை அறிக்கை செய்',
     status: 'நிலை',
     unableLoadAlert: 'இந்த அவசர எச்சரிக்கையை ஏற்ற முடியவில்லை.',
@@ -296,6 +356,24 @@ const statusText: Record<PreferredLanguage, Record<string, string>> = {
     Cancelled: 'ரத்து செய்யப்பட்டது',
     Expired: 'காலாவதியானது',
     Resolved: 'தீர்க்கப்பட்டது',
+  },
+};
+
+const alertAudienceText: Record<PreferredLanguage, Record<AlertAudience, string>> = {
+  English: {
+    ALL: 'All',
+    GENERAL_PUBLIC: 'General Public',
+    SCHOOL_EMERGENCY: 'School Emergency',
+  },
+  Sinhala: {
+    ALL: 'සියල්ල',
+    GENERAL_PUBLIC: 'සාමාන්‍ය ජනතාව',
+    SCHOOL_EMERGENCY: 'පාසල් හදිසි',
+  },
+  Tamil: {
+    ALL: 'அனைவரும்',
+    GENERAL_PUBLIC: 'பொது மக்கள்',
+    SCHOOL_EMERGENCY: 'பள்ளி அவசரம்',
   },
 };
 
@@ -375,6 +453,10 @@ export function translateRiskLevel(riskLevel: AlertRiskLevel, language: Preferre
 
 export function translateAlertStatus(status: string, language: PreferredLanguage) {
   return statusText[language][status] ?? status;
+}
+
+export function translateAlertAudience(audience: AlertAudience, language: PreferredLanguage) {
+  return alertAudienceText[language][audience];
 }
 
 export function translateAlertTitle(alert: Alert, language: PreferredLanguage) {

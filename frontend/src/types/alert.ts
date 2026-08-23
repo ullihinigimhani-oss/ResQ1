@@ -2,17 +2,29 @@ export const alertRiskLevels = ['Low', 'Moderate', 'High', 'Critical'] as const;
 export const alertStatuses = ['Active', 'Expired', 'Resolved'] as const;
 export const alertDisasterTypes = ['Flood'] as const;
 export const alertAuditActions = ['PUBLISHED', 'UPDATED', 'CANCELLED', 'EXPIRED', 'RESOLVED'] as const;
+export const alertAudiences = ['ALL', 'GENERAL_PUBLIC', 'SCHOOL_EMERGENCY'] as const;
 
 export type AlertRiskLevel = (typeof alertRiskLevels)[number];
 export type AlertStatus = (typeof alertStatuses)[number];
 export type AlertDisasterType = (typeof alertDisasterTypes)[number];
 export type AlertAuditAction = (typeof alertAuditActions)[number];
+export type AlertAudience = (typeof alertAudiences)[number];
+
+export interface School {
+  id: number;
+  schoolName: string;
+  area: string;
+  latitude: number | null;
+  longitude: number | null;
+  createdAt: string;
+}
 
 export interface Alert {
   id: number;
   title: string;
   disasterType: AlertDisasterType;
   affectedArea: string;
+  alertAudience: AlertAudience;
   riskLevel: AlertRiskLevel;
   message: string;
   safetyInstructions: string;
@@ -22,6 +34,7 @@ export interface Alert {
   createdAt: string;
   updatedAt: string;
   isRelevantToResident: boolean;
+  schools: School[];
 }
 
 export interface AlertAuditEvent {
@@ -51,10 +64,12 @@ export interface CreateAlertPayload {
   title: string;
   disasterType: AlertDisasterType;
   affectedArea: string;
+  alertAudience: AlertAudience;
   riskLevel: AlertRiskLevel;
   message: string;
   safetyInstructions: string;
   expiresAt: string | null;
+  schoolIds: number[];
 }
 
 export interface UpdateAlertPayload extends CreateAlertPayload {
@@ -62,4 +77,4 @@ export interface UpdateAlertPayload extends CreateAlertPayload {
   status: AlertStatus;
 }
 
-export type AlertFieldErrors = Partial<Record<keyof UpdateAlertPayload, string>>;
+export type AlertFieldErrors = Partial<Record<keyof UpdateAlertPayload | 'schoolIds', string>>;

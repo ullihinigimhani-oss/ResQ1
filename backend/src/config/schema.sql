@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS alerts (
     title VARCHAR(150) NOT NULL,
     disaster_type VARCHAR(100) NOT NULL,
     affected_area VARCHAR(150) NOT NULL,
+    alert_audience VARCHAR(30) NOT NULL DEFAULT 'GENERAL_PUBLIC',
     risk_level VARCHAR(20) NOT NULL,
     message TEXT NOT NULL,
     safety_instructions TEXT,
@@ -24,6 +25,27 @@ CREATE TABLE IF NOT EXISTS alerts (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS schools (
+    id SERIAL PRIMARY KEY,
+    school_name VARCHAR(150) NOT NULL,
+    area VARCHAR(150) NOT NULL,
+    latitude DECIMAL(10, 7),
+    longitude DECIMAL(10, 7),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_schools_area
+    ON schools(area);
+
+CREATE TABLE IF NOT EXISTS alert_schools (
+    alert_id INTEGER NOT NULL REFERENCES alerts(id) ON DELETE CASCADE,
+    school_id INTEGER NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    PRIMARY KEY(alert_id, school_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_alert_schools_school_id
+    ON alert_schools(school_id);
 
 CREATE TABLE IF NOT EXISTS alert_preferences (
     id SERIAL PRIMARY KEY,

@@ -5,6 +5,7 @@ import {
   getEmergencyAlert,
   getEmergencyAlertRiskHistory,
   listAlertHistory,
+  listAlertSchools,
   listActiveAlerts,
   updateEmergencyAlert,
 } from '../controllers/alertController.js';
@@ -24,6 +25,7 @@ router.post('/', createEmergencyAlert);
 router.get('/preferences', getMyAlertPreferences);
 router.put('/preferences', updateMyAlertPreferences);
 router.post('/push-token', registerPushToken);
+router.get('/schools', listAlertSchools);
 router.get('/history', listAlertHistory);
 router.get('/:id/risk-history', getEmergencyAlertRiskHistory);
 router.put('/:id', updateEmergencyAlert);

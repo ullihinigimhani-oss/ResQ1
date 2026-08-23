@@ -1,10 +1,12 @@
 import { sql } from '../config/database.js';
 import {
   alertAuditActions,
+  alertAudiences,
   alertDisasterTypes,
   alertRiskLevels,
   alertStatuses,
   type Alert,
+  type AlertAudience,
   type AlertAuditAction,
   type AlertAuditEvent,
   type AlertAuditRow,
@@ -15,15 +17,20 @@ import {
   type AlertRow,
   type AlertStatus,
   type CreateAlertInput,
+  type School,
+  type SchoolRow,
   type UpdateAlertInput,
   type ValidatedCreateAlertInput,
   type ValidatedUpdateAlertInput,
 } from '../types/alert.js';
 
 const ACTIVE_ALERT_STATUS: AlertStatus = 'Active';
+const DEFAULT_ALERT_AUDIENCE: AlertAudience = 'GENERAL_PUBLIC';
+const SCHOOL_ALERT_AUDIENCE: AlertAudience = 'SCHOOL_EMERGENCY';
 const ALERT_TITLE_MAX_LENGTH = 150;
 const ALERT_AREA_MAX_LENGTH = 150;
 let auditTableReady: Promise<void> | null = null;
+let alertSchemaReady: Promise<void> | null = null;
 
 export class AlertServiceError extends Error {
   constructor(
@@ -48,8 +55,51 @@ function optionalTimestamp(value: Date | string | null) {
   return value ? formatTimestamp(value) : null;
 }
 
+function optionalNumber(value: number | string | null | undefined) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  const numericValue = Number(value);
+
+  return Number.isFinite(numericValue) ? numericValue : null;
+}
+
 function canonicalOption<T extends string>(value: string, options: readonly T[]) {
   return options.find((option) => option.toLowerCase() === value.toLowerCase()) ?? null;
+}
+
+function toSchool(row: SchoolRow): School {
+  return {
+    id: row.id,
+    schoolName: row.school_name,
+    area: row.area,
+    latitude: optionalNumber(row.latitude),
+    longitude: optionalNumber(row.longitude),
+    createdAt: formatTimestamp(row.created_at),
+  };
+}
+
+function parseSchools(value: unknown) {
+  if (!value) {
+    return [];
+  }
+
+  let rawSchools: unknown;
+
+  try {
+    rawSchools = typeof value === 'string' ? JSON.parse(value) : value;
+  } catch {
+    return [];
+  }
+
+  if (!Array.isArray(rawSchools)) {
+    return [];
+  }
+
+  return rawSchools
+    .filter((school): school is SchoolRow => Boolean(school && typeof school === 'object' && 'id' in school))
+    .map(toSchool);
 }
 
 function effectiveAlertStatus(status: AlertRow['status'], expiresAt: AlertRow['expires_at']): AlertStatus {
@@ -69,11 +119,14 @@ function effectiveAlertStatus(status: AlertRow['status'], expiresAt: AlertRow['e
 }
 
 function toAlert(row: AlertRow): Alert {
+  const alertAudience = canonicalOption(trimmedText(row.alert_audience), alertAudiences) ?? DEFAULT_ALERT_AUDIENCE;
+
   return {
     id: row.id,
     title: row.title,
     disasterType: row.disaster_type,
     affectedArea: row.affected_area,
+    alertAudience,
     riskLevel: row.risk_level,
     message: row.message,
     safetyInstructions: row.safety_instructions ?? '',
@@ -83,6 +136,7 @@ function toAlert(row: AlertRow): Alert {
     createdAt: formatTimestamp(row.created_at),
     updatedAt: formatTimestamp(row.updated_at),
     isRelevantToResident: Boolean(row.is_relevant_to_resident),
+    schools: parseSchools(row.schools),
   };
 }
 
@@ -128,6 +182,43 @@ async function ensureAlertAuditTable() {
   await auditTableReady;
 }
 
+async function ensureAlertSchoolSchema() {
+  alertSchemaReady ??= (async () => {
+    await sql`ALTER TABLE alerts ADD COLUMN IF NOT EXISTS alert_audience VARCHAR(30) NOT NULL DEFAULT 'GENERAL_PUBLIC'`;
+
+    await sql`
+      CREATE TABLE IF NOT EXISTS schools (
+        id SERIAL PRIMARY KEY,
+        school_name VARCHAR(150) NOT NULL,
+        area VARCHAR(150) NOT NULL,
+        latitude DECIMAL(10, 7),
+        longitude DECIMAL(10, 7),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `;
+
+    await sql`
+      CREATE INDEX IF NOT EXISTS idx_schools_area
+      ON schools(area)
+    `;
+
+    await sql`
+      CREATE TABLE IF NOT EXISTS alert_schools (
+        alert_id INTEGER NOT NULL REFERENCES alerts(id) ON DELETE CASCADE,
+        school_id INTEGER NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+        PRIMARY KEY(alert_id, school_id)
+      )
+    `;
+
+    await sql`
+      CREATE INDEX IF NOT EXISTS idx_alert_schools_school_id
+      ON alert_schools(school_id)
+    `;
+  })();
+
+  await alertSchemaReady;
+}
+
 function toAuditEvent(row: AlertAuditRow): AlertAuditEvent {
   return {
     id: row.id,
@@ -153,6 +244,68 @@ function toRiskHistoryPoint(row: AlertRiskHistoryRow): AlertRiskHistoryPoint {
     riskLevel: row.risk_level,
     timestamp: formatTimestamp(row.created_at),
   };
+}
+
+async function getSchoolsForArea(area: string) {
+  const rows = await sql`
+    SELECT id, school_name, area, latitude, longitude, created_at
+    FROM schools
+    WHERE LOWER(area) = LOWER(${area})
+    ORDER BY school_name ASC
+  `;
+
+  return (rows as SchoolRow[]).map(toSchool);
+}
+
+function parseSchoolIds(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const ids = value
+    .map((item) => Number(item))
+    .filter((item) => Number.isInteger(item) && item > 0);
+
+  return [...new Set(ids)];
+}
+
+async function validateSelectedSchools(
+  affectedArea: string,
+  alertAudience: AlertAudience,
+  schoolIds: number[],
+  fieldErrors: Record<string, string>,
+) {
+  if (alertAudience !== SCHOOL_ALERT_AUDIENCE) {
+    return [];
+  }
+
+  if (schoolIds.length === 0) {
+    fieldErrors.schoolIds = 'Select at least one school for a school emergency alert.';
+    return [];
+  }
+
+  const areaSchools = await getSchoolsForArea(affectedArea);
+  const schoolsById = new Map(areaSchools.map((school) => [school.id, school]));
+  const selectedSchools = schoolIds.map((schoolId) => schoolsById.get(schoolId)).filter(Boolean) as School[];
+
+  if (selectedSchools.length !== schoolIds.length) {
+    fieldErrors.schoolIds = 'Choose schools that exist in the selected affected area.';
+    return [];
+  }
+
+  return schoolIds;
+}
+
+async function replaceAlertSchoolLinks(alertId: number, schoolIds: number[]) {
+  await sql`DELETE FROM alert_schools WHERE alert_id = ${alertId}`;
+
+  await Promise.all(
+    schoolIds.map((schoolId) => sql`
+      INSERT INTO alert_schools (alert_id, school_id)
+      VALUES (${alertId}, ${schoolId})
+      ON CONFLICT (alert_id, school_id) DO NOTHING
+    `),
+  );
 }
 
 function statusText(row: AlertRow) {
@@ -252,16 +405,18 @@ function validateExpiresAt(value: unknown, fieldErrors: Record<string, string>) 
   return expirationDate.toISOString();
 }
 
-function validateAlertFields(
+async function validateAlertFields(
   input: CreateAlertInput,
   fieldErrors: Record<string, string>,
-): ValidatedCreateAlertInput | null {
+): Promise<ValidatedCreateAlertInput | null> {
   const title = trimmedText(input.title);
   const disasterTypeText = trimmedText(input.disasterType) || 'Flood';
   const affectedArea = trimmedText(input.affectedArea);
+  const alertAudienceText = trimmedText(input.alertAudience) || DEFAULT_ALERT_AUDIENCE;
   const riskLevelText = trimmedText(input.riskLevel);
   const message = trimmedText(input.message);
   const safetyInstructions = trimmedText(input.safetyInstructions);
+  const schoolIds = parseSchoolIds(input.schoolIds);
 
   if (!title) {
     fieldErrors.title = 'Please enter an alert title.';
@@ -281,6 +436,12 @@ function validateAlertFields(
     fieldErrors.affectedArea = `Affected area must be ${ALERT_AREA_MAX_LENGTH} characters or fewer.`;
   }
 
+  const alertAudience = canonicalOption(alertAudienceText, alertAudiences);
+
+  if (!alertAudience) {
+    fieldErrors.alertAudience = 'Choose All, General Public, or School Emergency.';
+  }
+
   const riskLevel = canonicalOption(riskLevelText, alertRiskLevels);
 
   if (!riskLevelText) {
@@ -298,8 +459,11 @@ function validateAlertFields(
   }
 
   const expiresAt = validateExpiresAt(input.expiresAt, fieldErrors);
+  const validatedSchoolIds = affectedArea && alertAudience
+    ? await validateSelectedSchools(affectedArea, alertAudience, schoolIds, fieldErrors)
+    : [];
 
-  if (Object.keys(fieldErrors).length > 0 || !disasterType || !riskLevel) {
+  if (Object.keys(fieldErrors).length > 0 || !disasterType || !riskLevel || !alertAudience) {
     return null;
   }
 
@@ -307,16 +471,18 @@ function validateAlertFields(
     title,
     disasterType,
     affectedArea,
+    alertAudience,
     riskLevel,
     message,
     safetyInstructions,
     expiresAt,
+    schoolIds: validatedSchoolIds,
   };
 }
 
-function validateCreateAlertInput(input: CreateAlertInput): ValidatedCreateAlertInput {
+async function validateCreateAlertInput(input: CreateAlertInput): Promise<ValidatedCreateAlertInput> {
   const fieldErrors: Record<string, string> = {};
-  const alert = validateAlertFields(input, fieldErrors);
+  const alert = await validateAlertFields(input, fieldErrors);
 
   if (!alert) {
     throw new AlertServiceError(400, 'Please correct the highlighted fields.', fieldErrors);
@@ -325,9 +491,9 @@ function validateCreateAlertInput(input: CreateAlertInput): ValidatedCreateAlert
   return alert;
 }
 
-function validateUpdateAlertInput(input: UpdateAlertInput): ValidatedUpdateAlertInput {
+async function validateUpdateAlertInput(input: UpdateAlertInput): Promise<ValidatedUpdateAlertInput> {
   const fieldErrors: Record<string, string> = {};
-  const alert = validateAlertFields(input, fieldErrors);
+  const alert = await validateAlertFields(input, fieldErrors);
   const statusText = trimmedText(input.status);
   const status = canonicalOption(statusText, alertStatuses);
 
@@ -348,6 +514,8 @@ function validateUpdateAlertInput(input: UpdateAlertInput): ValidatedUpdateAlert
 }
 
 export async function getActiveAlerts(residentLocation: string | null | undefined) {
+  await ensureAlertSchoolSchema();
+
   const location = trimmedText(residentLocation);
 
   const rows = await sql`
@@ -359,6 +527,7 @@ export async function getActiveAlerts(residentLocation: string | null | undefine
       alerts.title,
       alerts.disaster_type,
       alerts.affected_area,
+      alerts.alert_audience,
       alerts.risk_level,
       alerts.message,
       alerts.safety_instructions,
@@ -367,6 +536,25 @@ export async function getActiveAlerts(residentLocation: string | null | undefine
       alerts.created_by,
       alerts.created_at,
       alerts.updated_at,
+      (
+        SELECT COALESCE(
+          json_agg(
+            json_build_object(
+              'id', schools.id,
+              'school_name', schools.school_name,
+              'area', schools.area,
+              'latitude', schools.latitude,
+              'longitude', schools.longitude,
+              'created_at', schools.created_at
+            )
+            ORDER BY schools.school_name
+          ) FILTER (WHERE schools.id IS NOT NULL),
+          '[]'::json
+        )
+        FROM alert_schools
+        INNER JOIN schools ON schools.id = alert_schools.school_id
+        WHERE alert_schools.alert_id = alerts.id
+      ) AS schools,
       (
         resident_context.resident_location <> ''
         AND (
@@ -433,6 +621,8 @@ export async function getAlertHistory() {
 }
 
 export async function getAlertRiskHistory(alertId: string) {
+  await ensureAlertSchoolSchema();
+
   const numericId = numericAlertId(alertId);
 
   const alertRows = await sql`
@@ -468,6 +658,8 @@ export async function getAlertRiskHistory(alertId: string) {
 }
 
 export async function getAlertById(alertId: string) {
+  await ensureAlertSchoolSchema();
+
   const numericId = numericAlertId(alertId);
 
   const rows = await sql`
@@ -476,6 +668,7 @@ export async function getAlertById(alertId: string) {
       title,
       disaster_type,
       affected_area,
+      alert_audience,
       risk_level,
       message,
       safety_instructions,
@@ -484,6 +677,25 @@ export async function getAlertById(alertId: string) {
       created_by,
       created_at,
       updated_at,
+      (
+        SELECT COALESCE(
+          json_agg(
+            json_build_object(
+              'id', schools.id,
+              'school_name', schools.school_name,
+              'area', schools.area,
+              'latitude', schools.latitude,
+              'longitude', schools.longitude,
+              'created_at', schools.created_at
+            )
+            ORDER BY schools.school_name
+          ) FILTER (WHERE schools.id IS NOT NULL),
+          '[]'::json
+        )
+        FROM alert_schools
+        INNER JOIN schools ON schools.id = alert_schools.school_id
+        WHERE alert_schools.alert_id = alerts.id
+      ) AS schools,
       FALSE AS is_relevant_to_resident
     FROM alerts
     WHERE id = ${numericId}
@@ -500,13 +712,16 @@ export async function getAlertById(alertId: string) {
 }
 
 export async function createAlert(senderId: number, input: CreateAlertInput) {
-  const alert = validateCreateAlertInput(input);
+  await ensureAlertSchoolSchema();
+
+  const alert = await validateCreateAlertInput(input);
 
   const rows = await sql`
     INSERT INTO alerts (
       title,
       disaster_type,
       affected_area,
+      alert_audience,
       risk_level,
       message,
       safety_instructions,
@@ -518,6 +733,7 @@ export async function createAlert(senderId: number, input: CreateAlertInput) {
       ${alert.title},
       ${alert.disasterType},
       ${alert.affectedArea},
+      ${alert.alertAudience},
       ${alert.riskLevel},
       ${alert.message},
       ${alert.safetyInstructions},
@@ -525,7 +741,7 @@ export async function createAlert(senderId: number, input: CreateAlertInput) {
       ${alert.expiresAt},
       ${senderId}
     )
-    RETURNING id, title, disaster_type, affected_area, risk_level, message, safety_instructions, status, expires_at, created_by, created_at, updated_at
+    RETURNING id, title, disaster_type, affected_area, alert_audience, risk_level, message, safety_instructions, status, expires_at, created_by, created_at, updated_at
   `;
 
   const createdAlert = rows[0] as AlertRow | undefined;
@@ -533,6 +749,8 @@ export async function createAlert(senderId: number, input: CreateAlertInput) {
   if (!createdAlert) {
     throw new AlertServiceError(500, 'Emergency alert could not be published.');
   }
+
+  await replaceAlertSchoolLinks(createdAlert.id, alert.schoolIds);
 
   await recordAlertAuditEvent({
     action: 'PUBLISHED',
@@ -544,12 +762,14 @@ export async function createAlert(senderId: number, input: CreateAlertInput) {
     previousStatus: null,
   });
 
-  return toAlert(createdAlert);
+  return getAlertById(String(createdAlert.id));
 }
 
 export async function updateAlert(alertId: string, input: UpdateAlertInput, changedBy: number | null = null) {
+  await ensureAlertSchoolSchema();
+
   const numericId = numericAlertId(alertId);
-  const alert = validateUpdateAlertInput(input);
+  const alert = await validateUpdateAlertInput(input);
   const auditActionOverride = canonicalOption(trimmedText(input.auditAction), alertAuditActions);
   const requestedAuditAction = auditActionOverride === 'PUBLISHED' ? null : auditActionOverride;
 
@@ -559,6 +779,7 @@ export async function updateAlert(alertId: string, input: UpdateAlertInput, chan
       title,
       disaster_type,
       affected_area,
+      alert_audience,
       risk_level,
       message,
       safety_instructions,
@@ -567,6 +788,7 @@ export async function updateAlert(alertId: string, input: UpdateAlertInput, chan
       created_by,
       created_at,
       updated_at,
+      '[]'::json AS schools,
       FALSE AS is_relevant_to_resident
     FROM alerts
     WHERE id = ${numericId}
@@ -584,6 +806,7 @@ export async function updateAlert(alertId: string, input: UpdateAlertInput, chan
     SET title = ${alert.title},
         disaster_type = ${alert.disasterType},
         affected_area = ${alert.affectedArea},
+        alert_audience = ${alert.alertAudience},
         risk_level = ${alert.riskLevel},
         message = ${alert.message},
         safety_instructions = ${alert.safetyInstructions},
@@ -591,7 +814,7 @@ export async function updateAlert(alertId: string, input: UpdateAlertInput, chan
         expires_at = ${alert.expiresAt},
         updated_at = CURRENT_TIMESTAMP
     WHERE id = ${numericId}
-    RETURNING id, title, disaster_type, affected_area, risk_level, message, safety_instructions, status, expires_at, created_by, created_at, updated_at
+    RETURNING id, title, disaster_type, affected_area, alert_audience, risk_level, message, safety_instructions, status, expires_at, created_by, created_at, updated_at
   `;
 
   const updatedAlert = rows[0] as AlertRow | undefined;
@@ -599,6 +822,8 @@ export async function updateAlert(alertId: string, input: UpdateAlertInput, chan
   if (!updatedAlert) {
     throw new AlertServiceError(404, 'Emergency alert not found.');
   }
+
+  await replaceAlertSchoolLinks(updatedAlert.id, alert.schoolIds);
 
   await recordAlertAuditEvent({
     action: auditActionForUpdate(previousAlert, updatedAlert, requestedAuditAction),
@@ -610,5 +835,17 @@ export async function updateAlert(alertId: string, input: UpdateAlertInput, chan
     previousStatus: statusText(previousAlert),
   });
 
-  return toAlert(updatedAlert);
+  return getAlertById(String(updatedAlert.id));
+}
+
+export async function listSchoolsByArea(area: string) {
+  await ensureAlertSchoolSchema();
+
+  const affectedArea = trimmedText(area);
+
+  if (!affectedArea) {
+    return [];
+  }
+
+  return getSchoolsForArea(affectedArea);
 }
