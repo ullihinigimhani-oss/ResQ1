@@ -7,6 +7,10 @@ import type {
   CreateAlertPayload,
   UpdateAlertPayload,
 } from '@/types/alert';
+import type {
+  AlertPreferences,
+  UpdateAlertPreferencesPayload,
+} from '@/types/alertPreference';
 
 type ApiErrorBody = {
   message?: string;
@@ -32,6 +36,17 @@ type ApiAlertHistoryResponse = ApiErrorBody & {
 type ApiAlertRiskHistoryResponse = ApiErrorBody & {
   success: boolean;
   riskHistory?: AlertRiskHistoryPoint[];
+};
+
+type ApiAlertPreferencesResponse = ApiErrorBody & {
+  success: boolean;
+  message?: string;
+  preferences?: AlertPreferences;
+};
+
+type ApiPushTokenResponse = ApiErrorBody & {
+  success: boolean;
+  message?: string;
 };
 
 export class AlertApiError extends Error {
@@ -137,6 +152,16 @@ export async function getAlertRiskHistory(id: string, token: string) {
   return response.riskHistory ?? [];
 }
 
+export async function getAlertPreferences(token: string) {
+  const response = await alertRequest<ApiAlertPreferencesResponse>('/api/alerts/preferences', token);
+
+  if (!response.preferences) {
+    throw new AlertApiError(500, 'The server returned an unexpected response.');
+  }
+
+  return response.preferences;
+}
+
 export async function getAlertById(id: string, token: string) {
   const response = await alertRequest<ApiAlertResponse>(`/api/alerts/${id}`, token);
 
@@ -171,4 +196,31 @@ export async function updateAlert(id: string, payload: UpdateAlertPayload, token
   }
 
   return response.alert;
+}
+
+export async function updateAlertPreferences(payload: UpdateAlertPreferencesPayload, token: string) {
+  const response = await alertRequest<ApiAlertPreferencesResponse>('/api/alerts/preferences', token, {
+    method: 'PUT',
+    body: payload,
+  });
+
+  if (!response.preferences) {
+    throw new AlertApiError(500, 'The server returned an unexpected response.');
+  }
+
+  return response.preferences;
+}
+
+export async function registerAlertPushToken(
+  payload: {
+    deviceName?: string | null;
+    expoPushToken: string;
+    platform?: string | null;
+  },
+  token: string,
+) {
+  await alertRequest<ApiPushTokenResponse>('/api/alerts/push-token', token, {
+    method: 'POST',
+    body: payload,
+  });
 }
