@@ -720,8 +720,8 @@ export default function ShelterRouteScreen() {
                     {routeCoordinates.length > 0 && (
                       <Polyline
                         coordinates={routeCoordinates}
-                        strokeColor={BrandColors.success}
-                        strokeWidth={4}
+                        strokeColor="#22C55E"
+                        strokeWidth={5}
                       />
                     )}
 
@@ -729,9 +729,9 @@ export default function ShelterRouteScreen() {
                       <Polyline
                         key={index}
                         coordinates={altRoute}
-                        strokeColor={BrandColors.navy}
-                        strokeWidth={2}
-                        lineDashPattern={[5, 5]}
+                        strokeColor="#000000"
+                        strokeWidth={3}
+                        lineDashPattern={[10, 5]}
                       />
                     ))}
 
@@ -757,11 +757,11 @@ export default function ShelterRouteScreen() {
                       <Text style={styles.legendText}>Your Location</Text>
                     </View>
                     <View style={styles.legendItem}>
-                      <View style={[styles.legendDot, { backgroundColor: BrandColors.success }]} />
+                      <View style={[styles.legendLine, { backgroundColor: '#22C55E' }]} />
                       <Text style={styles.legendText}>Safest Route</Text>
                     </View>
                     <View style={styles.legendItem}>
-                      <View style={[styles.legendDot, { backgroundColor: BrandColors.navy }]} />
+                      <View style={[styles.legendLine, { backgroundColor: '#000000', borderStyle: 'dashed' }]} />
                       <Text style={styles.legendText}>Alternative Routes</Text>
                     </View>
                     <View style={styles.legendItem}>
@@ -1286,6 +1286,11 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     height: 8,
     width: 8,
+  },
+  legendLine: {
+    borderRadius: 2,
+    height: 3,
+    width: 20,
   },
   legendText: {
     color: BrandColors.text,
