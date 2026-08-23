@@ -1,5 +1,5 @@
 import { StatusBar } from 'expo-status-bar';
-import { Redirect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
+import { Redirect, useFocusEffect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppIcon, BottomNavigation, EmptyState, LoadingState, PrimaryButton } from '@/components/ui/app-components';
 import { colors, radius, shadows, spacing, typography } from '@/constants/design';
 import { useAuth } from '@/context/auth-context';
-import { getActiveAlerts, isAlertApiError, updateAlert } from '@/services/alertService';
+import { getActiveAlerts, getAlertPreferences, isAlertApiError, updateAlert } from '@/services/alertService';
 import type { Alert, AlertRiskLevel } from '@/types/alert';
 import type { PreferredLanguage } from '@/types/auth';
 import {
@@ -37,6 +37,7 @@ type DashboardStateProps = {
 
 type ResidentDashboardProps = DashboardStateProps & {
   onLanguageChange: (language: PreferredLanguage) => void;
+  onOpenPreferences: () => void;
   residentArea: string | null;
   selectedLanguage: PreferredLanguage;
 };
@@ -512,6 +513,7 @@ function ResidentDashboard({
   errorMessage,
   loadingAlerts,
   onLanguageChange,
+  onOpenPreferences,
   onRetry,
   onViewAlert,
   residentArea,
@@ -543,9 +545,18 @@ function ResidentDashboard({
   return (
     <>
       <View style={styles.header}>
-        <View style={styles.headerTextBlock}>
-          <Text style={styles.title}>{copy.emergencyAlerts}</Text>
-          <Text style={styles.subtitle}>{copy.subtitle}</Text>
+        <View style={styles.residentHeaderTopRow}>
+          <View style={styles.headerTextBlock}>
+            <Text style={styles.title}>{copy.emergencyAlerts}</Text>
+            <Text style={styles.subtitle}>{copy.subtitle}</Text>
+          </View>
+          <Pressable
+            accessibilityRole="button"
+            onPress={onOpenPreferences}
+            style={({ pressed }) => [styles.preferencesButton, pressed && styles.pressed]}>
+            <AppIcon fallback="P" name="slider.horizontal.3" size={16} tintColor={colors.deepBlue} />
+            <Text style={styles.preferencesButtonText}>Preferences</Text>
+          </Pressable>
         </View>
         <ResidentLanguageSelector selectedLanguage={selectedLanguage} onChange={onLanguageChange} />
       </View>
@@ -782,7 +793,57 @@ export default function AlertsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
+  const [savedPreferredLanguage, setSavedPreferredLanguage] = useState<PreferredLanguage | null>(null);
+  const [loadingPreferredLanguage, setLoadingPreferredLanguage] = useState(true);
   const [selectedLanguage, setSelectedLanguage] = useState<PreferredLanguage | null>(null);
+  const routeLanguage = preferredLanguageOrNull(firstParam(params.language));
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!token || !user || isAuthorityRole(user.role)) {
+        setLoadingPreferredLanguage(false);
+        return undefined;
+      }
+
+      let isActive = true;
+      const fallbackLanguage = toPreferredLanguage(user.preferredLanguage);
+
+      if (routeLanguage) {
+        setSelectedLanguage(routeLanguage);
+        setLoadingPreferredLanguage(false);
+      } else {
+        setSelectedLanguage(null);
+        setLoadingPreferredLanguage(true);
+      }
+
+      void getAlertPreferences(token)
+        .then((preferences) => {
+          if (!isActive) {
+            return;
+          }
+
+          setSavedPreferredLanguage(toPreferredLanguage(preferences.preferredLanguage, fallbackLanguage));
+        })
+        .catch((error) => {
+          if (__DEV__ && !isAlertApiError(error)) {
+            console.warn('Unexpected alert preference language error:', error);
+          }
+
+          if (isActive) {
+            setSavedPreferredLanguage(fallbackLanguage);
+          }
+        })
+        .finally(() => {
+          if (isActive) {
+            setLoadingPreferredLanguage(false);
+          }
+        });
+
+      return () => {
+        isActive = false;
+      };
+    }, [routeLanguage, token, user?.preferredLanguage, user?.role]),
+  );
 
   const loadAlerts = useCallback(async (refresh = false) => {
     if (!token) {
@@ -842,6 +903,10 @@ export default function AlertsScreen() {
 
   const handleViewHistory = useCallback(() => {
     router.push('/alerts/history' as Href);
+  }, [router]);
+
+  const handleOpenPreferences = useCallback(() => {
+    router.push('/alerts/preferences' as Href);
   }, [router]);
 
   const handleCancelAlertRequest = useCallback((alert: Alert) => {
@@ -912,12 +977,13 @@ export default function AlertsScreen() {
     );
   }
 
-  const routeLanguage = preferredLanguageOrNull(firstParam(params.language));
-  const activeLanguage = selectedLanguage ?? routeLanguage ?? toPreferredLanguage(user.preferredLanguage);
+  const userPreferredLanguage = toPreferredLanguage(user.preferredLanguage);
+  const activeLanguage = selectedLanguage ?? routeLanguage ?? savedPreferredLanguage ?? userPreferredLanguage;
+  const residentLoadingAlerts = loadingAlerts || (!isAuthorityRole(user.role) && loadingPreferredLanguage && !routeLanguage);
   const dashboardProps: DashboardStateProps = {
     alerts,
     errorMessage,
-    loadingAlerts,
+    loadingAlerts: isAuthorityRole(user.role) ? loadingAlerts : residentLoadingAlerts,
     onRetry: () => void loadAlerts(),
     onViewAlert: handleViewAlert,
   };
@@ -945,6 +1011,7 @@ export default function AlertsScreen() {
           <ResidentDashboard
             {...dashboardProps}
             onLanguageChange={setSelectedLanguage}
+            onOpenPreferences={handleOpenPreferences}
             residentArea={user.location}
             selectedLanguage={activeLanguage}
           />
@@ -976,8 +1043,16 @@ const styles = StyleSheet.create({
   header: {
     gap: spacing.sm,
   },
+  residentHeaderTopRow: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: spacing.sm,
+    justifyContent: 'space-between',
+  },
   headerTextBlock: {
+    flex: 1,
     gap: spacing.xs,
+    minWidth: 0,
   },
   title: {
     color: colors.navy,
@@ -1107,6 +1182,24 @@ const styles = StyleSheet.create({
   },
   languageOptionTextSelected: {
     color: colors.white,
+  },
+  preferencesButton: {
+    alignItems: 'center',
+    backgroundColor: colors.white,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.xs,
+    minHeight: 36,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  preferencesButtonText: {
+    color: colors.deepBlue,
+    fontSize: 12,
+    fontWeight: '900',
+    lineHeight: 16,
   },
   allClearCard: {
     backgroundColor: colors.successSoft,
