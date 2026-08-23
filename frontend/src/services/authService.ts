@@ -51,6 +51,12 @@ function resolveDefaultApiBaseUrl() {
   }
 
   if (Platform.OS === 'android') {
+    const lanHost = getExpoLanHost();
+
+    if (lanHost && lanHost !== 'localhost' && lanHost !== '127.0.0.1') {
+      return `http://${lanHost}:${BACKEND_PORT}`;
+    }
+
     return `http://10.0.2.2:${BACKEND_PORT}`;
   }
 

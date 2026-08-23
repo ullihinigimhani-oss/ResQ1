@@ -23,6 +23,7 @@ type AuthContextValue = {
   completeLogin: (session: AuthSession, remember: boolean) => Promise<void>;
   updateCurrentUser: (user: AuthUser) => Promise<void>;
   signOut: () => Promise<void>;
+  updateUser: (updates: Partial<AuthUser>) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -78,6 +79,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await clearSession();
   }, []);
 
+  const updateUser = useCallback(async (updates: Partial<AuthUser>) => {
+    if (!user) {
+      return;
+    }
+
+    const updatedUser = {
+      ...user,
+      ...updates,
+    };
+
+    setUser(updatedUser);
+    await updateStoredUser(updatedUser);
+  }, [user]);
+
   const value = useMemo(
     () => ({
       user,
@@ -86,6 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       completeLogin,
       updateCurrentUser,
       signOut,
+      updateUser,
     }),
     [completeLogin, isLoading, signOut, token, updateCurrentUser, user],
   );
