@@ -1,5 +1,5 @@
 import { StatusBar } from 'expo-status-bar';
-import { Redirect, useRouter, type Href } from 'expo-router';
+import { Redirect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -9,29 +9,40 @@ import { colors, radius, shadows, spacing, typography } from '@/constants/design
 import { useAuth } from '@/context/auth-context';
 import { getActiveAlerts, isAlertApiError, updateAlert } from '@/services/alertService';
 import type { Alert, AlertRiskLevel } from '@/types/alert';
-import { formatDateTime, isAuthorityRole, normalize, preview } from '@/utils/format';
+import type { PreferredLanguage } from '@/types/auth';
+import {
+  alertDisplayThemeStyles,
+  getResidentAlertDisplayTheme,
+  type AlertDisplayTheme,
+} from '@/utils/alert-display';
+import { formatDateTime, isAuthorityRole } from '@/utils/format';
+import {
+  preferredLanguageLabels,
+  preferredLanguageOrNull,
+  preferredLanguages,
+  residentAlertUiText,
+  toPreferredLanguage,
+  translateAlertStatus,
+  translateAlertTitle,
+  translateRiskLevel,
+} from '@/utils/language';
 
 type DashboardStateProps = {
   alerts: Alert[];
   errorMessage: string | null;
   loadingAlerts: boolean;
   onRetry: () => void;
-  onViewAlert: (alertId: number) => void;
+  onViewAlert: (alertId: number, language?: PreferredLanguage, alertDisplayTheme?: AlertDisplayTheme) => void;
 };
 
 type ResidentDashboardProps = DashboardStateProps & {
+  onLanguageChange: (language: PreferredLanguage) => void;
   residentArea: string | null;
+  selectedLanguage: PreferredLanguage;
 };
 
-function normalizedArea(value: string | null | undefined) {
-  return normalize(value).replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
-}
-
-function areaMatches(residentArea: string | null | undefined, alertArea: string | null | undefined) {
-  const resident = normalizedArea(residentArea);
-  const affected = normalizedArea(alertArea);
-
-  return Boolean(resident && affected && (resident === affected || affected.includes(resident) || resident.includes(affected)));
+function firstParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
 }
 
 const severityRank: Record<AlertRiskLevel, number> = {
@@ -55,6 +66,21 @@ function compareAlertsBySeverity(left: Alert, right: Alert) {
   }
 
   return issuedTimestamp(right) - issuedTimestamp(left);
+}
+
+function formatCompactDateTime(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleString(undefined, {
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    month: 'short',
+  });
 }
 
 const authoritySeverityTheme: Record<AlertRiskLevel, {
@@ -100,6 +126,58 @@ function AlertAction({ label, onPress }: { label: string; onPress: () => void })
   );
 }
 
+function ResidentStatusBadge({
+  language,
+  status,
+}: {
+  language: PreferredLanguage;
+  status: string;
+}) {
+  return (
+    <View style={styles.residentStatusBadge}>
+      <Text style={styles.residentStatusBadgeText}>{translateAlertStatus(status, language)}</Text>
+    </View>
+  );
+}
+
+function ResidentLanguageSelector({
+  onChange,
+  selectedLanguage,
+}: {
+  onChange: (language: PreferredLanguage) => void;
+  selectedLanguage: PreferredLanguage;
+}) {
+  const copy = residentAlertUiText[selectedLanguage];
+
+  return (
+    <View style={styles.languageSelector}>
+      <Text style={styles.languageLabel}>{copy.language}</Text>
+      <View style={styles.languageOptions}>
+        {preferredLanguages.map((language) => {
+          const selected = selectedLanguage === language;
+
+          return (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ selected }}
+              key={language}
+              onPress={() => onChange(language)}
+              style={({ pressed }) => [
+                styles.languageOption,
+                selected && styles.languageOptionSelected,
+                pressed && styles.pressed,
+              ]}>
+              <Text style={[styles.languageOptionText, selected && styles.languageOptionTextSelected]}>
+                {preferredLanguageLabels[language]}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
 function SeverityBadge({ riskLevel }: { riskLevel: AlertRiskLevel }) {
   const severity = authoritySeverityTheme[riskLevel];
 
@@ -119,11 +197,13 @@ function SeverityBadge({ riskLevel }: { riskLevel: AlertRiskLevel }) {
   );
 }
 
-function ResidentLoadingState() {
+function ResidentLoadingState({ language }: { language: PreferredLanguage }) {
+  const copy = residentAlertUiText[language];
+
   return (
     <View style={styles.residentLoadingState}>
       <ActivityIndicator color={colors.red} size="large" />
-      <Text style={styles.loadingStateText}>Checking verified alerts...</Text>
+      <Text style={styles.loadingStateText}>{copy.loadingAlerts}</Text>
     </View>
   );
 }
@@ -131,92 +211,134 @@ function ResidentLoadingState() {
 function ResidentRiskAlertCard({
   alert,
   onViewAlert,
-  residentArea,
+  selectedLanguage,
 }: {
   alert: Alert;
-  onViewAlert: (alertId: number) => void;
-  residentArea: string;
+  onViewAlert: (alertId: number, language: PreferredLanguage, alertDisplayTheme: AlertDisplayTheme) => void;
+  selectedLanguage: PreferredLanguage;
 }) {
+  const displayTheme: AlertDisplayTheme = 'danger';
+  const theme = alertDisplayThemeStyles[displayTheme];
+  const copy = residentAlertUiText[selectedLanguage];
+
   return (
-    <View style={[styles.residentAlertCard, styles.highRiskCard]}>
-      <View style={styles.riskIndicatorRow}>
-        <View style={styles.indicatorLabelGroup}>
-          <Text style={[styles.riskIndicatorLabel, styles.yourAreaLabel]}>YOUR AREA</Text>
-          <Text style={[styles.riskIndicatorLabel, styles.highRiskLabel]}>HIGH RISK</Text>
+    <View
+      style={[
+        styles.residentAlertCard,
+        styles.highRiskCard,
+        { backgroundColor: theme.backgroundColor, borderColor: theme.borderColor },
+      ]}>
+      <View style={styles.residentCardTopRow}>
+        <View style={[styles.residentAlertIcon, { backgroundColor: theme.accent }]}>
+          <AppIcon fallback="!" name="exclamationmark.triangle.fill" size={26} tintColor={colors.white} />
         </View>
-        <Text style={[styles.riskIndicatorText, styles.highRiskText]}>{residentArea} is affected</Text>
+        <View style={styles.residentTitleBlock}>
+          <Text numberOfLines={1} style={[styles.alertTitle, { color: theme.titleColor }]}>
+            {translateAlertTitle(alert, selectedLanguage)}
+          </Text>
+          <Text numberOfLines={1} style={styles.residentAreaText}>{alert.affectedArea}</Text>
+        </View>
+        <ResidentStatusBadge language={selectedLanguage} status={alert.status} />
       </View>
 
-      <View style={styles.cardHeader}>
-        <Text numberOfLines={2} style={styles.alertTitle}>
-          {alert.title}
-        </Text>
-        <Text style={styles.statusText}>{alert.status}</Text>
+      <View style={styles.compactInfoRow}>
+        <View style={styles.riskMetaGroup}>
+          <Text style={[styles.areaMatchBadge, styles.yourAreaBadge]}>{copy.yourArea}</Text>
+          <Text style={[styles.riskText, { color: theme.titleColor }]}>
+            {copy.risk}: {translateRiskLevel(alert.riskLevel, selectedLanguage)}
+          </Text>
+        </View>
+        <Text style={styles.issuedText}>{copy.issued}: {formatCompactDateTime(alert.createdAt)}</Text>
       </View>
 
-      <Text style={styles.areaText}>{alert.affectedArea}</Text>
-      <Text style={styles.typeText}>Emergency Type: {alert.disasterType}</Text>
-      <Text style={styles.riskText}>Risk Level: {alert.riskLevel.toUpperCase()}</Text>
-      <Text numberOfLines={3} style={styles.messageText}>
-        {preview(alert.safetyInstructions || alert.message, 132)}
-      </Text>
-      <Text style={styles.issuedText}>Issued: {formatDateTime(alert.createdAt)}</Text>
-
-      <AlertAction label="View Alert" onPress={() => onViewAlert(alert.id)} />
+      <View style={styles.alertActionRow}>
+        <AlertAction
+          label={`${copy.viewAlert} ->`}
+          onPress={() => onViewAlert(alert.id, selectedLanguage, displayTheme)}
+        />
+      </View>
     </View>
   );
 }
 
-function ResidentWarningAlertCard({ alert, onViewAlert }: { alert: Alert; onViewAlert: (alertId: number) => void }) {
+function ResidentWarningAlertCard({
+  alert,
+  onViewAlert,
+  selectedLanguage,
+}: {
+  alert: Alert;
+  onViewAlert: (alertId: number, language: PreferredLanguage, alertDisplayTheme: AlertDisplayTheme) => void;
+  selectedLanguage: PreferredLanguage;
+}) {
+  const displayTheme: AlertDisplayTheme = 'warning';
+  const theme = alertDisplayThemeStyles[displayTheme];
+  const copy = residentAlertUiText[selectedLanguage];
+
   return (
-    <View style={[styles.residentAlertCard, styles.warningCard]}>
-      <View style={styles.riskIndicatorRow}>
-        <Text style={[styles.riskIndicatorLabel, styles.warningLabel]}>WARNING</Text>
-        <Text style={[styles.riskIndicatorText, styles.warningText]}>Other affected area</Text>
+    <View
+      style={[
+        styles.residentAlertCard,
+        styles.warningCard,
+        { backgroundColor: theme.backgroundColor, borderColor: theme.borderColor },
+      ]}>
+      <View style={styles.residentCardTopRow}>
+        <View style={[styles.residentAlertIcon, { backgroundColor: theme.accent }]}>
+          <AppIcon fallback="!" name="exclamationmark.triangle.fill" size={26} tintColor={colors.white} />
+        </View>
+        <View style={styles.residentTitleBlock}>
+          <Text numberOfLines={1} style={[styles.alertTitle, { color: theme.titleColor }]}>
+            {translateAlertTitle(alert, selectedLanguage)}
+          </Text>
+          <Text numberOfLines={1} style={styles.residentAreaText}>{alert.affectedArea}</Text>
+        </View>
+        <ResidentStatusBadge language={selectedLanguage} status={alert.status} />
       </View>
 
-      <View style={styles.cardHeader}>
-        <Text numberOfLines={2} style={styles.alertTitle}>
-          {alert.title}
-        </Text>
-        <Text style={styles.statusText}>{alert.status}</Text>
+      <View style={styles.compactInfoRow}>
+        <View style={styles.riskMetaGroup}>
+          <Text style={[styles.areaMatchBadge, styles.warningAreaBadge]}>{copy.warning}</Text>
+          <Text style={[styles.riskText, { color: theme.titleColor }]}>
+            {copy.risk}: {translateRiskLevel(alert.riskLevel, selectedLanguage)}
+          </Text>
+        </View>
+        <Text style={styles.issuedText}>{copy.issued}: {formatCompactDateTime(alert.createdAt)}</Text>
       </View>
 
-      <Text style={styles.areaText}>{alert.affectedArea}</Text>
-      <Text style={styles.typeText}>Emergency Type: {alert.disasterType}</Text>
-      <Text style={styles.riskText}>Risk Level: {alert.riskLevel.toUpperCase()}</Text>
-      <Text numberOfLines={2} style={styles.messageText}>
-        {preview(alert.message, 112)}
-      </Text>
-      <Text style={styles.issuedText}>Issued: {formatDateTime(alert.createdAt)}</Text>
-
-      <AlertAction label="View Alert" onPress={() => onViewAlert(alert.id)} />
+      <View style={styles.alertActionRow}>
+        <AlertAction
+          label={`${copy.viewAlert} ->`}
+          onPress={() => onViewAlert(alert.id, selectedLanguage, displayTheme)}
+        />
+      </View>
     </View>
   );
 }
 
 function AllClearState({
   hasOtherAreaAlerts,
+  language,
   residentArea,
 }: {
   hasOtherAreaAlerts: boolean;
+  language: PreferredLanguage;
   residentArea: string | null;
 }) {
   const areaName = residentArea?.trim();
+  const copy = residentAlertUiText[language];
 
   return (
     <View style={styles.allClearCard}>
-      <Text style={styles.allClearLabel}>ALL CLEAR</Text>
+      <Text style={styles.allClearLabel}>{copy.allClear}</Text>
       <Text style={styles.allClearTitle}>
-        {hasOtherAreaAlerts ? 'Your Area is Currently Clear' : 'All Clear'}
+        {hasOtherAreaAlerts ? copy.yourAreaClear : copy.noActiveAlerts}
       </Text>
       {hasOtherAreaAlerts && areaName ? (
-        <Text style={styles.allClearArea}>Registered area: {areaName}</Text>
+        <Text style={styles.allClearArea}>{copy.registeredArea}: {areaName}</Text>
       ) : null}
       <Text style={styles.allClearText}>
         {hasOtherAreaAlerts
-          ? 'No active emergency alert is currently affecting your registered area.'
-          : 'There are currently no active emergency alerts.'}
+          ? copy.noResidentAreaAlert
+          : copy.noActiveEmergencyAlerts}
       </Text>
     </View>
   );
@@ -389,19 +511,21 @@ function ResidentDashboard({
   alerts,
   errorMessage,
   loadingAlerts,
+  onLanguageChange,
   onRetry,
   onViewAlert,
   residentArea,
+  selectedLanguage,
 }: ResidentDashboardProps) {
   const showInitialLoading = loadingAlerts && alerts.length === 0;
   const showError = Boolean(errorMessage) && alerts.length === 0 && !showInitialLoading;
   const showRiskIndicators = !showInitialLoading && !showError;
   const residentAreaName = residentArea?.trim() || null;
-  const residentAreaLabel = residentAreaName || 'your area';
+  const copy = residentAlertUiText[selectedLanguage];
   const prioritizedAlerts = [...alerts].sort(compareAlertsBySeverity);
   const alertGroups = prioritizedAlerts.reduce(
     (groups, alert) => {
-      if (areaMatches(residentArea, alert.affectedArea)) {
+      if (getResidentAlertDisplayTheme(alert, residentArea) === 'danger') {
         groups.residentAreaAlerts.push(alert);
       } else {
         groups.otherAreaAlerts.push(alert);
@@ -419,24 +543,27 @@ function ResidentDashboard({
   return (
     <>
       <View style={styles.header}>
-        <Text style={styles.title}>Emergency Alerts</Text>
-        <Text style={styles.subtitle}>Verified emergency warnings for your area</Text>
+        <View style={styles.headerTextBlock}>
+          <Text style={styles.title}>{copy.emergencyAlerts}</Text>
+          <Text style={styles.subtitle}>{copy.subtitle}</Text>
+        </View>
+        <ResidentLanguageSelector selectedLanguage={selectedLanguage} onChange={onLanguageChange} />
       </View>
 
       {errorMessage && alerts.length > 0 ? (
         <View style={styles.inlineError}>
-          <Text style={styles.inlineErrorText}>{errorMessage}</Text>
-          <AlertAction label="Retry" onPress={onRetry} />
+          <Text style={styles.inlineErrorText}>{copy.unableLoadAlerts}</Text>
+          <AlertAction label={copy.retry} onPress={onRetry} />
         </View>
       ) : null}
 
-      {showInitialLoading ? <ResidentLoadingState /> : null}
+      {showInitialLoading ? <ResidentLoadingState language={selectedLanguage} /> : null}
 
       {showError ? (
         <EmptyState
-          body="Check your connection and try again."
-          title="Unable to load emergency alerts."
-          action={<PrimaryButton title="Retry" onPress={onRetry} />}
+          body={copy.checkConnection}
+          title={copy.unableLoadAlerts}
+          action={<PrimaryButton title={copy.retry} onPress={onRetry} />}
         />
       ) : null}
 
@@ -447,20 +574,29 @@ function ResidentDashboard({
               alert={alert}
               key={alert.id}
               onViewAlert={onViewAlert}
-              residentArea={residentAreaLabel}
+              selectedLanguage={selectedLanguage}
             />
           ))}
         </View>
       ) : null}
 
       {showRiskIndicators && residentAreaAlerts.length === 0 ? (
-        <AllClearState hasOtherAreaAlerts={otherAreaAlerts.length > 0} residentArea={residentAreaName} />
+        <AllClearState
+          hasOtherAreaAlerts={otherAreaAlerts.length > 0}
+          language={selectedLanguage}
+          residentArea={residentAreaName}
+        />
       ) : null}
 
       {showRiskIndicators && otherAreaAlerts.length > 0 ? (
         <View style={styles.alertList}>
           {otherAreaAlerts.map((alert) => (
-            <ResidentWarningAlertCard alert={alert} key={alert.id} onViewAlert={onViewAlert} />
+            <ResidentWarningAlertCard
+              alert={alert}
+              key={alert.id}
+              onViewAlert={onViewAlert}
+              selectedLanguage={selectedLanguage}
+            />
           ))}
         </View>
       ) : null}
@@ -627,6 +763,7 @@ function CancelAlertDialog({
 
 export default function AlertsScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
   const { isLoading, token, user } = useAuth();
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [cancelTarget, setCancelTarget] = useState<Alert | null>(null);
@@ -635,6 +772,7 @@ export default function AlertsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
+  const [selectedLanguage, setSelectedLanguage] = useState<PreferredLanguage | null>(null);
 
   const loadAlerts = useCallback(async (refresh = false) => {
     if (!token) {
@@ -670,10 +808,18 @@ export default function AlertsScreen() {
     router.push('/alerts/create' as Href);
   }, [router]);
 
-  const handleViewAlert = useCallback((alertId: number) => {
+  const handleViewAlert = useCallback((
+    alertId: number,
+    language?: PreferredLanguage,
+    alertDisplayTheme?: AlertDisplayTheme,
+  ) => {
     router.push({
       pathname: '/alerts/[id]',
-      params: { id: String(alertId) },
+      params: {
+        id: String(alertId),
+        ...(language ? { language } : {}),
+        ...(alertDisplayTheme ? { alertDisplayTheme } : {}),
+      },
     } as unknown as Href);
   }, [router]);
 
@@ -751,6 +897,8 @@ export default function AlertsScreen() {
     );
   }
 
+  const routeLanguage = preferredLanguageOrNull(firstParam(params.language));
+  const activeLanguage = selectedLanguage ?? routeLanguage ?? toPreferredLanguage(user.preferredLanguage);
   const dashboardProps: DashboardStateProps = {
     alerts,
     errorMessage,
@@ -778,7 +926,12 @@ export default function AlertsScreen() {
             onEditAlert={handleEditAlert}
           />
         ) : (
-          <ResidentDashboard {...dashboardProps} residentArea={user.location} />
+          <ResidentDashboard
+            {...dashboardProps}
+            onLanguageChange={setSelectedLanguage}
+            residentArea={user.location}
+            selectedLanguage={activeLanguage}
+          />
         )}
       </ScrollView>
       <BottomNavigation />
@@ -799,12 +952,15 @@ const styles = StyleSheet.create({
   },
   content: {
     flexGrow: 1,
-    gap: spacing.lg,
+    gap: spacing.md,
     paddingBottom: 96,
-    paddingHorizontal: spacing.xl,
+    paddingHorizontal: spacing.lg,
     paddingTop: spacing.lg,
   },
   header: {
+    gap: spacing.sm,
+  },
+  headerTextBlock: {
     gap: spacing.xs,
   },
   title: {
@@ -816,7 +972,7 @@ const styles = StyleSheet.create({
     ...typography.body,
   },
   alertList: {
-    gap: spacing.md,
+    gap: spacing.sm,
   },
   compactAlertList: {
     gap: spacing.sm,
@@ -827,7 +983,8 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     borderWidth: 1,
     gap: spacing.sm,
-    padding: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
     ...shadows.card,
   },
   residentLoadingState: {
@@ -852,58 +1009,88 @@ const styles = StyleSheet.create({
   highRiskCard: {
     backgroundColor: colors.redSoft,
     borderColor: colors.red,
-    borderWidth: 2,
   },
   warningCard: {
     backgroundColor: colors.warningSoft,
     borderColor: colors.amber,
   },
-  riskIndicatorRow: {
-    alignItems: 'flex-start',
+  residentCardTopRow: {
+    alignItems: 'center',
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: spacing.sm,
     justifyContent: 'space-between',
   },
-  indicatorLabelGroup: {
+  residentAlertIcon: {
+    alignItems: 'center',
+    borderRadius: radius.md,
+    height: 42,
+    justifyContent: 'center',
+    width: 42,
+  },
+  residentTitleBlock: {
+    flex: 1,
+    gap: 2,
+    minWidth: 0,
+  },
+  residentStatusBadge: {
+    backgroundColor: colors.lightBlue,
+    borderColor: colors.sky,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  residentStatusBadgeText: {
+    color: colors.deepBlue,
+    fontSize: 11,
+    fontWeight: '900',
+    lineHeight: 15,
+  },
+  languageSelector: {
+    backgroundColor: colors.white,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    gap: spacing.xs,
+    padding: spacing.sm,
+  },
+  languageLabel: {
+    color: colors.muted,
+    fontSize: 11,
+    fontWeight: '900',
+    lineHeight: 15,
+    textTransform: 'uppercase',
+  },
+  languageOptions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.xs,
   },
-  riskIndicatorLabel: {
+  languageOption: {
+    alignItems: 'center',
+    backgroundColor: colors.lightBlue,
+    borderColor: colors.sky,
     borderRadius: radius.sm,
+    borderWidth: 1,
+    flexGrow: 1,
+    justifyContent: 'center',
+    minHeight: 34,
+    minWidth: '30%',
+    paddingHorizontal: spacing.sm,
+  },
+  languageOptionSelected: {
+    backgroundColor: colors.navy,
+    borderColor: colors.navy,
+  },
+  languageOptionText: {
+    color: colors.deepBlue,
     fontSize: 12,
     fontWeight: '900',
     lineHeight: 16,
-    overflow: 'hidden',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    textTransform: 'uppercase',
+    textAlign: 'center',
   },
-  yourAreaLabel: {
-    backgroundColor: colors.navy,
+  languageOptionTextSelected: {
     color: colors.white,
-  },
-  highRiskLabel: {
-    backgroundColor: colors.red,
-    color: colors.white,
-  },
-  warningLabel: {
-    backgroundColor: colors.amber,
-    color: colors.white,
-  },
-  riskIndicatorText: {
-    flexBasis: '100%',
-    fontSize: 12,
-    fontWeight: '900',
-    lineHeight: 18,
-    textAlign: 'left',
-  },
-  highRiskText: {
-    color: colors.red,
-  },
-  warningText: {
-    color: '#7A4B00',
   },
   allClearCard: {
     backgroundColor: colors.successSoft,
@@ -1183,10 +1370,9 @@ const styles = StyleSheet.create({
   },
   alertTitle: {
     color: colors.navy,
-    flex: 1,
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '900',
-    lineHeight: 24,
+    lineHeight: 22,
   },
   authorityAlertTitle: {
     color: colors.navy,
@@ -1197,9 +1383,9 @@ const styles = StyleSheet.create({
   },
   statusText: {
     color: colors.deepBlue,
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '900',
-    lineHeight: 16,
+    lineHeight: 15,
     textAlign: 'right',
     textTransform: 'uppercase',
   },
@@ -1209,23 +1395,47 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     lineHeight: 18,
   },
-  typeText: {
+  residentAreaText: {
     color: colors.text,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '800',
-    lineHeight: 18,
+    lineHeight: 16,
+  },
+  compactInfoRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+    justifyContent: 'space-between',
+  },
+  riskMetaGroup: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+  },
+  areaMatchBadge: {
+    borderRadius: radius.xs,
+    fontSize: 9,
+    fontWeight: '900',
+    lineHeight: 12,
+    overflow: 'hidden',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+  },
+  yourAreaBadge: {
+    backgroundColor: colors.red,
+    color: colors.white,
+  },
+  warningAreaBadge: {
+    backgroundColor: colors.amber,
+    color: colors.white,
   },
   riskText: {
     color: colors.text,
-    fontSize: 13,
-    fontWeight: '800',
-    lineHeight: 18,
-  },
-  messageText: {
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: '700',
-    lineHeight: 21,
+    fontSize: 12,
+    fontWeight: '900',
+    lineHeight: 17,
   },
   issuedText: {
     color: colors.muted,
@@ -1235,17 +1445,21 @@ const styles = StyleSheet.create({
   },
   alertAction: {
     alignItems: 'center',
-    backgroundColor: colors.navy,
-    borderRadius: radius.md,
+    alignSelf: 'flex-start',
     justifyContent: 'center',
-    minHeight: 44,
-    paddingHorizontal: spacing.md,
+    minHeight: 28,
+    paddingRight: spacing.sm,
+  },
+  alertActionRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
   },
   alertActionText: {
-    color: colors.white,
-    fontSize: 12,
+    color: colors.navy,
+    fontSize: 13,
     fontWeight: '900',
-    lineHeight: 16,
+    lineHeight: 18,
   },
   sectionHeader: {
     marginTop: spacing.xs,
