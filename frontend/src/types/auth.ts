@@ -24,9 +24,18 @@ export interface LoginResidentPayload {
   password: string;
 }
 
+export interface UpdateProfilePayload {
+  fullName: string;
+  email: string;
+  location: string;
+  preferredLanguage: PreferredLanguage;
+}
+
 export interface AuthSession {
   user: AuthUser;
   token: string;
 }
 
-export type FieldErrors = Partial<Record<keyof RegisterResidentPayload | keyof LoginResidentPayload, string>>;
+export type FieldErrors = Partial<
+  Record<keyof RegisterResidentPayload | keyof LoginResidentPayload | keyof UpdateProfilePayload, string>
+>;
