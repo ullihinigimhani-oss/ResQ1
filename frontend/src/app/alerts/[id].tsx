@@ -32,6 +32,7 @@ import {
   preferredLanguageOrNull,
   residentAlertUiText,
   toPreferredLanguage,
+  translateAlertAudience,
   translateAlertMessage,
   translateAlertStatus,
   translateAlertTitle,
@@ -388,6 +389,28 @@ export default function AlertDetailsScreen() {
 
               <View style={styles.detailInfoList}>
                 <DetailInfoRow fallback="A" label={detailCopy.area} name="house.fill" value={alert.affectedArea} />
+                {alert.alertAudience !== 'GENERAL_PUBLIC' ? (
+                  <DetailInfoRow
+                    fallback="G"
+                    label={detailCopy.alertAudience}
+                    name="bell.fill"
+                    value={translateAlertAudience(alert.alertAudience, displayLanguage)}
+                  />
+                ) : null}
+                {alert.alertAudience === 'SCHOOL_EMERGENCY' && alert.schools.length > 0 ? (
+                  <DetailInfoRow
+                    fallback="S"
+                    label={`${detailCopy.selectedSchools} (${alert.schools.length})`}
+                    name="house.fill">
+                    <View style={styles.schoolList}>
+                      {alert.schools.map((school) => (
+                        <Text key={school.id} style={styles.schoolListText}>
+                          - {school.schoolName}
+                        </Text>
+                      ))}
+                    </View>
+                  </DetailInfoRow>
+                ) : null}
                 <DetailInfoRow
                   fallback="T"
                   label={detailCopy.emergencyType}
@@ -661,6 +684,15 @@ const styles = StyleSheet.create({
     color: BrandColors.text,
     fontSize: 14,
     fontWeight: '700',
+    lineHeight: 20,
+  },
+  schoolList: {
+    gap: 4,
+  },
+  schoolListText: {
+    color: BrandColors.text,
+    fontSize: 14,
+    fontWeight: '800',
     lineHeight: 20,
   },
   sectionCopy: {

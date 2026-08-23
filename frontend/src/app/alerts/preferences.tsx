@@ -162,6 +162,7 @@ export default function AlertPreferencesScreen() {
   const [savingPreferences, setSavingPreferences] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const userRole = user?.role;
 
   const navigateBack = useCallback(() => {
     const language = savedLanguage ?? toPreferredLanguage(user?.preferredLanguage);
@@ -194,10 +195,10 @@ export default function AlertPreferencesScreen() {
   }, [token]);
 
   useEffect(() => {
-    if (token && user && !isAuthorityRole(user.role)) {
+    if (token && userRole && !isAuthorityRole(userRole)) {
       void loadPreferences();
     }
-  }, [loadPreferences, token, user?.role]);
+  }, [loadPreferences, token, userRole]);
 
   const togglePreference = useCallback((key: PreferenceToggleKey) => {
     setPreferences((current) => {

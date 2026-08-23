@@ -236,16 +236,6 @@ export async function saveSession(session: AuthSession) {
   await setStoredValue(AUTH_USER_KEY, JSON.stringify(session.user));
 }
 
-export async function updateStoredUser(user: AuthUser) {
-  const token = await getStoredValue(AUTH_TOKEN_KEY);
-
-  if (!token) {
-    return;
-  }
-
-  await setStoredValue(AUTH_USER_KEY, JSON.stringify(user));
-}
-
 export async function loadSession(): Promise<AuthSession | null> {
   const [token, userJson] = await Promise.all([
     getStoredValue(AUTH_TOKEN_KEY),
