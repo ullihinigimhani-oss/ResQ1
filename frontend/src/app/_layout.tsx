@@ -3,9 +3,24 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 
 import { BrandColors } from '@/constants/brand';
-import { AuthProvider } from '@/context/auth-context';
+import { AuthProvider, useAuth } from '@/context/auth-context';
+import {
+  configureForegroundNotificationHandler,
+  registerResidentDeviceForPushNotifications,
+} from '@/services/pushNotificationService';
 
 SplashScreen.preventAutoHideAsync().catch(() => null);
+configureForegroundNotificationHandler();
+
+function ResidentPushNotificationRegistration() {
+  const { token, user } = useAuth();
+
+  useEffect(() => {
+    void registerResidentDeviceForPushNotifications(user, token);
+  }, [token, user]);
+
+  return null;
+}
 
 export default function RootLayout() {
   useEffect(() => {
@@ -14,6 +29,7 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
+      <ResidentPushNotificationRegistration />
       <Stack
         screenOptions={{
           headerShown: false,

@@ -38,6 +38,12 @@ function getExpoLanHost() {
 
 function resolveDefaultApiBaseUrl() {
   if (Platform.OS === 'android') {
+    const lanHost = getExpoLanHost();
+
+    if (lanHost && lanHost !== 'localhost' && lanHost !== '127.0.0.1') {
+      return `http://${lanHost}:${BACKEND_PORT}`;
+    }
+
     return `http://10.0.2.2:${BACKEND_PORT}`;
   }
 
@@ -209,6 +215,16 @@ export async function loginResident(payload: LoginResidentPayload): Promise<Auth
 export async function saveSession(session: AuthSession) {
   await setStoredValue(AUTH_TOKEN_KEY, session.token);
   await setStoredValue(AUTH_USER_KEY, JSON.stringify(session.user));
+}
+
+export async function updateStoredUser(user: AuthUser) {
+  const token = await getStoredValue(AUTH_TOKEN_KEY);
+
+  if (!token) {
+    return;
+  }
+
+  await setStoredValue(AUTH_USER_KEY, JSON.stringify(user));
 }
 
 export async function loadSession(): Promise<AuthSession | null> {

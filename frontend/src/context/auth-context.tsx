@@ -12,6 +12,7 @@ import {
   clearSession,
   loadSession,
   saveSession,
+  updateStoredUser,
 } from '@/services/authService';
 import type { AuthSession, AuthUser } from '@/types/auth';
 
@@ -21,6 +22,7 @@ type AuthContextValue = {
   isLoading: boolean;
   completeLogin: (session: AuthSession, remember: boolean) => Promise<void>;
   signOut: () => Promise<void>;
+  updateUser: (updates: Partial<AuthUser>) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -71,6 +73,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await clearSession();
   }, []);
 
+  const updateUser = useCallback(async (updates: Partial<AuthUser>) => {
+    if (!user) {
+      return;
+    }
+
+    const updatedUser = {
+      ...user,
+      ...updates,
+    };
+
+    setUser(updatedUser);
+    await updateStoredUser(updatedUser);
+  }, [user]);
+
   const value = useMemo(
     () => ({
       user,
@@ -78,8 +94,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isLoading,
       completeLogin,
       signOut,
+      updateUser,
     }),
-    [completeLogin, isLoading, signOut, token, user],
+    [completeLogin, isLoading, signOut, token, updateUser, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

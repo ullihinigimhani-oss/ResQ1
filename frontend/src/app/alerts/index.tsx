@@ -37,6 +37,7 @@ type DashboardStateProps = {
 
 type ResidentDashboardProps = DashboardStateProps & {
   onLanguageChange: (language: PreferredLanguage) => void;
+  onOpenPreferences: () => void;
   residentArea: string | null;
   selectedLanguage: PreferredLanguage;
 };
@@ -512,6 +513,7 @@ function ResidentDashboard({
   errorMessage,
   loadingAlerts,
   onLanguageChange,
+  onOpenPreferences,
   onRetry,
   onViewAlert,
   residentArea,
@@ -543,9 +545,18 @@ function ResidentDashboard({
   return (
     <>
       <View style={styles.header}>
-        <View style={styles.headerTextBlock}>
-          <Text style={styles.title}>{copy.emergencyAlerts}</Text>
-          <Text style={styles.subtitle}>{copy.subtitle}</Text>
+        <View style={styles.residentHeaderTopRow}>
+          <View style={styles.headerTextBlock}>
+            <Text style={styles.title}>{copy.emergencyAlerts}</Text>
+            <Text style={styles.subtitle}>{copy.subtitle}</Text>
+          </View>
+          <Pressable
+            accessibilityRole="button"
+            onPress={onOpenPreferences}
+            style={({ pressed }) => [styles.preferencesButton, pressed && styles.pressed]}>
+            <AppIcon fallback="P" name="slider.horizontal.3" size={16} tintColor={colors.deepBlue} />
+            <Text style={styles.preferencesButtonText}>Preferences</Text>
+          </Pressable>
         </View>
         <ResidentLanguageSelector selectedLanguage={selectedLanguage} onChange={onLanguageChange} />
       </View>
@@ -844,6 +855,10 @@ export default function AlertsScreen() {
     router.push('/alerts/history' as Href);
   }, [router]);
 
+  const handleOpenPreferences = useCallback(() => {
+    router.push('/alerts/preferences' as Href);
+  }, [router]);
+
   const handleCancelAlertRequest = useCallback((alert: Alert) => {
     if (alert.status !== 'Active') {
       return;
@@ -945,6 +960,7 @@ export default function AlertsScreen() {
           <ResidentDashboard
             {...dashboardProps}
             onLanguageChange={setSelectedLanguage}
+            onOpenPreferences={handleOpenPreferences}
             residentArea={user.location}
             selectedLanguage={activeLanguage}
           />
@@ -976,8 +992,16 @@ const styles = StyleSheet.create({
   header: {
     gap: spacing.sm,
   },
+  residentHeaderTopRow: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: spacing.sm,
+    justifyContent: 'space-between',
+  },
   headerTextBlock: {
+    flex: 1,
     gap: spacing.xs,
+    minWidth: 0,
   },
   title: {
     color: colors.navy,
@@ -1107,6 +1131,24 @@ const styles = StyleSheet.create({
   },
   languageOptionTextSelected: {
     color: colors.white,
+  },
+  preferencesButton: {
+    alignItems: 'center',
+    backgroundColor: colors.white,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.xs,
+    minHeight: 36,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  preferencesButtonText: {
+    color: colors.deepBlue,
+    fontSize: 12,
+    fontWeight: '900',
+    lineHeight: 16,
   },
   allClearCard: {
     backgroundColor: colors.successSoft,
