@@ -107,10 +107,6 @@ function validateCreateIncidentInput(input: CreateIncidentInput): ValidatedIncid
     fieldErrors.title = 'Incident title must be 150 characters or fewer.';
   }
 
-  if (!description) {
-    fieldErrors.description = 'Please describe the flood incident.';
-  }
-
   if (!location) {
     fieldErrors.location = 'Please provide the affected location.';
   } else if (location.length > 150) {

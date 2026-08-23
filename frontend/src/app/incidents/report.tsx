@@ -94,10 +94,6 @@ function validateForm(form: IncidentForm) {
     errors.title = 'Please enter an incident title.';
   }
 
-  if (!description) {
-    errors.description = 'Please describe the flood incident.';
-  }
-
   if (!location) {
     errors.location = 'Please provide the affected location.';
   }
