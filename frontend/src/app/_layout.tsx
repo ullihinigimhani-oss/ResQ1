@@ -10,7 +10,7 @@ import {
 } from '@/services/pushNotificationService';
 
 SplashScreen.preventAutoHideAsync().catch(() => null);
-configureForegroundNotificationHandler();
+void configureForegroundNotificationHandler();
 
 function ResidentPushNotificationRegistration() {
   const { token, user } = useAuth();

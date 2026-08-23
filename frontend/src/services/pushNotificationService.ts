@@ -1,6 +1,5 @@
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
-import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
 import { registerAlertPushToken } from '@/services/alertService';
@@ -17,7 +16,23 @@ const ALERT_CHANNELS = {
 
 let lastRegisteredTokenKey: string | null = null;
 
-export function configureForegroundNotificationHandler() {
+type NotificationsModule = typeof import('expo-notifications');
+
+async function loadNotificationsModule() {
+  if (Platform.OS === 'web') {
+    return null;
+  }
+
+  return import('expo-notifications');
+}
+
+export async function configureForegroundNotificationHandler() {
+  const Notifications = await loadNotificationsModule();
+
+  if (!Notifications) {
+    return;
+  }
+
   Notifications.setNotificationHandler({
     handleNotification: async (notification) => {
       const data = notification.request.content.data as {
@@ -37,7 +52,7 @@ export function configureForegroundNotificationHandler() {
   });
 }
 
-async function configureAndroidNotificationChannels() {
+async function configureAndroidNotificationChannels(Notifications: NotificationsModule) {
   if (Platform.OS !== 'android') {
     return;
   }
@@ -89,7 +104,7 @@ function getExpoProjectId() {
   return Constants.easConfig?.projectId ?? extra?.eas?.projectId;
 }
 
-async function getNotificationPermissionStatus() {
+async function getNotificationPermissionStatus(Notifications: NotificationsModule) {
   const currentPermission = await Notifications.getPermissionsAsync();
 
   if (currentPermission.status === 'granted') {
@@ -116,9 +131,15 @@ export async function registerResidentDeviceForPushNotifications(
   }
 
   try {
-    await configureAndroidNotificationChannels();
+    const Notifications = await loadNotificationsModule();
 
-    const permissionStatus = await getNotificationPermissionStatus();
+    if (!Notifications) {
+      return;
+    }
+
+    await configureAndroidNotificationChannels(Notifications);
+
+    const permissionStatus = await getNotificationPermissionStatus(Notifications);
 
     if (permissionStatus !== 'granted') {
       return;
