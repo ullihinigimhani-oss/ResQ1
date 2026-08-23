@@ -10,6 +10,8 @@ import {
   type AlertAuditRow,
   type AlertDisasterType,
   type AlertRiskLevel,
+  type AlertRiskHistoryPoint,
+  type AlertRiskHistoryRow,
   type AlertRow,
   type AlertStatus,
   type CreateAlertInput,
@@ -140,6 +142,16 @@ function toAuditEvent(row: AlertAuditRow): AlertAuditEvent {
     newRiskLevel: row.new_risk_level,
     changedBy: row.changed_by,
     createdAt: formatTimestamp(row.created_at),
+  };
+}
+
+function toRiskHistoryPoint(row: AlertRiskHistoryRow): AlertRiskHistoryPoint {
+  return {
+    id: row.id,
+    alertId: row.alert_id,
+    action: row.action,
+    riskLevel: row.risk_level,
+    timestamp: formatTimestamp(row.created_at),
   };
 }
 
@@ -418,6 +430,41 @@ export async function getAlertHistory() {
   `;
 
   return (rows as AlertAuditRow[]).map(toAuditEvent);
+}
+
+export async function getAlertRiskHistory(alertId: string) {
+  const numericId = numericAlertId(alertId);
+
+  const alertRows = await sql`
+    SELECT id
+    FROM alerts
+    WHERE id = ${numericId}
+    LIMIT 1
+  `;
+
+  if (!alertRows[0]) {
+    throw new AlertServiceError(404, 'Emergency alert not found.');
+  }
+
+  await ensureAlertAuditTable();
+
+  const rows = await sql`
+    SELECT
+      id,
+      alert_id,
+      action,
+      new_risk_level AS risk_level,
+      created_at
+    FROM alert_audit_events
+    WHERE alert_id = ${numericId}
+      AND new_risk_level IS NOT NULL
+      AND TRIM(new_risk_level) <> ''
+    ORDER BY
+      created_at ASC,
+      id ASC
+  `;
+
+  return (rows as AlertRiskHistoryRow[]).map(toRiskHistoryPoint);
 }
 
 export async function getAlertById(alertId: string) {

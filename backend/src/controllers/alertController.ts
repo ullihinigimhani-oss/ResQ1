@@ -6,6 +6,7 @@ import {
   getActiveAlerts,
   getAlertHistory,
   getAlertById,
+  getAlertRiskHistory,
   updateAlert,
 } from '../services/alertService.js';
 
@@ -98,6 +99,26 @@ export async function getEmergencyAlert(req: Request, res: Response) {
     return res.status(200).json({
       success: true,
       alert,
+    });
+  } catch (error) {
+    return sendAlertError(error, res);
+  }
+}
+
+export async function getEmergencyAlertRiskHistory(req: Request, res: Response) {
+  try {
+    requireAuthenticatedUser(req);
+    const alertId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+
+    if (!alertId) {
+      throw new AlertServiceError(400, 'Invalid alert id.');
+    }
+
+    const riskHistory = await getAlertRiskHistory(alertId);
+
+    return res.status(200).json({
+      success: true,
+      riskHistory,
     });
   } catch (error) {
     return sendAlertError(error, res);

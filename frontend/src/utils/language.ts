@@ -67,6 +67,16 @@ type AlertDetailUiKey =
   | 'unableLoadAlert'
   | 'viewSafeEvacuationRoute';
 
+type FloodRiskTrendUiKey =
+  | 'currentRisk'
+  | 'floodRiskTrend'
+  | 'noTrendData'
+  | 'noTrendDataBody'
+  | 'riskChangeHistory'
+  | 'time'
+  | 'trendUnavailable'
+  | 'yAxisRiskLevel';
+
 export const residentAlertUiText: Record<PreferredLanguage, Record<ResidentAlertUiKey, string>> = {
   English: {
     allClear: 'All Clear',
@@ -127,6 +137,39 @@ export const residentAlertUiText: Record<PreferredLanguage, Record<ResidentAlert
     warning: 'எச்சரிக்கை',
     yourArea: 'உங்கள் பகுதி',
     yourAreaClear: 'உங்கள் பகுதி தற்போது பாதுகாப்பாக உள்ளது',
+  },
+};
+
+export const floodRiskTrendUiText: Record<PreferredLanguage, Record<FloodRiskTrendUiKey, string>> = {
+  English: {
+    currentRisk: 'Current Risk',
+    floodRiskTrend: 'Flood Risk Trend',
+    noTrendData: 'No risk trend data yet',
+    noTrendDataBody: 'This alert has only a current risk value. Historical risk readings are required for a line chart.',
+    riskChangeHistory: 'Alert risk changes over time',
+    time: 'Time',
+    trendUnavailable: 'Risk trend data is unavailable.',
+    yAxisRiskLevel: 'Risk Level',
+  },
+  Sinhala: {
+    currentRisk: 'වත්මන් අවදානම',
+    floodRiskTrend: 'ගංවතුර අවදානම් ප්‍රවණතාව',
+    noTrendData: 'අවදානම් ප්‍රවණතා දත්ත තවම නැත',
+    noTrendDataBody: 'මෙම අනතුරු ඇඟවීමට ඇත්තේ වත්මන් අවදානම් අගයක් පමණි. රේඛා ප්‍රස්තාරයක් සඳහා ඓතිහාසික අවදානම් කියවීම් අවශ්‍ය වේ.',
+    riskChangeHistory: 'කාලය අනුව අනතුරු ඇඟවීමේ අවදානම් වෙනස්වීම්',
+    time: 'කාලය',
+    trendUnavailable: 'අවදානම් ප්‍රවණතා දත්ත ලබා ගත නොහැක.',
+    yAxisRiskLevel: 'අවදානම් මට්ටම',
+  },
+  Tamil: {
+    currentRisk: 'தற்போதைய அபாயம்',
+    floodRiskTrend: 'வெள்ள அபாயப் போக்கு',
+    noTrendData: 'அபாயப் போக்கு தரவு இன்னும் இல்லை',
+    noTrendDataBody: 'இந்த எச்சரிக்கையில் தற்போதைய அபாய மதிப்பு மட்டுமே உள்ளது. கோடு வரைபடத்திற்கு வரலாற்று அபாய வாசிப்புகள் தேவை.',
+    riskChangeHistory: 'காலப்போக்கில் எச்சரிக்கை அபாய மாற்றங்கள்',
+    time: 'நேரம்',
+    trendUnavailable: 'அபாயப் போக்கு தரவை ஏற்ற முடியவில்லை.',
+    yAxisRiskLevel: 'அபாய நிலை',
   },
 };
 

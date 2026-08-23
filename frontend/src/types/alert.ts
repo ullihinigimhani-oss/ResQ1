@@ -39,6 +39,14 @@ export interface AlertAuditEvent {
   createdAt: string;
 }
 
+export interface AlertRiskHistoryPoint {
+  id: number;
+  alertId: number;
+  action: AlertAuditAction | string;
+  riskLevel: AlertRiskLevel | string;
+  timestamp: string;
+}
+
 export interface CreateAlertPayload {
   title: string;
   disasterType: AlertDisasterType;

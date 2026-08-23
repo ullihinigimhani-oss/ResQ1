@@ -3,6 +3,7 @@ import type {
   Alert,
   AlertAuditEvent,
   AlertFieldErrors,
+  AlertRiskHistoryPoint,
   CreateAlertPayload,
   UpdateAlertPayload,
 } from '@/types/alert';
@@ -26,6 +27,11 @@ type ApiAlertListResponse = ApiErrorBody & {
 type ApiAlertHistoryResponse = ApiErrorBody & {
   success: boolean;
   history?: AlertAuditEvent[];
+};
+
+type ApiAlertRiskHistoryResponse = ApiErrorBody & {
+  success: boolean;
+  riskHistory?: AlertRiskHistoryPoint[];
 };
 
 export class AlertApiError extends Error {
@@ -123,6 +129,12 @@ export async function getAlertHistory(token: string) {
   const response = await alertRequest<ApiAlertHistoryResponse>('/api/alerts/history', token);
 
   return response.history ?? [];
+}
+
+export async function getAlertRiskHistory(id: string, token: string) {
+  const response = await alertRequest<ApiAlertRiskHistoryResponse>(`/api/alerts/${id}/risk-history`, token);
+
+  return response.riskHistory ?? [];
 }
 
 export async function getAlertById(id: string, token: string) {
