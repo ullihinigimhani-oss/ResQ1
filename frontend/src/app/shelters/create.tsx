@@ -1,4 +1,5 @@
 import { StatusBar } from 'expo-status-bar';
+import * as Location from 'expo-location';
 import { Redirect, useRouter, type Href } from 'expo-router';
 import { useState } from 'react';
 import {
@@ -14,6 +15,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 
 import {
   AuthButton,
@@ -116,11 +118,62 @@ export default function CreateShelterScreen() {
   const [errors, setErrors] = useState<ShelterFieldErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [selectedLocation, setSelectedLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [mapRegion, setMapRegion] = useState({
+    latitude: 6.9271,
+    longitude: 79.8612,
+    latitudeDelta: 0.0922,
+    longitudeDelta: 0.0421,
+  });
 
   const handleFieldChange = (field: keyof ShelterForm, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
     if (field in errors && errors[field as keyof ShelterFieldErrors]) {
       setErrors((prev) => ({ ...prev, [field]: undefined }));
+    }
+  };
+
+  const handleMapPress = (event: any) => {
+    const { latitude, longitude } = event.nativeEvent.coordinate;
+    setSelectedLocation({ latitude, longitude });
+    setForm((prev) => ({
+      ...prev,
+      latitude: latitude.toFixed(6),
+      longitude: longitude.toFixed(6),
+    }));
+    setMapRegion({
+      latitude,
+      longitude,
+      latitudeDelta: mapRegion.latitudeDelta,
+      longitudeDelta: mapRegion.longitudeDelta,
+    });
+  };
+
+  const handleGetCurrentLocation = async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        NativeAlert.alert('Permission Denied', 'Location permission is required to get your current position.');
+        return;
+      }
+
+      const location = await Location.getCurrentPositionAsync({});
+      const { latitude, longitude } = location.coords;
+      
+      setSelectedLocation({ latitude, longitude });
+      setForm((prev) => ({
+        ...prev,
+        latitude: latitude.toFixed(6),
+        longitude: longitude.toFixed(6),
+      }));
+      setMapRegion({
+        latitude,
+        longitude,
+        latitudeDelta: 0.0922,
+        longitudeDelta: 0.0421,
+      });
+    } catch (error) {
+      NativeAlert.alert('Error', 'Failed to get current location. Please try again.');
     }
   };
 
@@ -262,6 +315,32 @@ export default function CreateShelterScreen() {
               onChangeText={(value) => handleFieldChange('address', value)}
             />
 
+            <View style={styles.field}>
+              <Text style={styles.label}>Shelter Location</Text>
+              <Text style={styles.helperText}>Tap on the map to set the shelter location or use your current location</Text>
+              
+              <View style={styles.mapContainer}>
+                <MapView
+                  provider={PROVIDER_GOOGLE}
+                  style={styles.map}
+                  region={mapRegion}
+                  onPress={handleMapPress}>
+                  {selectedLocation && (
+                    <Marker
+                      coordinate={selectedLocation}
+                      title="Shelter Location"
+                      description="Selected shelter position"
+                      pinColor={BrandColors.success}
+                    />
+                  )}
+                </MapView>
+                
+                <Pressable style={styles.currentLocationButton} onPress={handleGetCurrentLocation}>
+                  <Text style={styles.currentLocationButtonText}>Use Current Location</Text>
+                </Pressable>
+              </View>
+            </View>
+
             <View style={styles.row}>
               <View style={styles.halfField}>
                 <AuthTextField
@@ -269,7 +348,8 @@ export default function CreateShelterScreen() {
                   placeholder="0.00"
                   keyboardType="decimal-pad"
                   value={form.latitude}
-                  onChangeText={(value) => handleFieldChange('latitude', value)}
+                  editable={false}
+                  style={styles.readOnlyField}
                 />
               </View>
               <View style={styles.halfField}>
@@ -278,7 +358,8 @@ export default function CreateShelterScreen() {
                   placeholder="0.00"
                   keyboardType="decimal-pad"
                   value={form.longitude}
-                  onChangeText={(value) => handleFieldChange('longitude', value)}
+                  editable={false}
+                  style={styles.readOnlyField}
                 />
               </View>
             </View>
@@ -437,6 +518,40 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '900',
     lineHeight: 17,
+  },
+  helperText: {
+    color: BrandColors.muted,
+    fontSize: 12,
+    fontWeight: '600',
+    lineHeight: 16,
+    marginBottom: 8,
+  },
+  mapContainer: {
+    borderRadius: 8,
+    overflow: 'hidden',
+    position: 'relative',
+    height: 250,
+  },
+  map: {
+    flex: 1,
+  },
+  currentLocationButton: {
+    position: 'absolute',
+    bottom: 12,
+    right: 12,
+    backgroundColor: BrandColors.navy,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  currentLocationButtonText: {
+    color: BrandColors.white,
+    fontSize: 12,
+    fontWeight: '900',
+    lineHeight: 16,
+  },
+  readOnlyField: {
+    backgroundColor: BrandColors.background,
   },
   statusRow: {
     flexDirection: 'row',
