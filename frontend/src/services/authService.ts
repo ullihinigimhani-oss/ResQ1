@@ -34,10 +34,22 @@ function getExpoLanHost() {
     return undefined;
   }
 
-  return hostUri.replace(/^https?:\/\//, '').replace(/^exp:\/\//, '').split(':')[0];
+  const host = hostUri.replace(/^https?:\/\//, '').replace(/^exp:\/\//, '').split(':')[0];
+
+  if (host && host !== 'localhost' && host !== '127.0.0.1') {
+    return host;
+  }
+
+  return undefined;
 }
 
 function resolveDefaultApiBaseUrl() {
+  const lanHost = getExpoLanHost();
+
+  if (lanHost) {
+    return `http://${lanHost}:${BACKEND_PORT}`;
+  }
+
   if (Platform.OS === 'android') {
     return `http://10.0.2.2:${BACKEND_PORT}`;
   }
