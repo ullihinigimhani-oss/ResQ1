@@ -10,6 +10,7 @@ import type {
   LoginResidentInput,
   PreferredLanguage,
   RegisterResidentInput,
+  ResetPasswordInput,
   SafeUser,
   UpdateProfileInput,
   UserRow,
@@ -36,6 +37,11 @@ type PasswordResetTokenRow = {
   expires_at: Date | string;
   attempt_count: number;
   used: boolean;
+};
+
+type VerifiedPasswordResetTokenRow = PasswordResetTokenRow & {
+  reset_token_hash: string | null;
+  reset_token_expires_at: Date | string | null;
 };
 
 export class AuthServiceError extends Error {
@@ -186,6 +192,54 @@ function validateVerifyResetOtpInput(input: VerifyResetOtpInput) {
   }
 
   return { email, otp };
+}
+
+function validateNewPassword(value: unknown) {
+  const password = passwordText(value);
+
+  if (!password) {
+    return 'Password is required.';
+  }
+
+  if (password.length < 8) {
+    return 'Password must be at least 8 characters.';
+  }
+
+  if (!/[A-Z]/.test(password)) {
+    return 'Password must include at least one uppercase letter.';
+  }
+
+  if (!/[a-z]/.test(password)) {
+    return 'Password must include at least one lowercase letter.';
+  }
+
+  if (!/\d/.test(password)) {
+    return 'Password must include at least one number.';
+  }
+
+  return null;
+}
+
+function validateResetPasswordInput(input: ResetPasswordInput) {
+  const resetToken = trimmedText(input.resetToken);
+  const newPassword = passwordText(input.newPassword);
+  const fieldErrors: Record<string, string> = {};
+
+  if (!resetToken) {
+    fieldErrors.resetToken = 'Password reset session is required.';
+  }
+
+  const passwordError = validateNewPassword(newPassword);
+
+  if (passwordError) {
+    fieldErrors.newPassword = passwordError;
+  }
+
+  if (Object.keys(fieldErrors).length > 0) {
+    throw new AuthServiceError(400, 'Please correct the highlighted fields.', fieldErrors);
+  }
+
+  return { resetToken, newPassword };
 }
 
 function validateProfileInput(input: UpdateProfileInput) {
@@ -518,6 +572,67 @@ export async function verifyResetOtp(input: VerifyResetOtpInput) {
     message: 'Verification successful.',
     resetToken,
   };
+}
+
+export async function resetPassword(input: ResetPasswordInput) {
+  const { resetToken, newPassword } = validateResetPasswordInput(input);
+  const resetTokenHash = hashResetToken(resetToken);
+
+  const tokenRows = await sql`
+    SELECT
+      id,
+      user_id,
+      otp_hash,
+      expires_at,
+      attempt_count,
+      used,
+      reset_token_hash,
+      reset_token_expires_at
+    FROM password_reset_tokens
+    WHERE reset_token_hash = ${resetTokenHash}
+      AND used = FALSE
+    ORDER BY verified_at DESC
+    LIMIT 1
+  `;
+  const resetRecord = tokenRows[0] as VerifiedPasswordResetTokenRow | undefined;
+
+  if (!resetRecord?.reset_token_expires_at) {
+    throw new AuthServiceError(400, 'Invalid or expired password reset session.', {
+      resetToken: 'Invalid or expired password reset session.',
+    });
+  }
+
+  if (isPast(resetRecord.reset_token_expires_at)) {
+    await sql`
+      UPDATE password_reset_tokens
+      SET used = TRUE
+      WHERE id = ${resetRecord.id}
+    `;
+
+    throw new AuthServiceError(400, 'Invalid or expired password reset session.', {
+      resetToken: 'Invalid or expired password reset session.',
+    });
+  }
+
+  const passwordHash = await bcrypt.hash(newPassword, PASSWORD_SALT_ROUNDS);
+
+  await sql`
+    UPDATE users
+    SET
+      password_hash = ${passwordHash},
+      updated_at = CURRENT_TIMESTAMP
+    WHERE id = ${resetRecord.user_id}
+  `;
+
+  await sql`
+    UPDATE password_reset_tokens
+    SET
+      used = TRUE,
+      reset_at = CURRENT_TIMESTAMP
+    WHERE id = ${resetRecord.id}
+  `;
+
+  return { message: 'Password reset successfully.' };
 }
 
 export async function updateResidentProfile(

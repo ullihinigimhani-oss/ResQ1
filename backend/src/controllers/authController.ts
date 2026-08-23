@@ -5,6 +5,7 @@ import {
   loginResident,
   registerResident,
   requestPasswordReset,
+  resetPassword,
   updateResidentProfile,
   verifyResetOtp,
 } from '../services/authService.js';
@@ -76,6 +77,19 @@ export async function verifyPasswordResetOtp(req: Request, res: Response) {
       success: true,
       message: result.message,
       resetToken: result.resetToken,
+    });
+  } catch (error) {
+    return sendErrorResponse(error, res);
+  }
+}
+
+export async function resetAccountPassword(req: Request, res: Response) {
+  try {
+    const result = await resetPassword(req.body);
+
+    return res.status(200).json({
+      success: true,
+      message: result.message,
     });
   } catch (error) {
     return sendErrorResponse(error, res);
