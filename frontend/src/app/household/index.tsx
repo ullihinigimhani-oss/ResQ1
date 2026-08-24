@@ -243,11 +243,6 @@ export default function HouseholdScreen() {
         )}
       </SectionCard>
 
-      <PrimaryButton
-        title="+ Add New Family Member"
-        onPress={() => router.push('/household/add-member' as Href)}
-      />
-
       {/* Delete Confirmation Modal */}
       <Modal
         animationType="fade"
