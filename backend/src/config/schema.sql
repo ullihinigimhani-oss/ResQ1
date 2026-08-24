@@ -124,6 +124,29 @@ CREATE INDEX IF NOT EXISTS idx_alert_audit_events_alert_id
 CREATE INDEX IF NOT EXISTS idx_alert_audit_events_created_at
     ON alert_audit_events(created_at DESC);
 
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    otp_hash TEXT NOT NULL,
+    reset_token_hash TEXT,
+    expires_at TIMESTAMP NOT NULL,
+    reset_token_expires_at TIMESTAMP,
+    attempt_count INTEGER NOT NULL DEFAULT 0,
+    used BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    verified_at TIMESTAMP,
+    reset_at TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_user_id
+    ON password_reset_tokens(user_id);
+
+CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_active_lookup
+    ON password_reset_tokens(user_id, used, expires_at);
+
+CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_reset_token
+    ON password_reset_tokens(reset_token_hash)
+    WHERE reset_token_hash IS NOT NULL;
 CREATE TABLE IF NOT EXISTS community_notifications (
     id SERIAL PRIMARY KEY,
     title VARCHAR(150) NOT NULL,
@@ -184,3 +207,41 @@ CREATE TABLE IF NOT EXISTS incident_photos (
 
 CREATE INDEX IF NOT EXISTS idx_incident_photos_incident_id
     ON incident_photos(incident_id);
+
+CREATE TABLE IF NOT EXISTS family_members (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name VARCHAR(150) NOT NULL,
+    age INTEGER NOT NULL CHECK (age >= 0),
+    gender VARCHAR(50) NOT NULL,
+    phone_number VARCHAR(50),
+    nic_id_number VARCHAR(50),
+    blood_group VARCHAR(10) NOT NULL,
+    disability_details TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_family_members_user_id
+    ON family_members(user_id);
+
+CREATE TABLE IF NOT EXISTS family_member_vulnerabilities (
+    id SERIAL PRIMARY KEY,
+    family_member_id INTEGER NOT NULL REFERENCES family_members(id) ON DELETE CASCADE,
+    vulnerability_type VARCHAR(50) NOT NULL,
+    UNIQUE(family_member_id, vulnerability_type)
+);
+
+CREATE INDEX IF NOT EXISTS idx_family_member_vulnerabilities_member_id
+    ON family_member_vulnerabilities(family_member_id);
+
+CREATE TABLE IF NOT EXISTS family_member_medical_conditions (
+    id SERIAL PRIMARY KEY,
+    family_member_id INTEGER NOT NULL REFERENCES family_members(id) ON DELETE CASCADE,
+    medical_condition VARCHAR(50) NOT NULL,
+    UNIQUE(family_member_id, medical_condition)
+);
+
+CREATE INDEX IF NOT EXISTS idx_family_member_medical_conditions_member_id
+    ON family_member_medical_conditions(family_member_id);
+

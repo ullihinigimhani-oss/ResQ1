@@ -6,9 +6,13 @@ import type {
   AuthSession,
   AuthUser,
   FieldErrors,
+  ForgotPasswordPayload,
   LoginResidentPayload,
   RegisterResidentPayload,
+  ResetPasswordPayload,
   UpdateProfilePayload,
+  VerifyResetOtpPayload,
+  VerifyResetOtpResponse,
 } from '@/types/auth';
 
 type ApiAuthResponse = {
@@ -282,4 +286,61 @@ export async function updateStoredUser(user: AuthUser) {
 
 export async function clearSession() {
   await Promise.all([deleteStoredValue(AUTH_TOKEN_KEY), deleteStoredValue(AUTH_USER_KEY)]);
+}
+
+async function postJson<T = { success: boolean; message: string }>(
+  path: string,
+  body: unknown,
+): Promise<T> {
+  let response: Response;
+  const url = `${API_BASE_URL}${path}`;
+
+  if (__DEV__) {
+    console.log(`Auth POST request: ${url}`);
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (__DEV__) {
+      console.warn(`Auth POST request failed: ${url}`, error);
+    }
+    throw new AuthApiError(0, 'Unable to connect to the server. Please check your network connection.');
+  } finally {
+    clearTimeout(timeoutId);
+  }
+
+  const data = await parseJson(response);
+
+  if (!response.ok) {
+    throw new AuthApiError(
+      response.status,
+      data?.message || 'The request could not be completed.',
+      data?.errors,
+    );
+  }
+
+  return (data || { success: true, message: 'Success' }) as unknown as T;
+}
+
+export async function requestForgotPassword(payload: ForgotPasswordPayload) {
+  return postJson<{ success: boolean; message: string }>('/api/auth/forgot-password', payload);
+}
+
+export async function verifyResetOtp(payload: VerifyResetOtpPayload) {
+  return postJson<VerifyResetOtpResponse>('/api/auth/verify-reset-otp', payload);
+}
+
+export async function resetAccountPassword(payload: ResetPasswordPayload) {
+  return postJson<{ success: boolean; message: string }>('/api/auth/reset-password', payload);
 }
