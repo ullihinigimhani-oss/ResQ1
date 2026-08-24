@@ -195,6 +195,30 @@ function ResidentLanguageSelector({
   );
 }
 
+function AreaRelevanceBadge({
+  displayTheme,
+  label,
+}: {
+  displayTheme: AlertDisplayTheme;
+  label: string;
+}) {
+  const theme = alertDisplayThemeStyles[displayTheme];
+
+  return (
+    <View
+      style={[
+        styles.areaMatchBadge,
+        {
+          backgroundColor: theme.pillBackground,
+          borderColor: theme.pillBorder,
+        },
+      ]}>
+      <AppIcon fallback="F" name="flag.fill" size={14} tintColor={theme.pillText} />
+      <Text style={[styles.areaMatchBadgeText, { color: theme.pillText }]}>{label}</Text>
+    </View>
+  );
+}
+
 function ResidentAudienceTabs({
   onChange,
   selectedLanguage,
@@ -310,6 +334,18 @@ function authorityAudienceLabel(audience: AlertAudience) {
   return audience === 'SCHOOL_EMERGENCY' ? 'SCHOOL' : audience === 'GENERAL_PUBLIC' ? 'GENERAL PUBLIC' : 'ALL';
 }
 
+function authorityFlagColor(riskLevel: AlertRiskLevel) {
+  if (riskLevel === 'Critical') {
+    return colors.red;
+  }
+
+  if (riskLevel === 'High' || riskLevel === 'Moderate') {
+    return colors.amber;
+  }
+
+  return colors.success;
+}
+
 function ResidentLoadingState({ language }: { language: PreferredLanguage }) {
   const copy = residentAlertUiText[language];
 
@@ -359,13 +395,14 @@ function ResidentRiskAlertCard({
         <ResidentStatusBadge language={selectedLanguage} status={alert.status} />
       </View>
 
+      <View style={styles.relevanceRiskRow}>
+        <AreaRelevanceBadge displayTheme={displayTheme} label={copy.yourArea} />
+        <Text style={[styles.riskText, { color: theme.titleColor }]}>
+          {copy.risk}: {translateRiskLevel(alert.riskLevel, selectedLanguage)}
+        </Text>
+      </View>
+
       <View style={styles.compactInfoRow}>
-        <View style={styles.riskMetaGroup}>
-          <Text style={[styles.areaMatchBadge, styles.yourAreaBadge]}>{copy.yourArea}</Text>
-          <Text style={[styles.riskText, { color: theme.titleColor }]}>
-            {copy.risk}: {translateRiskLevel(alert.riskLevel, selectedLanguage)}
-          </Text>
-        </View>
         <Text style={styles.issuedText}>{copy.issued}: {formatCompactDateTime(alert.createdAt)}</Text>
       </View>
 
@@ -417,13 +454,14 @@ function ResidentWarningAlertCard({
         <ResidentStatusBadge language={selectedLanguage} status={alert.status} />
       </View>
 
+      <View style={styles.relevanceRiskRow}>
+        <AreaRelevanceBadge displayTheme={displayTheme} label={copy.warning} />
+        <Text style={[styles.riskText, { color: theme.titleColor }]}>
+          {copy.risk}: {translateRiskLevel(alert.riskLevel, selectedLanguage)}
+        </Text>
+      </View>
+
       <View style={styles.compactInfoRow}>
-        <View style={styles.riskMetaGroup}>
-          <Text style={[styles.areaMatchBadge, styles.warningAreaBadge]}>{copy.warning}</Text>
-          <Text style={[styles.riskText, { color: theme.titleColor }]}>
-            {copy.risk}: {translateRiskLevel(alert.riskLevel, selectedLanguage)}
-          </Text>
-        </View>
         <Text style={styles.issuedText}>{copy.issued}: {formatCompactDateTime(alert.createdAt)}</Text>
       </View>
 
@@ -524,6 +562,7 @@ function AuthorityAlertCard({
   onViewAlert: (alertId: number) => void;
 }) {
   const severity = authoritySeverityTheme[alert.riskLevel];
+  const flagColor = authorityFlagColor(alert.riskLevel);
   const schoolSummary = schoolSummaryText(alert, 'English');
   const metaText = [
     authorityAudienceLabel(alert.alertAudience),
@@ -547,9 +586,9 @@ function AuthorityAlertCard({
           <View
             style={[
               styles.authorityAlertIcon,
-              { backgroundColor: severity.badgeBackground, borderColor: severity.badgeBorder },
+              { backgroundColor: severity.badgeBackground, borderColor: flagColor },
             ]}>
-            <AppIcon fallback="!" name="exclamationmark.triangle.fill" size={14} tintColor={severity.accent} />
+            <AppIcon fallback="F" name="flag.fill" size={18} tintColor={flagColor} />
           </View>
           <Text numberOfLines={1} style={styles.authorityAlertTitle}>
             {alert.title}
@@ -1578,9 +1617,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: radius.sm,
     borderWidth: 1,
-    height: 24,
+    height: 28,
     justifyContent: 'center',
-    width: 24,
+    width: 28,
   },
   authorityStatusBadge: {
     backgroundColor: colors.successSoft,
@@ -1600,7 +1639,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '900',
     lineHeight: 14,
-    marginLeft: 32,
+    marginLeft: 36,
   },
   authorityMessagePreview: {
     color: colors.text,
@@ -1666,7 +1705,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '800',
     lineHeight: 14,
-    marginLeft: 32,
+    marginLeft: 36,
   },
   residentLocationBlock: {
     gap: 1,
@@ -1690,28 +1729,26 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     justifyContent: 'space-between',
   },
-  riskMetaGroup: {
+  relevanceRiskRow: {
     alignItems: 'center',
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.xs,
   },
   areaMatchBadge: {
+    alignItems: 'center',
     borderRadius: radius.xs,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.xs,
+    minHeight: 26,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+  },
+  areaMatchBadgeText: {
     fontSize: 9,
     fontWeight: '900',
     lineHeight: 12,
-    overflow: 'hidden',
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-  },
-  yourAreaBadge: {
-    backgroundColor: colors.red,
-    color: colors.white,
-  },
-  warningAreaBadge: {
-    backgroundColor: colors.amber,
-    color: colors.white,
   },
   riskText: {
     color: colors.text,

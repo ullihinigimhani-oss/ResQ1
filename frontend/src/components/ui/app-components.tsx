@@ -79,6 +79,10 @@ export function AppIcon({
     return <ShelterIcon size={size} tintColor={tintColor} />;
   }
 
+  if (iconName.includes('flag')) {
+    return <FlagIcon size={size} tintColor={tintColor} />;
+  }
+
   if (iconName.includes('house')) {
     return <HomeIcon size={size} tintColor={tintColor} />;
   }
@@ -172,6 +176,15 @@ function ShelterIcon({ size, tintColor }: { size: number; tintColor: string }) {
       <View style={[styles.homeBase, { borderColor: tintColor }]} />
       <View style={[styles.shelterPole, { backgroundColor: tintColor }]} />
       <View style={[styles.shelterFlag, { borderColor: tintColor }]} />
+    </IconCanvas>
+  );
+}
+
+function FlagIcon({ size, tintColor }: { size: number; tintColor: string }) {
+  return (
+    <IconCanvas size={size}>
+      <View style={[styles.flagPole, { backgroundColor: tintColor }]} />
+      <View style={[styles.flagBanner, { backgroundColor: tintColor }]} />
     </IconCanvas>
   );
 }
@@ -900,6 +913,23 @@ const styles = StyleSheet.create({
     right: '6%',
     top: '18%',
     width: '26%',
+  },
+  flagPole: {
+    borderRadius: 1,
+    height: '78%',
+    left: '20%',
+    position: 'absolute',
+    top: '12%',
+    width: 2,
+  },
+  flagBanner: {
+    borderBottomRightRadius: 3,
+    borderTopRightRadius: 3,
+    height: '46%',
+    left: '28%',
+    position: 'absolute',
+    top: '14%',
+    width: '58%',
   },
   warningDiamond: {
     borderRadius: 3,

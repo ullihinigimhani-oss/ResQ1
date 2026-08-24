@@ -35,6 +35,7 @@ import {
   alertDisplayThemeOrNull,
   alertDisplayThemeStyles,
   getResidentAlertDisplayTheme,
+  type AlertDisplayTheme,
 } from '@/utils/alert-display';
 import { formatDateTime as formatApiDateTime, isAuthorityRole } from '@/utils/format';
 import {
@@ -112,6 +113,28 @@ function alertToneForRisk(riskLevel: Alert['riskLevel'] | undefined) {
     pillText: BrandColors.deepBlue,
     titleColor: BrandColors.deepBlue,
   };
+}
+
+function DetailAreaRelevanceBadge({
+  label,
+  theme,
+}: {
+  label: string;
+  theme: (typeof alertDisplayThemeStyles)[AlertDisplayTheme];
+}) {
+  return (
+    <View
+      style={[
+        styles.detailAreaBadge,
+        {
+          backgroundColor: theme.pillBackground,
+          borderColor: theme.pillBorder,
+        },
+      ]}>
+      <AppIcon fallback="F" name="flag.fill" size={12} tintColor={theme.pillText} />
+      <Text style={[styles.detailAreaBadgeText, { color: theme.pillText }]}>{label}</Text>
+    </View>
+  );
 }
 
 function DetailPill({
@@ -578,9 +601,10 @@ export default function AlertDetailsScreen() {
                 </View>
                 {showResidentLanguage ? (
                   <View style={styles.detailHeroMetaRow}>
-                    <Text style={[styles.detailDisplayBadge, { backgroundColor: alertTone.accent }]}>
-                      {residentAlertDisplayTheme === 'danger' ? residentListCopy.yourArea : residentListCopy.warning}
-                    </Text>
+                    <DetailAreaRelevanceBadge
+                      label={residentAlertDisplayTheme === 'danger' ? residentListCopy.yourArea : residentListCopy.warning}
+                      theme={alertDisplayThemeStyles[residentAlertDisplayTheme]}
+                    />
                     <Text style={[styles.detailHeroRiskText, { color: alertTone.titleColor }]}>
                       {residentListCopy.risk}: {translateRiskLevel(alert.riskLevel, displayLanguage)}
                     </Text>
@@ -825,15 +849,19 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     lineHeight: 28,
   },
-  detailDisplayBadge: {
+  detailAreaBadge: {
+    alignItems: 'center',
     borderRadius: 4,
-    color: BrandColors.white,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+  },
+  detailAreaBadgeText: {
     fontSize: 11,
     fontWeight: '900',
     lineHeight: 15,
-    overflow: 'hidden',
-    paddingHorizontal: 8,
-    paddingVertical: 5,
   },
   detailHeroRiskText: {
     fontSize: 13,
