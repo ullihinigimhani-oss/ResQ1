@@ -1,5 +1,5 @@
 import { Redirect, useRouter, type Href } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import {
@@ -82,67 +82,153 @@ function availableSpaces(shelter: Shelter) {
   return null;
 }
 
+type DashboardSummary = {
+  alerts: Alert[];
+  communityNotifications: CommunityNotification[];
+  incidents: Incident[];
+  shelters: Shelter[];
+};
+
+type CachedDashboardSummary = DashboardSummary & {
+  cacheKey: string;
+  loadedAt: number;
+};
+
+let cachedDashboardSummary: CachedDashboardSummary | null = null;
+
+function emptyDashboardSummary(): DashboardSummary {
+  return {
+    alerts: [],
+    communityNotifications: [],
+    incidents: [],
+    shelters: [],
+  };
+}
+
+function dashboardSummaryCacheKey(token: string | null, userId: number | string | null | undefined) {
+  return token && userId != null ? `${userId}:${token}` : null;
+}
+
+function getCachedDashboardSummary(cacheKey: string | null) {
+  return cacheKey && cachedDashboardSummary?.cacheKey === cacheKey ? cachedDashboardSummary : null;
+}
+
 export default function DashboardScreen() {
   const router = useRouter();
   const { isLoading, token, user } = useAuth();
-  const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [communityNotifications, setCommunityNotifications] = useState<CommunityNotification[]>([]);
-  const [incidents, setIncidents] = useState<Incident[]>([]);
-  const [shelters, setShelters] = useState<Shelter[]>([]);
-  const [loadingSummary, setLoadingSummary] = useState(true);
+  const dashboardCacheKey = dashboardSummaryCacheKey(token, user?.id);
+  const cachedSummary = getCachedDashboardSummary(dashboardCacheKey);
+  const initialSummary = cachedSummary ?? emptyDashboardSummary();
+  const [alerts, setAlerts] = useState<Alert[]>(() => initialSummary.alerts);
+  const [communityNotifications, setCommunityNotifications] = useState<CommunityNotification[]>(
+    () => initialSummary.communityNotifications,
+  );
+  const [incidents, setIncidents] = useState<Incident[]>(() => initialSummary.incidents);
+  const [shelters, setShelters] = useState<Shelter[]>(() => initialSummary.shelters);
+  const [hasLoadedSummary, setHasLoadedSummary] = useState(() => Boolean(cachedSummary));
+  const [loadingSummary, setLoadingSummary] = useState(() => !cachedSummary);
   const [summaryWarning, setSummaryWarning] = useState<string | null>(null);
+  const activeCacheKeyRef = useRef(dashboardCacheKey);
+  const hasLoadedSummaryRef = useRef(Boolean(cachedSummary));
+  const summaryRef = useRef<DashboardSummary>(initialSummary);
+  const userRole = user?.role;
 
-  const loadSummary = useCallback(async () => {
-    if (!token || !user) {
+  const applySummary = useCallback((summary: DashboardSummary) => {
+    summaryRef.current = summary;
+    setAlerts(summary.alerts);
+    setCommunityNotifications(summary.communityNotifications);
+    setIncidents(summary.incidents);
+    setShelters(summary.shelters);
+  }, []);
+
+  useEffect(() => {
+    if (activeCacheKeyRef.current === dashboardCacheKey) {
       return;
     }
 
-    setLoadingSummary(true);
+    activeCacheKeyRef.current = dashboardCacheKey;
+
+    const nextCachedSummary = getCachedDashboardSummary(dashboardCacheKey);
+    const nextSummary = nextCachedSummary ?? emptyDashboardSummary();
+    const hasCachedSummary = Boolean(nextCachedSummary);
+
+    applySummary(nextSummary);
+    hasLoadedSummaryRef.current = hasCachedSummary;
+    setHasLoadedSummary(hasCachedSummary);
+    setLoadingSummary(Boolean(dashboardCacheKey) && !hasCachedSummary);
+    setSummaryWarning(null);
+  }, [applySummary, dashboardCacheKey]);
+
+  const loadSummary = useCallback(async () => {
+    if (!token || !userRole || !dashboardCacheKey) {
+      return;
+    }
+
+    const hadExistingSummary = hasLoadedSummaryRef.current;
+
+    if (!hadExistingSummary) {
+      setLoadingSummary(true);
+    }
+
     setSummaryWarning(null);
 
     const [alertResult, incidentResult, shelterResult, communityNotificationResult] = await Promise.allSettled([
       getActiveAlerts(token),
       getMyIncidents(token),
       getShelters(token),
-      isAuthorityRole(user.role) ? Promise.resolve([]) : getCommunityNotifications(token),
+      isAuthorityRole(userRole) ? Promise.resolve([]) : getCommunityNotifications(token),
     ]);
-
-    if (alertResult.status === 'fulfilled') {
-      setAlerts(alertResult.value);
-    }
-
-    if (incidentResult.status === 'fulfilled') {
-      setIncidents(incidentResult.value);
-    }
-
-    if (shelterResult.status === 'fulfilled') {
-      setShelters(shelterResult.value);
-    }
-
-    if (communityNotificationResult.status === 'fulfilled') {
-      setCommunityNotifications(communityNotificationResult.value);
-    }
 
     const failed = [alertResult, incidentResult, shelterResult, communityNotificationResult]
       .some((result) => result.status === 'rejected');
+    const fulfilled = [alertResult, incidentResult, shelterResult, communityNotificationResult]
+      .some((result) => result.status === 'fulfilled');
+    const previousSummary = summaryRef.current;
+    const nextSummary: DashboardSummary = {
+      alerts: alertResult.status === 'fulfilled' ? alertResult.value : previousSummary.alerts,
+      communityNotifications: communityNotificationResult.status === 'fulfilled'
+        ? communityNotificationResult.value
+        : previousSummary.communityNotifications,
+      incidents: incidentResult.status === 'fulfilled' ? incidentResult.value : previousSummary.incidents,
+      shelters: shelterResult.status === 'fulfilled' ? shelterResult.value : previousSummary.shelters,
+    };
+
+    if (fulfilled || hadExistingSummary) {
+      applySummary(nextSummary);
+      cachedDashboardSummary = {
+        ...nextSummary,
+        cacheKey: dashboardCacheKey,
+        loadedAt: Date.now(),
+      };
+      hasLoadedSummaryRef.current = true;
+      setHasLoadedSummary(true);
+    }
 
     if (failed) {
       setSummaryWarning('Some live dashboard data could not be refreshed.');
     }
 
     setLoadingSummary(false);
-  }, [token, user]);
+  }, [applySummary, dashboardCacheKey, token, userRole]);
 
   useEffect(() => {
-    if (token) {
+    if (token && userRole) {
       void loadSummary();
     }
-  }, [loadSummary, token]);
+  }, [loadSummary, token, userRole]);
 
   const currentAlert = useMemo(() => topAlert(alerts), [alerts]);
   const latestIncident = incidents[0] ?? null;
   const nearestShelter = shelters[0] ?? null;
   const unreadCommunityNotifications = communityNotifications.filter((notification) => !notification.isRead).length;
+  const showInitialSummaryLoading = loadingSummary && !hasLoadedSummary;
+  const handleRiskAction = useCallback(() => {
+    if (showInitialSummaryLoading) {
+      return;
+    }
+
+    router.push(currentAlert ? '/alerts/risk-level' as Href : '/alerts' as Href);
+  }, [currentAlert, router, showInitialSummaryLoading]);
 
   if (!isLoading && !user) {
     return <Redirect href={'/auth/welcome' as Href} />;
@@ -173,25 +259,30 @@ export default function DashboardScreen() {
         <View style={styles.heroHeader}>
           <View style={styles.heroTitleBlock}>
             <Text style={styles.heroEyebrow}>Current Risk Level</Text>
-            <Text style={styles.heroTitle}>{currentAlert ? currentAlert.riskLevel : 'No Active Alerts'}</Text>
+            <Text style={styles.heroTitle}>
+              {showInitialSummaryLoading ? 'Checking Local Risk' : currentAlert ? currentAlert.riskLevel : 'No Active Alerts'}
+            </Text>
             <Text style={styles.heroText}>
-              {currentAlert
+              {showInitialSummaryLoading
+                ? 'Loading verified alerts and response data for your area.'
+                : currentAlert
                 ? `${currentAlert.title} for ${currentAlert.affectedArea}.`
                 : 'No active emergency alerts are verified for your area right now.'}
             </Text>
           </View>
-          {loadingSummary ? <ActivityIndicator color={colors.red} /> : null}
+          {showInitialSummaryLoading ? <ActivityIndicator color={colors.red} /> : null}
         </View>
         <View style={styles.heroMetaRow}>
           <StatusBadge
-            label={currentAlert ? alertCountLabel : 'All clear'}
-            tone={currentAlert ? riskTone(currentAlert.riskLevel) : 'green'}
+            label={showInitialSummaryLoading ? 'Checking alerts' : currentAlert ? alertCountLabel : 'All clear'}
+            tone={showInitialSummaryLoading ? 'blue' : currentAlert ? riskTone(currentAlert.riskLevel) : 'green'}
           />
           <StatusBadge label={userArea(user)} tone="blue" />
         </View>
         <PrimaryButton
-          title={currentAlert ? 'View Risk Details' : 'Open Alert Center'}
-          onPress={() => router.push(currentAlert ? '/alerts/risk-level' as Href : '/alerts' as Href)}
+          disabled={showInitialSummaryLoading}
+          title={showInitialSummaryLoading ? 'Checking Alerts...' : currentAlert ? 'View Risk Details' : 'Open Alert Center'}
+          onPress={handleRiskAction}
           tone={currentAlert && riskTone(currentAlert.riskLevel) === 'red' ? 'red' : 'navy'}
         />
       </SectionCard>

@@ -740,7 +740,11 @@ export function BottomNavigation() {
             accessibilityRole="button"
             accessibilityState={{ selected: active }}
             key={tab.label}
-            onPress={() => router.replace(tab.route)}
+            onPress={() => {
+              if (!active) {
+                router.replace(tab.route);
+              }
+            }}
             style={({ pressed }) => [styles.tabButton, pressed && styles.pressed]}>
             <AppIcon
               fallback={tab.fallback}
