@@ -15,7 +15,6 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 
 import {
   AuthButton,
@@ -23,6 +22,7 @@ import {
   BackButton,
   StatusBanner,
 } from '@/components/common/auth-components';
+import MapView, { Marker, PROVIDER_GOOGLE } from '@/components/shelters/native-map';
 import { BrandColors } from '@/constants/brand';
 import { useAuth } from '@/context/auth-context';
 import { createShelter, isShelterApiError } from '@/services/shelterService';

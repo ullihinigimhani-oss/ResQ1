@@ -78,6 +78,12 @@ CREATE TABLE IF NOT EXISTS alert_acknowledgements (
     UNIQUE(user_id, alert_id)
 );
 
+CREATE INDEX IF NOT EXISTS idx_alert_acknowledgements_alert_id
+    ON alert_acknowledgements(alert_id);
+
+CREATE INDEX IF NOT EXISTS idx_alert_acknowledgements_user_id
+    ON alert_acknowledgements(user_id);
+
 CREATE TABLE IF NOT EXISTS alert_subscriptions (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,

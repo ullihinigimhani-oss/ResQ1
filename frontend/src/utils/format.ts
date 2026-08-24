@@ -31,7 +31,10 @@ export function formatDateTime(value: string | null | undefined) {
     return 'Not available';
   }
 
-  const date = new Date(value);
+  const timestamp = value.trim();
+  const hasTimezone = /(?:z|[+-]\d{2}(?::?\d{2})?)$/i.test(timestamp);
+  const normalizedTimestamp = timestamp.replace(' ', 'T');
+  const date = new Date(hasTimezone ? normalizedTimestamp : `${normalizedTimestamp}Z`);
 
   if (Number.isNaN(date.getTime())) {
     return value;

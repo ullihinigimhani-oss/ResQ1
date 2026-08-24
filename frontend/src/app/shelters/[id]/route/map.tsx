@@ -11,20 +11,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-let MapView: any = null;
-let Marker: any = null;
-let Polyline: any = null;
-let PROVIDER_DEFAULT: any = null;
-
-if (Platform.OS !== 'web') {
-  const Maps = require('react-native-maps');
-  MapView = Maps.default;
-  Marker = Maps.Marker;
-  Polyline = Maps.Polyline;
-  PROVIDER_DEFAULT = Maps.PROVIDER_DEFAULT;
-}
-
 import { BackButton } from '@/components/common/auth-components';
+import MapView, { Marker, Polyline, PROVIDER_DEFAULT } from '@/components/shelters/native-map';
 import { BrandColors } from '@/constants/brand';
 import { useAuth } from '@/context/auth-context';
 import type { Incident } from '@/types/incident';
