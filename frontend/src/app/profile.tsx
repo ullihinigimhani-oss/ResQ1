@@ -98,7 +98,6 @@ export default function ProfileScreen() {
         />
         <ActionRow
           label="Household Information"
-          status="Demo"
           onPress={() => router.push('/household' as Href)}
         />
         <ActionRow label="Settings" onPress={() => router.push('/settings' as Href)} />
