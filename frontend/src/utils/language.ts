@@ -1,4 +1,8 @@
 import type { Alert, AlertAudience, AlertRiskLevel } from '@/types/alert';
+import type {
+  CommunityNotificationCategory,
+  CommunityNotificationDisplayStatus,
+} from '@/types/communityNotification';
 import type { PreferredLanguage } from '@/types/auth';
 
 export const preferredLanguages = ['English', 'Sinhala', 'Tamil'] as const satisfies readonly PreferredLanguage[];
@@ -108,6 +112,46 @@ type FloodRiskTrendUiKey =
   | 'time'
   | 'trendUnavailable'
   | 'yAxisRiskLevel';
+
+type CommunityNotificationUiKey =
+  | 'active'
+  | 'area'
+  | 'back'
+  | 'cancelled'
+  | 'category'
+  | 'communityEvent'
+  | 'communityNotifications'
+  | 'createCommunityNotification'
+  | 'emptyBody'
+  | 'errorBody'
+  | 'errorTitle'
+  | 'expiresAt'
+  | 'inactive'
+  | 'language'
+  | 'loading'
+  | 'manageCommunityNotifications'
+  | 'message'
+  | 'new'
+  | 'noCommunityNotifications'
+  | 'notificationDetails'
+  | 'notificationTitle'
+  | 'publicInformation'
+  | 'publishNotification'
+  | 'publishSuccess'
+  | 'published'
+  | 'readStatusError'
+  | 'retry'
+  | 'roadAccess'
+  | 'safetyNotice'
+  | 'shareLocalInformation'
+  | 'status'
+  | 'subtitle'
+  | 'targetArea'
+  | 'unablePublish'
+  | 'utilityNotice'
+  | 'validUntil'
+  | 'view'
+  | 'viewDetails';
 
 export const residentAlertUiText: Record<PreferredLanguage, Record<ResidentAlertUiKey, string>> = {
   English: {
@@ -235,6 +279,129 @@ export const floodRiskTrendUiText: Record<PreferredLanguage, Record<FloodRiskTre
     time: 'நேரம்',
     trendUnavailable: 'அபாயப் போக்கு தரவை ஏற்ற முடியவில்லை.',
     yAxisRiskLevel: 'அபாய நிலை',
+  },
+};
+
+export const communityNotificationUiText: Record<PreferredLanguage, Record<CommunityNotificationUiKey, string>> = {
+  English: {
+    active: 'ACTIVE',
+    area: 'Area',
+    back: 'Back',
+    cancelled: 'CANCELLED',
+    category: 'Category',
+    communityEvent: 'Community Event',
+    communityNotifications: 'Community Notifications',
+    createCommunityNotification: 'Create Community Notification',
+    emptyBody: 'No community notifications are available for your area.',
+    errorBody: 'Please try again.',
+    errorTitle: 'Unable to load community notifications.',
+    expiresAt: 'Expiry Date / Time',
+    inactive: 'INACTIVE',
+    language: 'Language',
+    loading: 'Loading community notifications...',
+    manageCommunityNotifications: 'Manage Community Notifications',
+    message: 'Message',
+    new: 'NEW',
+    noCommunityNotifications: 'No Community Notifications',
+    notificationDetails: 'Community Notification',
+    notificationTitle: 'Notification Title',
+    publicInformation: 'Public Information',
+    publishNotification: 'Publish Notification',
+    publishSuccess: 'Community notification published successfully.',
+    published: 'Published',
+    readStatusError: 'Unable to update read status. Please try again.',
+    retry: 'Retry',
+    roadAccess: 'Road & Access',
+    safetyNotice: 'Safety Notice',
+    shareLocalInformation: 'Share important local information with residents.',
+    status: 'Status',
+    subtitle: 'Local updates and public information for your area',
+    targetArea: 'Target Area',
+    unablePublish: 'Unable to publish the notification. Please try again.',
+    utilityNotice: 'Utility Notice',
+    validUntil: 'Valid Until',
+    view: 'View',
+    viewDetails: 'View Details',
+  },
+  Sinhala: {
+    active: 'සක්‍රීය',
+    area: 'ප්‍රදේශය',
+    back: 'ආපසු',
+    cancelled: 'අවලංගු කර ඇත',
+    category: 'කාණ්ඩය',
+    communityEvent: 'ප්‍රජා වැඩසටහන',
+    communityNotifications: 'ප්‍රජා දැනුම්දීම්',
+    createCommunityNotification: 'ප්‍රජා දැනුම්දීමක් සාදන්න',
+    emptyBody: 'ඔබගේ ප්‍රදේශයට ප්‍රජා දැනුම්දීම් දැනට නොමැත.',
+    errorBody: 'කරුණාකර නැවත උත්සාහ කරන්න.',
+    errorTitle: 'ප්‍රජා දැනුම්දීම් පූරණය කළ නොහැක.',
+    expiresAt: 'කල් ඉකුත් වන දිනය / වේලාව',
+    inactive: 'අක්‍රියයි',
+    language: 'භාෂාව',
+    loading: 'ප්‍රජා දැනුම්දීම් පූරණය වෙමින්...',
+    manageCommunityNotifications: 'ප්‍රජා දැනුම්දීම් කළමනාකරණය',
+    message: 'පණිවිඩය',
+    new: 'නව',
+    noCommunityNotifications: 'ප්‍රජා දැනුම්දීම් නැත',
+    notificationDetails: 'ප්‍රජා දැනුම්දීම',
+    notificationTitle: 'දැනුම්දීමේ මාතෘකාව',
+    publicInformation: 'පොදු තොරතුරු',
+    publishNotification: 'දැනුම්දීම පළ කරන්න',
+    publishSuccess: 'ප්‍රජා දැනුම්දීම සාර්ථකව පළ කර ඇත.',
+    published: 'පළ කළේ',
+    readStatusError: 'කියවූ තත්ත්වය යාවත්කාලීන කළ නොහැක. නැවත උත්සාහ කරන්න.',
+    retry: 'නැවත උත්සාහ කරන්න',
+    roadAccess: 'මාර්ග සහ ප්‍රවේශ',
+    safetyNotice: 'ආරක්ෂක දැනුම්දීම',
+    shareLocalInformation: 'වැදගත් ප්‍රාදේශීය තොරතුරු පදිංචිකරුවන් සමඟ බෙදාගන්න.',
+    status: 'තත්ත්වය',
+    subtitle: 'ඔබගේ ප්‍රදේශය සඳහා ප්‍රාදේශීය යාවත්කාලීන කිරීම් සහ පොදු තොරතුරු',
+    targetArea: 'ඉලක්ක ප්‍රදේශය',
+    unablePublish: 'දැනුම්දීම පළ කළ නොහැක. කරුණාකර නැවත උත්සාහ කරන්න.',
+    utilityNotice: 'උපයෝගිතා දැනුම්දීම',
+    validUntil: 'වලංගු වන්නේ',
+    view: 'බලන්න',
+    viewDetails: 'විස්තර බලන්න',
+  },
+  Tamil: {
+    active: 'செயலில்',
+    area: 'பகுதி',
+    back: 'பின்',
+    cancelled: 'ரத்து செய்யப்பட்டது',
+    category: 'வகை',
+    communityEvent: 'சமூக நிகழ்வு',
+    communityNotifications: 'சமூக அறிவிப்புகள்',
+    createCommunityNotification: 'சமூக அறிவிப்பை உருவாக்கு',
+    emptyBody: 'உங்கள் பகுதிக்கான சமூக அறிவிப்புகள் தற்போது இல்லை.',
+    errorBody: 'மீண்டும் முயற்சிக்கவும்.',
+    errorTitle: 'சமூக அறிவிப்புகளை ஏற்ற முடியவில்லை.',
+    expiresAt: 'காலாவதி தேதி / நேரம்',
+    inactive: 'செயலற்றது',
+    language: 'மொழி',
+    loading: 'சமூக அறிவிப்புகள் ஏற்றப்படுகின்றன...',
+    manageCommunityNotifications: 'சமூக அறிவிப்புகளை நிர்வகி',
+    message: 'செய்தி',
+    new: 'புதியது',
+    noCommunityNotifications: 'சமூக அறிவிப்புகள் இல்லை',
+    notificationDetails: 'சமூக அறிவிப்பு',
+    notificationTitle: 'அறிவிப்பு தலைப்பு',
+    publicInformation: 'பொது தகவல்',
+    publishNotification: 'அறிவிப்பை வெளியிடு',
+    publishSuccess: 'சமூக அறிவிப்பு வெற்றிகரமாக வெளியிடப்பட்டது.',
+    published: 'வெளியிடப்பட்டது',
+    readStatusError: 'படித்த நிலையை புதுப்பிக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
+    retry: 'மீண்டும் முயற்சி',
+    roadAccess: 'சாலை மற்றும் அணுகல்',
+    safetyNotice: 'பாதுகாப்பு அறிவிப்பு',
+    shareLocalInformation: 'முக்கிய உள்ளூர் தகவலை குடியிருப்பாளர்களுடன் பகிரவும்.',
+    status: 'நிலை',
+    subtitle: 'உங்கள் பகுதிக்கான உள்ளூர் புதுப்பிப்புகள் மற்றும் பொது தகவல்',
+    targetArea: 'இலக்கு பகுதி',
+    unablePublish: 'அறிவிப்பை வெளியிட முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
+    utilityNotice: 'பயன்பாட்டு அறிவிப்பு',
+    validUntil: 'வரை செல்லுபடியாகும்',
+    view: 'பார்',
+    viewDetails: 'விவரங்களைப் பார்',
   },
 };
 
@@ -563,4 +730,69 @@ export function fallbackSafetyInstruction(language: PreferredLanguage) {
   const fallback = 'Follow official evacuation and safety instructions from emergency authorities.';
 
   return knownAlertMessageText[normalizedPhrase(fallback)]?.[language] ?? fallback;
+}
+
+const communityCategoryText: Record<
+  PreferredLanguage,
+  Record<CommunityNotificationCategory, string>
+> = {
+  English: {
+    COMMUNITY_EVENT: communityNotificationUiText.English.communityEvent,
+    PUBLIC_INFORMATION: communityNotificationUiText.English.publicInformation,
+    ROAD_ACCESS: communityNotificationUiText.English.roadAccess,
+    SAFETY_NOTICE: communityNotificationUiText.English.safetyNotice,
+    UTILITY_NOTICE: communityNotificationUiText.English.utilityNotice,
+  },
+  Sinhala: {
+    COMMUNITY_EVENT: communityNotificationUiText.Sinhala.communityEvent,
+    PUBLIC_INFORMATION: communityNotificationUiText.Sinhala.publicInformation,
+    ROAD_ACCESS: communityNotificationUiText.Sinhala.roadAccess,
+    SAFETY_NOTICE: communityNotificationUiText.Sinhala.safetyNotice,
+    UTILITY_NOTICE: communityNotificationUiText.Sinhala.utilityNotice,
+  },
+  Tamil: {
+    COMMUNITY_EVENT: communityNotificationUiText.Tamil.communityEvent,
+    PUBLIC_INFORMATION: communityNotificationUiText.Tamil.publicInformation,
+    ROAD_ACCESS: communityNotificationUiText.Tamil.roadAccess,
+    SAFETY_NOTICE: communityNotificationUiText.Tamil.safetyNotice,
+    UTILITY_NOTICE: communityNotificationUiText.Tamil.utilityNotice,
+  },
+};
+
+const communityStatusText: Record<
+  PreferredLanguage,
+  Record<CommunityNotificationDisplayStatus, string>
+> = {
+  English: {
+    ACTIVE: communityNotificationUiText.English.active,
+    CANCELLED: communityNotificationUiText.English.cancelled,
+    EXPIRED: 'EXPIRED',
+    INACTIVE: communityNotificationUiText.English.inactive,
+  },
+  Sinhala: {
+    ACTIVE: communityNotificationUiText.Sinhala.active,
+    CANCELLED: communityNotificationUiText.Sinhala.cancelled,
+    EXPIRED: 'කල් ඉකුත් වී ඇත',
+    INACTIVE: communityNotificationUiText.Sinhala.inactive,
+  },
+  Tamil: {
+    ACTIVE: communityNotificationUiText.Tamil.active,
+    CANCELLED: communityNotificationUiText.Tamil.cancelled,
+    EXPIRED: 'காலாவதியானது',
+    INACTIVE: communityNotificationUiText.Tamil.inactive,
+  },
+};
+
+export function translateCommunityNotificationCategory(
+  category: CommunityNotificationCategory,
+  language: PreferredLanguage,
+) {
+  return communityCategoryText[language][category];
+}
+
+export function translateCommunityNotificationStatus(
+  status: CommunityNotificationDisplayStatus,
+  language: PreferredLanguage,
+) {
+  return communityStatusText[language][status] ?? status;
 }
