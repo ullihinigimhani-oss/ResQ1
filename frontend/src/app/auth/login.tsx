@@ -23,6 +23,7 @@ import {
 import { BrandColors } from '@/constants/brand';
 import { useAuth } from '@/context/auth-context';
 import { isAuthApiError, loginResident } from '@/services/authService';
+import { prefetchDashboardSummary } from '@/services/dashboardSummaryService';
 import type { FieldErrors } from '@/types/auth';
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -83,6 +84,7 @@ export default function LoginScreen() {
     try {
       const session = await loginResident(validation.payload);
       await completeLogin(session, remember);
+      void prefetchDashboardSummary(session.token, session.user);
       router.replace('/dashboard' as Href);
     } catch (error) {
       if (isAuthApiError(error)) {

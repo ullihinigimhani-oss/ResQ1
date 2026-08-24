@@ -15,13 +15,15 @@ import {
 } from '@/components/ui/app-components';
 import { colors, radius, spacing, typography } from '@/constants/design';
 import { useAuth } from '@/context/auth-context';
-import { getActiveAlerts } from '@/services/alertService';
-import { getCommunityNotifications } from '@/services/communityNotificationService';
-import { getMyIncidents } from '@/services/incidentService';
-import { getShelters } from '@/services/shelterService';
+import {
+  dashboardSummaryCacheKey,
+  emptyDashboardSummary,
+  fetchDashboardSummary,
+  getCachedDashboardSummary,
+  setCachedDashboardSummary,
+  type DashboardSummary,
+} from '@/services/dashboardSummaryService';
 import type { Alert, AlertRiskLevel } from '@/types/alert';
-import type { CommunityNotification } from '@/types/communityNotification';
-import type { Incident } from '@/types/incident';
 import type { Shelter } from '@/types/shelter';
 import { firstName, formatDateTime, isAuthorityRole, plural, userArea } from '@/utils/format';
 
@@ -82,51 +84,21 @@ function availableSpaces(shelter: Shelter) {
   return null;
 }
 
-type DashboardSummary = {
-  alerts: Alert[];
-  communityNotifications: CommunityNotification[];
-  incidents: Incident[];
-  shelters: Shelter[];
-};
-
-type CachedDashboardSummary = DashboardSummary & {
-  cacheKey: string;
-  loadedAt: number;
-};
-
-let cachedDashboardSummary: CachedDashboardSummary | null = null;
-
-function emptyDashboardSummary(): DashboardSummary {
-  return {
-    alerts: [],
-    communityNotifications: [],
-    incidents: [],
-    shelters: [],
-  };
-}
-
-function dashboardSummaryCacheKey(token: string | null, userId: number | string | null | undefined) {
-  return token && userId != null ? `${userId}:${token}` : null;
-}
-
-function getCachedDashboardSummary(cacheKey: string | null) {
-  return cacheKey && cachedDashboardSummary?.cacheKey === cacheKey ? cachedDashboardSummary : null;
-}
-
 export default function DashboardScreen() {
   const router = useRouter();
   const { isLoading, token, user } = useAuth();
   const dashboardCacheKey = dashboardSummaryCacheKey(token, user?.id);
   const cachedSummary = getCachedDashboardSummary(dashboardCacheKey);
   const initialSummary = cachedSummary ?? emptyDashboardSummary();
-  const [alerts, setAlerts] = useState<Alert[]>(() => initialSummary.alerts);
-  const [communityNotifications, setCommunityNotifications] = useState<CommunityNotification[]>(
+  const [alerts, setAlerts] = useState<DashboardSummary['alerts']>(() => initialSummary.alerts);
+  const [communityNotifications, setCommunityNotifications] = useState<DashboardSummary['communityNotifications']>(
     () => initialSummary.communityNotifications,
   );
-  const [incidents, setIncidents] = useState<Incident[]>(() => initialSummary.incidents);
-  const [shelters, setShelters] = useState<Shelter[]>(() => initialSummary.shelters);
+  const [incidents, setIncidents] = useState<DashboardSummary['incidents']>(() => initialSummary.incidents);
+  const [shelters, setShelters] = useState<DashboardSummary['shelters']>(() => initialSummary.shelters);
   const [hasLoadedSummary, setHasLoadedSummary] = useState(() => Boolean(cachedSummary));
   const [loadingSummary, setLoadingSummary] = useState(() => !cachedSummary);
+  const [initialSummaryError, setInitialSummaryError] = useState<string | null>(null);
   const [summaryWarning, setSummaryWarning] = useState<string | null>(null);
   const activeCacheKeyRef = useRef(dashboardCacheKey);
   const hasLoadedSummaryRef = useRef(Boolean(cachedSummary));
@@ -156,6 +128,7 @@ export default function DashboardScreen() {
     hasLoadedSummaryRef.current = hasCachedSummary;
     setHasLoadedSummary(hasCachedSummary);
     setLoadingSummary(Boolean(dashboardCacheKey) && !hasCachedSummary);
+    setInitialSummaryError(null);
     setSummaryWarning(null);
   }, [applySummary, dashboardCacheKey]);
 
@@ -170,42 +143,33 @@ export default function DashboardScreen() {
       setLoadingSummary(true);
     }
 
+    setInitialSummaryError(null);
     setSummaryWarning(null);
 
-    const [alertResult, incidentResult, shelterResult, communityNotificationResult] = await Promise.allSettled([
-      getActiveAlerts(token),
-      getMyIncidents(token),
-      getShelters(token),
-      isAuthorityRole(userRole) ? Promise.resolve([]) : getCommunityNotifications(token),
-    ]);
+    const result = await fetchDashboardSummary({
+      cacheKey: dashboardCacheKey,
+      previousSummary: summaryRef.current,
+      token,
+      userRole,
+    });
 
-    const failed = [alertResult, incidentResult, shelterResult, communityNotificationResult]
-      .some((result) => result.status === 'rejected');
-    const fulfilled = [alertResult, incidentResult, shelterResult, communityNotificationResult]
-      .some((result) => result.status === 'fulfilled');
-    const previousSummary = summaryRef.current;
-    const nextSummary: DashboardSummary = {
-      alerts: alertResult.status === 'fulfilled' ? alertResult.value : previousSummary.alerts,
-      communityNotifications: communityNotificationResult.status === 'fulfilled'
-        ? communityNotificationResult.value
-        : previousSummary.communityNotifications,
-      incidents: incidentResult.status === 'fulfilled' ? incidentResult.value : previousSummary.incidents,
-      shelters: shelterResult.status === 'fulfilled' ? shelterResult.value : previousSummary.shelters,
-    };
+    if (result.fulfilled || hadExistingSummary) {
+      applySummary(result.summary);
 
-    if (fulfilled || hadExistingSummary) {
-      applySummary(nextSummary);
-      cachedDashboardSummary = {
-        ...nextSummary,
-        cacheKey: dashboardCacheKey,
-        loadedAt: Date.now(),
-      };
+      if (result.fulfilled) {
+        setCachedDashboardSummary(dashboardCacheKey, result.summary);
+      }
+
       hasLoadedSummaryRef.current = true;
       setHasLoadedSummary(true);
     }
 
-    if (failed) {
-      setSummaryWarning('Some live dashboard data could not be refreshed.');
+    if (result.failed) {
+      if (hadExistingSummary || result.fulfilled) {
+        setSummaryWarning('Some live dashboard data could not be refreshed.');
+      } else {
+        setInitialSummaryError('Unable to load Home data. Check your connection and try again.');
+      }
     }
 
     setLoadingSummary(false);
@@ -221,14 +185,16 @@ export default function DashboardScreen() {
   const latestIncident = incidents[0] ?? null;
   const nearestShelter = shelters[0] ?? null;
   const unreadCommunityNotifications = communityNotifications.filter((notification) => !notification.isRead).length;
-  const showInitialSummaryLoading = loadingSummary && !hasLoadedSummary;
+  const initialLoading = loadingSummary && !hasLoadedSummary;
+  const refreshing = loadingSummary && hasLoadedSummary;
+  const showSummaryWarning = Boolean(summaryWarning) && !refreshing;
   const handleRiskAction = useCallback(() => {
-    if (showInitialSummaryLoading) {
+    if (initialLoading || initialSummaryError) {
       return;
     }
 
     router.push(currentAlert ? '/alerts/risk-level' as Href : '/alerts' as Href);
-  }, [currentAlert, router, showInitialSummaryLoading]);
+  }, [currentAlert, initialLoading, initialSummaryError, router]);
 
   if (!isLoading && !user) {
     return <Redirect href={'/auth/welcome' as Href} />;
@@ -256,38 +222,60 @@ export default function DashboardScreen() {
       />
 
       <SectionCard tone={currentAlert ? (riskTone(currentAlert.riskLevel) === 'red' ? 'danger' : 'white') : 'blue'}>
-        <View style={styles.heroHeader}>
-          <View style={styles.heroTitleBlock}>
-            <Text style={styles.heroEyebrow}>Current Risk Level</Text>
-            <Text style={styles.heroTitle}>
-              {showInitialSummaryLoading ? 'Checking Local Risk' : currentAlert ? currentAlert.riskLevel : 'No Active Alerts'}
-            </Text>
-            <Text style={styles.heroText}>
-              {showInitialSummaryLoading
-                ? 'Loading verified alerts and response data for your area.'
-                : currentAlert
-                ? `${currentAlert.title} for ${currentAlert.affectedArea}.`
-                : 'No active emergency alerts are verified for your area right now.'}
-            </Text>
+        {initialLoading ? (
+          <View style={styles.initialRiskState}>
+            <View style={styles.heroHeader}>
+              <Text style={styles.heroEyebrow}>Current Risk Level</Text>
+              <ActivityIndicator color={colors.red} />
+            </View>
+            <View style={styles.skeletonBlock}>
+              <View style={[styles.skeletonLine, styles.skeletonTitle]} />
+              <View style={styles.skeletonLine} />
+              <View style={[styles.skeletonLine, styles.skeletonShort]} />
+            </View>
           </View>
-          {showInitialSummaryLoading ? <ActivityIndicator color={colors.red} /> : null}
-        </View>
-        <View style={styles.heroMetaRow}>
-          <StatusBadge
-            label={showInitialSummaryLoading ? 'Checking alerts' : currentAlert ? alertCountLabel : 'All clear'}
-            tone={showInitialSummaryLoading ? 'blue' : currentAlert ? riskTone(currentAlert.riskLevel) : 'green'}
-          />
-          <StatusBadge label={userArea(user)} tone="blue" />
-        </View>
-        <PrimaryButton
-          disabled={showInitialSummaryLoading}
-          title={showInitialSummaryLoading ? 'Checking Alerts...' : currentAlert ? 'View Risk Details' : 'Open Alert Center'}
-          onPress={handleRiskAction}
-          tone={currentAlert && riskTone(currentAlert.riskLevel) === 'red' ? 'red' : 'navy'}
-        />
+        ) : initialSummaryError ? (
+          <View style={styles.initialRiskState}>
+            <Text style={styles.heroEyebrow}>Current Risk Level</Text>
+            <Text style={styles.riskErrorTitle}>Home data is unavailable</Text>
+            <Text style={styles.riskErrorText}>{initialSummaryError}</Text>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => void loadSummary()}
+              style={({ pressed }) => [styles.retryButton, pressed && styles.pressed]}>
+              <Text style={styles.retryButtonText}>Retry</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <>
+            <View style={styles.heroHeader}>
+              <View style={styles.heroTitleBlock}>
+                <Text style={styles.heroEyebrow}>Current Risk Level</Text>
+                <Text style={styles.heroTitle}>{currentAlert ? currentAlert.riskLevel : 'No Active Alerts'}</Text>
+                <Text style={styles.heroText}>
+                  {currentAlert
+                    ? `${currentAlert.title} for ${currentAlert.affectedArea}.`
+                    : 'No active emergency alerts are verified for your area right now.'}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.heroMetaRow}>
+              <StatusBadge
+                label={currentAlert ? alertCountLabel : 'All clear'}
+                tone={currentAlert ? riskTone(currentAlert.riskLevel) : 'green'}
+              />
+              <StatusBadge label={userArea(user)} tone="blue" />
+            </View>
+            <PrimaryButton
+              title={currentAlert ? 'View Risk Details' : 'Open Alert Center'}
+              onPress={handleRiskAction}
+              tone={currentAlert && riskTone(currentAlert.riskLevel) === 'red' ? 'red' : 'navy'}
+            />
+          </>
+        )}
       </SectionCard>
 
-      {summaryWarning ? <DemoNotice text={summaryWarning} /> : null}
+      {showSummaryWarning && summaryWarning ? <DemoNotice text={summaryWarning} /> : null}
 
       <View style={styles.quickGrid}>
         <QuickActionCard
@@ -459,6 +447,54 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
+  },
+  initialRiskState: {
+    gap: spacing.md,
+    minHeight: 128,
+  },
+  skeletonBlock: {
+    gap: spacing.sm,
+  },
+  skeletonLine: {
+    backgroundColor: colors.sky,
+    borderRadius: radius.xs,
+    height: 12,
+    width: '92%',
+  },
+  skeletonTitle: {
+    height: 24,
+    width: '54%',
+  },
+  skeletonShort: {
+    width: '68%',
+  },
+  riskErrorTitle: {
+    color: colors.navy,
+    fontSize: 18,
+    fontWeight: '900',
+    lineHeight: 24,
+  },
+  riskErrorText: {
+    color: colors.muted,
+    ...typography.body,
+  },
+  retryButton: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: colors.white,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    justifyContent: 'center',
+    minHeight: 40,
+    paddingHorizontal: spacing.lg,
+  },
+  retryButtonText: {
+    color: colors.deepBlue,
+    fontSize: 14,
+    fontWeight: '900',
+    lineHeight: 19,
+    textAlign: 'center',
   },
   quickGrid: {
     flexDirection: 'row',
