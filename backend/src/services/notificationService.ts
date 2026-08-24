@@ -158,6 +158,10 @@ function shouldNotifyRecipient(alert: Alert, recipient: PushRecipientRow) {
   const critical = isCriticalAlert(alert);
   const areaMatched = isResidentAreaMatch(alert.affectedArea, recipient.location);
 
+  if (alert.alertAudience === 'SCHOOL_EMERGENCY' && !(recipient.school_alerts ?? true)) {
+    return false;
+  }
+
   if (critical) {
     return areaMatched;
   }
@@ -211,6 +215,7 @@ function toExpoPushMessage(alert: Alert, recipient: PushRecipientRow): ExpoPushM
     data: {
       alertId: alert.id,
       affectedArea: alert.affectedArea,
+      alertAudience: alert.alertAudience,
       disasterType: alert.disasterType,
       riskLevel: alert.riskLevel,
       critical,

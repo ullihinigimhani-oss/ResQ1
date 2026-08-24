@@ -18,6 +18,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AlertStatusBadge, RiskBadge } from '@/components/alerts/alert-badges';
 import {
+  AudienceSelector,
+  SchoolTargetingSection,
+  audienceLabel,
+} from '@/components/alerts/alert-audience-controls';
+import {
   AuthButton,
   AuthTextField,
   BackButton,
@@ -30,9 +35,11 @@ import {
   alertRiskLevels,
   alertStatuses,
   type Alert,
+  type AlertAudience,
   type AlertFieldErrors,
   type AlertRiskLevel,
   type AlertStatus,
+  type SchoolSelectionPayload,
   type UpdateAlertPayload,
 } from '@/types/alert';
 import { formatDateTime, isAuthorityRole } from '@/utils/format';
@@ -40,12 +47,23 @@ import { formatDateTime, isAuthorityRole } from '@/utils/format';
 type AlertForm = {
   title: string;
   affectedArea: string;
+  alertAudience: AlertAudience;
   riskLevel: AlertRiskLevel | '';
   status: AlertStatus | '';
   message: string;
   safetyInstructions: string;
   expiresAt: string;
+  selectedSchools: SchoolSelectionPayload[];
 };
+
+type TextAlertFormField =
+  | 'affectedArea'
+  | 'expiresAt'
+  | 'message'
+  | 'riskLevel'
+  | 'safetyInstructions'
+  | 'status'
+  | 'title';
 
 type BannerState = {
   message: string;
@@ -55,11 +73,13 @@ type BannerState = {
 const initialForm: AlertForm = {
   title: '',
   affectedArea: '',
+  alertAudience: 'GENERAL_PUBLIC',
   riskLevel: '',
   status: '',
   message: '',
   safetyInstructions: '',
   expiresAt: '',
+  selectedSchools: [],
 };
 
 function firstParam(value: string | string[] | undefined) {
@@ -70,11 +90,22 @@ function formFromAlert(alert: Alert): AlertForm {
   return {
     title: alert.title,
     affectedArea: alert.affectedArea,
+    alertAudience: alert.alertAudience,
     riskLevel: alert.riskLevel,
     status: alert.status,
     message: alert.message,
     safetyInstructions: alert.safetyInstructions,
     expiresAt: alert.expiresAt ?? '',
+    selectedSchools: alert.schools.map((school) => ({
+      id: school.id,
+      schoolName: school.schoolName,
+      area: school.area,
+      latitude: school.latitude,
+      longitude: school.longitude,
+      osmId: school.osmId,
+      osmType: school.osmType,
+      formattedAddress: school.formattedAddress,
+    })),
   };
 }
 
@@ -129,6 +160,10 @@ function validateForm(form: AlertForm) {
     errors.riskLevel = 'Please select a risk level.';
   }
 
+  if (form.alertAudience === 'SCHOOL_EMERGENCY' && form.selectedSchools.length === 0) {
+    errors.schoolIds = 'Select at least one school for a school emergency alert.';
+  }
+
   if (!form.status) {
     errors.status = 'Please select an alert status.';
   }
@@ -158,11 +193,16 @@ function validateForm(form: AlertForm) {
     title,
     disasterType: 'Flood',
     affectedArea,
+    alertAudience: form.alertAudience,
     riskLevel: form.riskLevel as AlertRiskLevel,
     status: form.status as AlertStatus,
     message,
     safetyInstructions,
     expiresAt,
+    schoolIds: form.alertAudience === 'SCHOOL_EMERGENCY'
+      ? form.selectedSchools.map((school) => school.id).filter((id): id is number => Boolean(id))
+      : [],
+    schools: form.alertAudience === 'SCHOOL_EMERGENCY' ? form.selectedSchools : [],
   };
 
   return {
@@ -227,6 +267,10 @@ function EditSummary({ alert, form }: { alert: Alert; form: AlertForm }) {
       <Text style={styles.reviewEyebrow}>Selected Alert #{alert.id}</Text>
       <SummaryRow label="Title" value={form.title.trim() || 'Not entered'} />
       <SummaryRow label="Affected Area" value={form.affectedArea.trim() || 'Not entered'} />
+      <SummaryRow label="Alert Audience" value={audienceLabel(form.alertAudience)} />
+      {form.alertAudience === 'SCHOOL_EMERGENCY' ? (
+        <SummaryRow label="Selected Schools" value={`${form.selectedSchools.length} selected`} />
+      ) : null}
       <View style={styles.summaryRow}>
         <Text style={styles.summaryLabel}>Risk Level</Text>
         {form.riskLevel ? (
@@ -350,9 +394,39 @@ export default function EditAlertScreen() {
     );
   }
 
-  const updateField = (field: keyof AlertForm, value: string) => {
-    setForm((current) => ({ ...current, [field]: value }));
-    setFieldErrors((current) => ({ ...current, [field]: undefined }));
+  const updateField = (field: TextAlertFormField, value: string) => {
+    setForm((current) => ({
+      ...current,
+      [field]: value,
+      ...(field === 'affectedArea' ? { selectedSchools: [] } : {}),
+    }));
+    setFieldErrors((current) => ({
+      ...current,
+      [field]: undefined,
+      ...(field === 'affectedArea' ? { schoolIds: undefined } : {}),
+    }));
+
+    if (banner?.type === 'success') {
+      setBanner(null);
+    }
+  };
+
+  const updateAudience = (alertAudience: AlertAudience) => {
+    setForm((current) => ({
+      ...current,
+      alertAudience,
+      selectedSchools: alertAudience === 'SCHOOL_EMERGENCY' ? current.selectedSchools : [],
+    }));
+    setFieldErrors((current) => ({ ...current, alertAudience: undefined, schoolIds: undefined }));
+
+    if (banner?.type === 'success') {
+      setBanner(null);
+    }
+  };
+
+  const updateSelectedSchools = (selectedSchools: SchoolSelectionPayload[]) => {
+    setForm((current) => ({ ...current, selectedSchools }));
+    setFieldErrors((current) => ({ ...current, schoolIds: undefined }));
 
     if (banner?.type === 'success') {
       setBanner(null);
@@ -518,6 +592,23 @@ export default function EditAlertScreen() {
                     placeholder="Panadura"
                     value={form.affectedArea}
                   />
+                </FormSection>
+
+                <FormSection helper="Choose who should receive this emergency alert." title="Alert Audience">
+                  <AudienceSelector
+                    error={fieldErrors.alertAudience}
+                    onChange={updateAudience}
+                    value={form.alertAudience}
+                  />
+                  {form.alertAudience === 'SCHOOL_EMERGENCY' ? (
+                    <SchoolTargetingSection
+                      affectedArea={form.affectedArea}
+                      error={fieldErrors.schoolIds}
+                      onSelectedSchoolsChange={updateSelectedSchools}
+                      selectedSchools={form.selectedSchools}
+                      token={token}
+                    />
+                  ) : null}
                 </FormSection>
 
                 <FormSection helper="Risk text remains visible to residents and authorities." title="Risk Level">

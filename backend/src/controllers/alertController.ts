@@ -7,6 +7,8 @@ import {
   getAlertHistory,
   getAlertById,
   getAlertRiskHistory,
+  listSchoolsByArea,
+  searchSchoolsByArea,
   updateAlert,
 } from '../services/alertService.js';
 import { sendAlertPushNotifications } from '../services/notificationService.js';
@@ -80,6 +82,36 @@ export async function listAlertHistory(req: Request, res: Response) {
     return res.status(200).json({
       success: true,
       history,
+    });
+  } catch (error) {
+    return sendAlertError(error, res);
+  }
+}
+
+export async function listAlertSchools(req: Request, res: Response) {
+  try {
+    requireAlertManager(req);
+    const area = Array.isArray(req.query.area) ? req.query.area[0] : req.query.area;
+    const schools = await listSchoolsByArea(typeof area === 'string' ? area : '');
+
+    return res.status(200).json({
+      success: true,
+      schools,
+    });
+  } catch (error) {
+    return sendAlertError(error, res);
+  }
+}
+
+export async function searchAlertSchools(req: Request, res: Response) {
+  try {
+    requireAlertManager(req);
+    const area = Array.isArray(req.query.area) ? req.query.area[0] : req.query.area;
+    const schools = await searchSchoolsByArea(typeof area === 'string' ? area : '');
+
+    return res.status(200).json({
+      success: true,
+      schools,
     });
   } catch (error) {
     return sendAlertError(error, res);
