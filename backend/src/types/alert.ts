@@ -137,6 +137,40 @@ export interface AlertRiskHistoryPoint {
   timestamp: string;
 }
 
+export interface AlertAcknowledgementRow {
+  acknowledged_at: Date | string;
+  alert_id: number;
+  id: number;
+  user_id: number;
+}
+
+export interface AlertAcknowledgementStatus {
+  acknowledged: boolean;
+  acknowledgedAt: string | null;
+}
+
+export interface AlertAcknowledgementSummary {
+  acknowledged: number;
+  acknowledgementRate: number | null;
+  lastAcknowledgedAt: string | null;
+  pending: number | null;
+  targetedResidents: number | null;
+}
+
+export interface AlertAcknowledgementResident {
+  acknowledged: boolean;
+  acknowledgedAt: string | null;
+  fullName: string;
+  id: number;
+  location: string | null;
+}
+
+export interface AlertAcknowledgementReport {
+  acknowledgedResidents: AlertAcknowledgementResident[];
+  pendingResidents: AlertAcknowledgementResident[];
+  summary: AlertAcknowledgementSummary;
+}
+
 export interface CreateAlertInput {
   title?: unknown;
   disasterType?: unknown;

@@ -3,6 +3,7 @@ import { Redirect, useRouter, type Href } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Linking,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -15,7 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AuthButton, BackButton, StatusBanner } from '@/components/common/auth-components';
 import { BottomNavigation } from '@/components/ui/app-components';
-import { CapacityIndicator, ShelterStatusBadge } from '@/components/shelters/shelter-ui';
+import { ShelterStatusBadge } from '@/components/shelters/shelter-ui';
 import { BrandColors } from '@/constants/brand';
 import { useAuth } from '@/context/auth-context';
 import { getShelters, isShelterApiError } from '@/services/shelterService';
@@ -50,6 +51,14 @@ function isAvailableShelter(shelter: Shelter) {
   return status === 'open' || status === 'limited';
 }
 
+function canPublishAlerts(role: string) {
+  return role === 'admin' || role === 'authority';
+}
+
+function canCreateShelters(role: string) {
+  return role === 'admin' || role === 'authority';
+}
+
 function metricValue(value: number | null, suffix = '') {
   return value === null ? 'Unavailable' : `${value.toLocaleString()}${suffix}`;
 }
@@ -69,22 +78,37 @@ function ShelterMetric({ label, value }: { label: string; value: string }) {
 
 function ShelterCard({
   onPress,
+  onRoutePress,
   shelter,
 }: {
   onPress: () => void;
+  onRoutePress: () => void;
   shelter: Shelter;
 }) {
+  const handleCall = () => {
+    if (shelter.contactNumber) {
+      Linking.openURL(`tel:${shelter.contactNumber}`);
+    }
+  };
+
   return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={onPress}
-      style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
+    <View style={styles.card}>
       <View style={styles.cardHeader}>
         <View style={styles.cardTitleBlock}>
           <Text style={styles.cardTitle}>{shelter.name}</Text>
           <Text style={styles.cardArea}>{shelter.area}</Text>
         </View>
-        <ShelterStatusBadge status={shelter.status} />
+        <View style={styles.headerRight}>
+          <ShelterStatusBadge status={shelter.status} />
+          {shelter.contactNumber && (
+            <Pressable
+              accessibilityRole="button"
+              onPress={handleCall}
+              style={({ pressed }) => [styles.callButton, pressed && styles.pressed]}>
+              <Text style={styles.callIcon}>📞</Text>
+            </Pressable>
+          )}
+        </View>
       </View>
 
       {shelter.isAreaMatch ? (
@@ -98,27 +122,21 @@ function ShelterCard({
         <ShelterMetric label="Available" value={metricValue(shelter.availableSpaces, ' spaces')} />
       </View>
 
-      <CapacityIndicator
-        availableSpaces={shelter.availableSpaces}
-        capacity={shelter.capacity}
-        currentOccupancy={shelter.currentOccupancy}
-      />
-
-      <View style={styles.cardInfoBlock}>
-        <Text style={styles.infoLabel}>Contact Number</Text>
-        <Text style={styles.infoValue}>{shelter.contactNumber ?? 'Contact pending verification'}</Text>
+      <View style={styles.cardButtonRow}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={onPress}
+          style={({ pressed }) => [styles.cardButton, pressed && styles.pressed]}>
+          <Text style={styles.cardButtonText}>View Shelter</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          onPress={onRoutePress}
+          style={({ pressed }) => [styles.cardButton, pressed && styles.pressed]}>
+          <Text style={styles.cardButtonText}>View Safe Evacuation Route</Text>
+        </Pressable>
       </View>
-
-      <View style={styles.cardInfoBlock}>
-        <Text style={styles.infoLabel}>Facilities</Text>
-        <Text style={styles.infoValue}>{facilitiesText(shelter.facilities)}</Text>
-      </View>
-
-      <View style={styles.cardFooter}>
-        <Text style={styles.viewText}>View Shelter</Text>
-        <Text style={styles.cardArrow}>{'>'}</Text>
-      </View>
-    </Pressable>
+    </View>
   );
 }
 
@@ -130,7 +148,6 @@ export default function NearbySheltersScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filter, setFilter] = useState<FilterKey>('Nearest');
 
   const loadShelters = useCallback(async (refresh = false) => {
     if (!token) {
@@ -166,46 +183,17 @@ export default function NearbySheltersScreen() {
     }
   }, [loadShelters, token]);
 
-  const filterOptions = useMemo(
-    () => user?.location ? [...baseFilters, 'Area' as FilterKey] : baseFilters,
-    [user?.location],
-  );
-
   const filteredShelters = useMemo(() => {
     const query = normalizedText(searchQuery);
 
     return shelters.filter((shelter) => {
-      const matchesSearch =
+      return (
         !query ||
         normalizedText(shelter.name).includes(query) ||
-        normalizedText(shelter.area).includes(query);
-
-      if (!matchesSearch) {
-        return false;
-      }
-
-      if (filter === 'Available') {
-        return isAvailableShelter(shelter);
-      }
-
-      if (filter === 'Medical Support') {
-        return shelter.facilities.some((facility) => {
-          const normalizedFacility = normalizedText(facility);
-          return normalizedFacility.includes('medical') || normalizedFacility.includes('first aid');
-        });
-      }
-
-      if (filter === 'Family Friendly') {
-        return shelter.facilities.some((facility) => normalizedText(facility).includes('family'));
-      }
-
-      if (filter === 'Area') {
-        return shelter.isAreaMatch || areaMatches(shelter.area, user?.location);
-      }
-
-      return true;
+        normalizedText(shelter.area).includes(query)
+      );
     });
-  }, [filter, searchQuery, shelters, user?.location]);
+  }, [searchQuery, shelters]);
 
   if (!isLoading && !user) {
     return <Redirect href={'/auth/welcome' as Href} />;
@@ -225,6 +213,7 @@ export default function NearbySheltersScreen() {
   const showError = Boolean(errorMessage) && shelters.length === 0 && !showInitialLoading;
   const showEmpty = !showInitialLoading && !showError && filteredShelters.length === 0;
   const residentArea = user.location?.trim();
+  const userCanCreateShelters = canCreateShelters(user.role);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -249,11 +238,20 @@ export default function NearbySheltersScreen() {
           </Text>
         </View>
 
+        {userCanCreateShelters ? (
+          <AuthButton
+            onPress={() => router.push('/shelters/create' as Href)}
+            style={styles.createButton}
+            title="Create Safe Shelter"
+            variant="primary"
+          />
+        ) : null}
+
         <View style={styles.searchPanel}>
           <TextInput
-            accessibilityLabel="Search shelters by name or area"
+            accessibilityLabel="Search shelters"
             autoCapitalize="words"
-            placeholder="Search shelter name or area"
+            placeholder="Search shelters"
             placeholderTextColor="#8B98A9"
             returnKeyType="search"
             selectionColor={BrandColors.blue}
@@ -261,42 +259,6 @@ export default function NearbySheltersScreen() {
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
-
-          <View style={styles.filterRow}>
-            {filterOptions.map((option) => {
-              const selected = filter === option;
-
-              return (
-                <Pressable
-                  accessibilityRole="button"
-                  key={option}
-                  onPress={() => setFilter(option)}
-                  style={({ pressed }) => [
-                    styles.filterChip,
-                    selected && styles.filterChipSelected,
-                    pressed && styles.pressed,
-                  ]}>
-                  <Text style={[styles.filterText, selected && styles.filterTextSelected]}>{option}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
-
-        <View style={styles.summaryStrip}>
-          <Text style={styles.summaryText}>
-            Showing {filteredShelters.length} of {shelters.length} verified shelters
-          </Text>
-          <Text style={styles.summarySubtext}>
-            {residentArea ? `Resident area: ${residentArea}` : 'Resident area unavailable'}
-          </Text>
-        </View>
-
-        <View style={styles.mapSummary}>
-          <View style={styles.mapPoint} />
-          <View style={styles.mapConnector} />
-          <View style={[styles.mapPoint, styles.mapPointSafe]} />
-          <Text style={styles.mapSummaryText}>Map-ready shelter summary using verified Neon shelter records.</Text>
         </View>
 
         {errorMessage && shelters.length > 0 ? (
@@ -340,6 +302,10 @@ export default function NearbySheltersScreen() {
                 shelter={shelter}
                 onPress={() => router.push({
                   pathname: '/shelters/[id]',
+                  params: { id: String(shelter.id) },
+                } as unknown as Href)}
+                onRoutePress={() => router.push({
+                  pathname: '/shelters/[id]/route',
                   params: { id: String(shelter.id) },
                 } as unknown as Href)}
               />
@@ -391,6 +357,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     lineHeight: 22,
   },
+  createButton: {
+    marginTop: 4,
+  },
   searchPanel: {
     backgroundColor: BrandColors.white,
     borderColor: BrandColors.border,
@@ -438,60 +407,6 @@ const styles = StyleSheet.create({
   filterTextSelected: {
     color: BrandColors.white,
   },
-  summaryStrip: {
-    backgroundColor: BrandColors.lightBlue,
-    borderColor: BrandColors.sky,
-    borderRadius: 8,
-    borderWidth: 1,
-    gap: 3,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
-  summaryText: {
-    color: BrandColors.navy,
-    fontSize: 14,
-    fontWeight: '900',
-    lineHeight: 19,
-  },
-  summarySubtext: {
-    color: BrandColors.deepBlue,
-    fontSize: 12,
-    fontWeight: '800',
-    lineHeight: 17,
-  },
-  mapSummary: {
-    alignItems: 'center',
-    backgroundColor: BrandColors.white,
-    borderColor: BrandColors.border,
-    borderRadius: 8,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: 0,
-    minHeight: 94,
-    padding: 16,
-  },
-  mapPoint: {
-    backgroundColor: BrandColors.deepBlue,
-    borderRadius: 8,
-    height: 16,
-    width: 16,
-  },
-  mapPointSafe: {
-    backgroundColor: BrandColors.success,
-  },
-  mapConnector: {
-    backgroundColor: BrandColors.sky,
-    flex: 1,
-    height: 5,
-  },
-  mapSummaryText: {
-    color: BrandColors.muted,
-    fontSize: 12,
-    fontWeight: '800',
-    lineHeight: 17,
-    marginLeft: 12,
-    maxWidth: 120,
-  },
   list: {
     gap: 14,
     paddingBottom: 12,
@@ -503,12 +418,18 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: 13,
     padding: 15,
+    position: 'relative',
   },
   cardHeader: {
     alignItems: 'flex-start',
     flexDirection: 'row',
     gap: 10,
     justifyContent: 'space-between',
+  },
+  headerRight: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
   },
   cardTitleBlock: {
     flex: 1,
@@ -566,41 +487,36 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     lineHeight: 20,
   },
-  cardInfoBlock: {
-    gap: 4,
-  },
-  infoLabel: {
-    color: BrandColors.muted,
-    fontSize: 11,
-    fontWeight: '900',
-    lineHeight: 15,
-    textTransform: 'uppercase',
-  },
-  infoValue: {
-    color: BrandColors.text,
-    fontSize: 14,
-    fontWeight: '700',
-    lineHeight: 20,
-  },
-  cardFooter: {
-    alignItems: 'center',
-    borderTopColor: BrandColors.border,
-    borderTopWidth: 1,
+  cardButtonRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingTop: 12,
+    gap: 10,
+    marginTop: 8,
   },
-  viewText: {
-    color: BrandColors.deepBlue,
-    fontSize: 14,
-    fontWeight: '900',
-    lineHeight: 19,
+  cardButton: {
+    alignItems: 'center',
+    backgroundColor: BrandColors.navy,
+    borderRadius: 8,
+    flex: 1,
+    justifyContent: 'center',
+    minHeight: 44,
+    paddingHorizontal: 12,
   },
-  cardArrow: {
-    color: BrandColors.deepBlue,
-    fontSize: 24,
+  cardButtonText: {
+    color: BrandColors.white,
+    fontSize: 13,
     fontWeight: '900',
-    lineHeight: 28,
+    lineHeight: 17,
+  },
+  callButton: {
+    alignItems: 'center',
+    backgroundColor: BrandColors.success,
+    borderRadius: 20,
+    height: 40,
+    justifyContent: 'center',
+    width: 40,
+  },
+  callIcon: {
+    fontSize: 20,
   },
   centerState: {
     alignItems: 'center',

@@ -3,8 +3,9 @@ import { Router } from 'express';
 import {
   createIncidentReport,
   getMyIncidentReport,
+  listAllIncidents,
   listMyIncidentReports,
-  updateIncidentReportStatus,
+  updateIncidentStatus,
 } from '../controllers/incidentController.js';
 import { authenticateRequest } from '../middleware/authMiddleware.js';
 
@@ -14,7 +15,8 @@ router.use(authenticateRequest);
 
 router.post('/', createIncidentReport);
 router.get('/my', listMyIncidentReports);
-router.patch('/:id/status', updateIncidentReportStatus);
+router.get('/all', listAllIncidents);
+router.patch('/:id/status', updateIncidentStatus);
 router.get('/:id', getMyIncidentReport);
 
 export default router;
