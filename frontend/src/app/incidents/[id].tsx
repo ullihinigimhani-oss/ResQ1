@@ -10,6 +10,7 @@ import {
   StyleSheet,
   Text,
   View,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -84,6 +85,7 @@ export default function IncidentDetailsScreen() {
   const [loadingIncident, setLoadingIncident] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [viewingPhotoIndex, setViewingPhotoIndex] = useState<number | null>(null);
 
   const loadIncident = useCallback(async (refresh = false) => {
     if (!token || !incidentId) {
@@ -251,12 +253,17 @@ export default function IncidentDetailsScreen() {
                 <Text style={styles.sectionCopy}>{incident.photos.length} photo{incident.photos.length === 1 ? '' : 's'} attached to this report.</Text>
                 <View style={styles.photoGrid}>
                   {incident.photos.map((photo, index) => (
-                    <Image
-                      accessibilityLabel={`Incident evidence photo ${index + 1}`}
+                    <Pressable
                       key={photo.id}
-                      source={{ uri: photoUrl(photo.url), headers: { Authorization: `Bearer ${token}` } }}
-                      style={styles.photo}
-                    />
+                      onPress={() => setViewingPhotoIndex(index)}
+                      style={({ pressed }) => [pressed && styles.pressed]}
+                    >
+                      <Image
+                        accessibilityLabel={`Incident evidence photo ${index + 1}`}
+                        source={{ uri: photoUrl(photo.url), headers: { Authorization: `Bearer ${token}` } }}
+                        style={styles.photo}
+                      />
+                    </Pressable>
                   ))}
                 </View>
               </View>
@@ -264,6 +271,26 @@ export default function IncidentDetailsScreen() {
           </>
         ) : null}
       </ScrollView>
+
+      {incident && viewingPhotoIndex !== null && incident.photos[viewingPhotoIndex] ? (
+        <Modal
+          animationType="fade"
+          transparent={true}
+          visible={true}
+          onRequestClose={() => setViewingPhotoIndex(null)}
+        >
+          <View style={styles.fullScreenModal}>
+            <Pressable style={styles.fullScreenClose} onPress={() => setViewingPhotoIndex(null)}>
+              <Text style={styles.fullScreenCloseText}>×</Text>
+            </Pressable>
+            <Image
+              source={{ uri: photoUrl(incident.photos[viewingPhotoIndex].url), headers: { Authorization: `Bearer ${token}` } }}
+              style={styles.fullScreenImage}
+              resizeMode="contain"
+            />
+          </View>
+        </Modal>
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -493,5 +520,27 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.72,
+  },
+  fullScreenModal: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullScreenClose: {
+    position: 'absolute',
+    top: 40,
+    right: 20,
+    zIndex: 1,
+    padding: 10,
+  },
+  fullScreenCloseText: {
+    color: '#fff',
+    fontSize: 40,
+    lineHeight: 40,
+  },
+  fullScreenImage: {
+    width: '100%',
+    height: '100%',
   },
 });

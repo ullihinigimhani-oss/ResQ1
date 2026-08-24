@@ -1,4 +1,5 @@
 import { sql } from '../config/database.js';
+import { cloudinary } from '../config/cloudinary.js';
 import type {
   CreateIncidentInput,
   Incident,
@@ -81,7 +82,7 @@ function optionalNumber(value: number | string | null) {
 function toIncidentPhoto(row: IncidentPhotoRow): IncidentPhoto {
   return {
     id: row.id,
-    url: `/api/incidents/${row.incident_id}/photos/${row.id}`,
+    url: cloudinary.url(row.storage_key, { resource_type: "image", secure: true }),
     originalFilename: row.original_filename,
     mimeType: row.mime_type,
     sizeBytes: row.size_bytes,
