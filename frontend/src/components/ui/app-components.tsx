@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import { type Href, usePathname, useRouter } from 'expo-router';
 import type { ReactNode } from 'react';
 import {
@@ -13,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 
+import resq1Logo from '@/assets/images/resq1-logo.jfif';
 import { colors, radius, shadows, spacing, typography } from '@/constants/design';
 
 type SymbolName = string;
@@ -349,7 +351,7 @@ export function HomeHeader({
     <View style={styles.homeHeader}>
       <View style={styles.homeBrandBlock}>
         <View style={styles.wordmark}>
-          <Text style={styles.wordmarkText}>R1</Text>
+          <Image contentFit="contain" source={resq1Logo} style={styles.wordmarkLogo} />
         </View>
         <View style={styles.homeGreetingBlock}>
           <Text style={styles.wordmarkName}>ResQ1</Text>
@@ -1097,17 +1099,18 @@ const styles = StyleSheet.create({
   },
   wordmark: {
     alignItems: 'center',
-    backgroundColor: colors.navy,
+    backgroundColor: colors.white,
+    borderColor: colors.border,
     borderRadius: radius.md,
-    height: 42,
+    borderWidth: 1,
+    height: 44,
     justifyContent: 'center',
-    width: 42,
+    padding: 4,
+    width: 44,
   },
-  wordmarkText: {
-    color: colors.white,
-    fontSize: 14,
-    fontWeight: '900',
-    lineHeight: 18,
+  wordmarkLogo: {
+    height: '100%',
+    width: '100%',
   },
   wordmarkName: {
     color: colors.navy,
