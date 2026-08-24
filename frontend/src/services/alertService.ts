@@ -1,12 +1,20 @@
 import { API_BASE_URL } from '@/services/authService';
 import type {
   Alert,
+  AlertAcknowledgementReport,
+  AlertAcknowledgementStatus,
   AlertAuditEvent,
   AlertFieldErrors,
   AlertRiskHistoryPoint,
   CreateAlertPayload,
+  School,
+  SchoolSearchResult,
   UpdateAlertPayload,
 } from '@/types/alert';
+import type {
+  AlertPreferences,
+  UpdateAlertPreferencesPayload,
+} from '@/types/alertPreference';
 
 type ApiErrorBody = {
   message?: string;
@@ -32,6 +40,37 @@ type ApiAlertHistoryResponse = ApiErrorBody & {
 type ApiAlertRiskHistoryResponse = ApiErrorBody & {
   success: boolean;
   riskHistory?: AlertRiskHistoryPoint[];
+};
+
+type ApiAlertAcknowledgementResponse = ApiErrorBody & {
+  acknowledgement?: AlertAcknowledgementStatus;
+  success: boolean;
+};
+
+type ApiAlertAcknowledgementReportResponse = ApiErrorBody & {
+  report?: AlertAcknowledgementReport;
+  success: boolean;
+};
+
+type ApiAlertPreferencesResponse = ApiErrorBody & {
+  success: boolean;
+  message?: string;
+  preferences?: AlertPreferences;
+};
+
+type ApiSchoolListResponse = ApiErrorBody & {
+  success: boolean;
+  schools?: School[];
+};
+
+type ApiSchoolSearchResponse = ApiErrorBody & {
+  success: boolean;
+  schools?: SchoolSearchResult[];
+};
+
+type ApiPushTokenResponse = ApiErrorBody & {
+  success: boolean;
+  message?: string;
 };
 
 export class AlertApiError extends Error {
@@ -137,6 +176,69 @@ export async function getAlertRiskHistory(id: string, token: string) {
   return response.riskHistory ?? [];
 }
 
+export async function getAlertAcknowledgement(id: string, token: string) {
+  const response = await alertRequest<ApiAlertAcknowledgementResponse>(`/api/alerts/${id}/acknowledgement`, token);
+
+  if (!response.acknowledgement) {
+    throw new AlertApiError(500, 'The server returned an unexpected response.');
+  }
+
+  return response.acknowledgement;
+}
+
+export async function acknowledgeAlert(id: string, token: string) {
+  const response = await alertRequest<ApiAlertAcknowledgementResponse>(`/api/alerts/${id}/acknowledge`, token, {
+    method: 'POST',
+  });
+
+  if (!response.acknowledgement) {
+    throw new AlertApiError(500, 'The server returned an unexpected response.');
+  }
+
+  return response.acknowledgement;
+}
+
+export async function getAlertAcknowledgementReport(id: string, token: string) {
+  const response = await alertRequest<ApiAlertAcknowledgementReportResponse>(
+    `/api/alerts/${id}/acknowledgements`,
+    token,
+  );
+
+  if (!response.report) {
+    throw new AlertApiError(500, 'The server returned an unexpected response.');
+  }
+
+  return response.report;
+}
+
+export async function getAlertPreferences(token: string) {
+  const response = await alertRequest<ApiAlertPreferencesResponse>('/api/alerts/preferences', token);
+
+  if (!response.preferences) {
+    throw new AlertApiError(500, 'The server returned an unexpected response.');
+  }
+
+  return response.preferences;
+}
+
+export async function getSchoolsByArea(area: string, token: string) {
+  const response = await alertRequest<ApiSchoolListResponse>(
+    `/api/alerts/schools?area=${encodeURIComponent(area)}`,
+    token,
+  );
+
+  return response.schools ?? [];
+}
+
+export async function searchSchoolsByArea(area: string, token: string) {
+  const response = await alertRequest<ApiSchoolSearchResponse>(
+    `/api/alerts/schools/search?area=${encodeURIComponent(area)}`,
+    token,
+  );
+
+  return response.schools ?? [];
+}
+
 export async function getAlertById(id: string, token: string) {
   const response = await alertRequest<ApiAlertResponse>(`/api/alerts/${id}`, token);
 
@@ -171,4 +273,31 @@ export async function updateAlert(id: string, payload: UpdateAlertPayload, token
   }
 
   return response.alert;
+}
+
+export async function updateAlertPreferences(payload: UpdateAlertPreferencesPayload, token: string) {
+  const response = await alertRequest<ApiAlertPreferencesResponse>('/api/alerts/preferences', token, {
+    method: 'PUT',
+    body: payload,
+  });
+
+  if (!response.preferences) {
+    throw new AlertApiError(500, 'The server returned an unexpected response.');
+  }
+
+  return response.preferences;
+}
+
+export async function registerAlertPushToken(
+  payload: {
+    deviceName?: string | null;
+    expoPushToken: string;
+    platform?: string | null;
+  },
+  token: string,
+) {
+  await alertRequest<ApiPushTokenResponse>('/api/alerts/push-token', token, {
+    method: 'POST',
+    body: payload,
+  });
 }

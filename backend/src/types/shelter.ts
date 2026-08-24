@@ -66,3 +66,29 @@ export interface EvacuationRoute {
   updatedAt: string | null;
   isAreaMatch: boolean;
 }
+
+export interface CreateShelterInput {
+  name: string;
+  area: string;
+  address?: string;
+  latitude?: number;
+  longitude?: number;
+  capacity?: number;
+  currentOccupancy?: number;
+  status?: string;
+  contactNumber?: string;
+  facilities?: string[];
+}
+
+export interface UpdateShelterInput {
+  name?: string;
+  area?: string;
+  address?: string;
+  latitude?: number;
+  longitude?: number;
+  capacity?: number;
+  currentOccupancy?: number;
+  status?: string;
+  contactNumber?: string;
+  facilities?: string[];
+}

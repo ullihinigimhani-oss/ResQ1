@@ -2,17 +2,65 @@ export const alertRiskLevels = ['Low', 'Moderate', 'High', 'Critical'] as const;
 export const alertStatuses = ['Active', 'Expired', 'Resolved'] as const;
 export const alertDisasterTypes = ['Flood'] as const;
 export const alertAuditActions = ['PUBLISHED', 'UPDATED', 'CANCELLED', 'EXPIRED', 'RESOLVED'] as const;
+export const alertAudiences = ['ALL', 'GENERAL_PUBLIC', 'SCHOOL_EMERGENCY'] as const;
 
 export type AlertRiskLevel = (typeof alertRiskLevels)[number];
 export type AlertStatus = (typeof alertStatuses)[number];
 export type AlertDisasterType = (typeof alertDisasterTypes)[number];
 export type AlertAuditAction = (typeof alertAuditActions)[number];
+export type AlertAudience = (typeof alertAudiences)[number];
+
+export interface SchoolRow {
+  id: number;
+  school_name: string;
+  area: string;
+  latitude: number | string | null;
+  longitude: number | string | null;
+  osm_id?: string | null;
+  osm_type?: string | null;
+  created_at: Date | string;
+}
+
+export interface School {
+  id: number;
+  schoolName: string;
+  area: string;
+  latitude: number | null;
+  longitude: number | null;
+  osmId: string | null;
+  osmType: string | null;
+  formattedAddress?: string | null;
+  createdAt: string;
+}
+
+export interface SchoolSearchResult {
+  id: number | null;
+  schoolName: string;
+  area: string;
+  latitude: number | null;
+  longitude: number | null;
+  osmId: string | null;
+  osmType: string | null;
+  formattedAddress: string | null;
+}
+
+export interface SchoolSelectionInput {
+  id?: unknown;
+  schoolName?: unknown;
+  area?: unknown;
+  latitude?: unknown;
+  longitude?: unknown;
+  osmId?: unknown;
+  osmType?: unknown;
+  formattedAddress?: unknown;
+}
 
 export interface AlertRow {
   id: number;
   title: string;
   disaster_type: AlertDisasterType | string;
   affected_area: string;
+  alert_audience: AlertAudience | string | null;
   risk_level: AlertRiskLevel | string;
   message: string;
   safety_instructions: string | null;
@@ -22,6 +70,7 @@ export interface AlertRow {
   created_at: Date | string;
   updated_at: Date | string;
   is_relevant_to_resident?: boolean | null;
+  schools?: unknown;
 }
 
 export interface Alert {
@@ -29,6 +78,7 @@ export interface Alert {
   title: string;
   disasterType: AlertDisasterType | string;
   affectedArea: string;
+  alertAudience: AlertAudience;
   riskLevel: AlertRiskLevel | string;
   message: string;
   safetyInstructions: string;
@@ -38,6 +88,7 @@ export interface Alert {
   createdAt: string;
   updatedAt: string;
   isRelevantToResident: boolean;
+  schools: School[];
 }
 
 export interface AlertAuditRow {
@@ -86,14 +137,51 @@ export interface AlertRiskHistoryPoint {
   timestamp: string;
 }
 
+export interface AlertAcknowledgementRow {
+  acknowledged_at: Date | string;
+  alert_id: number;
+  id: number;
+  user_id: number;
+}
+
+export interface AlertAcknowledgementStatus {
+  acknowledged: boolean;
+  acknowledgedAt: string | null;
+}
+
+export interface AlertAcknowledgementSummary {
+  acknowledged: number;
+  acknowledgementRate: number | null;
+  lastAcknowledgedAt: string | null;
+  pending: number | null;
+  targetedResidents: number | null;
+}
+
+export interface AlertAcknowledgementResident {
+  acknowledged: boolean;
+  acknowledgedAt: string | null;
+  fullName: string;
+  id: number;
+  location: string | null;
+}
+
+export interface AlertAcknowledgementReport {
+  acknowledgedResidents: AlertAcknowledgementResident[];
+  pendingResidents: AlertAcknowledgementResident[];
+  summary: AlertAcknowledgementSummary;
+}
+
 export interface CreateAlertInput {
   title?: unknown;
   disasterType?: unknown;
   affectedArea?: unknown;
+  alertAudience?: unknown;
   riskLevel?: unknown;
   message?: unknown;
   safetyInstructions?: unknown;
   expiresAt?: unknown;
+  schoolIds?: unknown;
+  schools?: unknown;
 }
 
 export interface UpdateAlertInput extends CreateAlertInput {
@@ -105,10 +193,12 @@ export interface ValidatedCreateAlertInput {
   title: string;
   disasterType: AlertDisasterType;
   affectedArea: string;
+  alertAudience: AlertAudience;
   riskLevel: AlertRiskLevel;
   message: string;
   safetyInstructions: string;
   expiresAt: string | null;
+  schoolIds: number[];
 }
 
 export interface ValidatedUpdateAlertInput extends ValidatedCreateAlertInput {
