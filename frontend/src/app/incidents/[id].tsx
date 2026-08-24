@@ -11,6 +11,8 @@ import {
   Text,
   View,
   Modal,
+  Alert,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -22,9 +24,9 @@ import {
 } from '@/components/incidents/incident-badges';
 import { BrandColors } from '@/constants/brand';
 import { useAuth } from '@/context/auth-context';
-import { getIncidentById, isIncidentApiError } from '@/services/incidentService';
+import { getIncidentById, isIncidentApiError, updateIncidentStatus } from '@/services/incidentService';
 import { API_BASE_URL } from '@/services/authService';
-import type { Incident } from '@/types/incident';
+import type { Incident, IncidentStatus } from '@/types/incident';
 
 function firstParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
@@ -86,6 +88,46 @@ export default function IncidentDetailsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [viewingPhotoIndex, setViewingPhotoIndex] = useState<number | null>(null);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+
+  const handleUpdateStatus = useCallback(async (newStatus: IncidentStatus) => {
+    if (!token || !incident || !incidentId) return;
+
+    const performUpdate = async () => {
+      setUpdatingStatus(true);
+      try {
+        const updatedIncident = await updateIncidentStatus(Number(incidentId), newStatus, token);
+        setIncident(updatedIncident);
+        if (Platform.OS === 'web') {
+          window.alert(`Status updated to ${newStatus}.`);
+        }
+      } catch (error) {
+        const message = isIncidentApiError(error) ? error.message : 'Unable to update status.';
+        if (Platform.OS === 'web') {
+          window.alert(message);
+        } else {
+          Alert.alert('Error', message);
+        }
+      } finally {
+        setUpdatingStatus(false);
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm(`Are you sure you want to change this incident's status to ${newStatus}?`)) {
+        void performUpdate();
+      }
+    } else {
+      Alert.alert(
+        'Confirm Status Update',
+        `Are you sure you want to change this incident's status to ${newStatus}?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Update', onPress: performUpdate },
+        ]
+      );
+    }
+  }, [incident, incidentId, token]);
 
   const loadIncident = useCallback(async (refresh = false) => {
     if (!token || !incidentId) {
@@ -215,6 +257,29 @@ export default function IncidentDetailsScreen() {
                   variant="secondary"
                   onPress={() => router.push(`/incidents/edit?id=${incident.id}` as Href)}
                 />
+              </View>
+            )}
+
+            {user?.role === 'authority' && (
+              <View style={styles.panel}>
+                <Text style={styles.sectionTitle}>Authority Actions</Text>
+                <Text style={styles.sectionCopy}>Review and update the status of this incident.</Text>
+                <View style={{ flexDirection: 'row', gap: 10, marginTop: 10, flexWrap: 'wrap' }}>
+                  <AuthButton
+                    title={updatingStatus ? "Updating..." : "Verify"}
+                    variant={incident.status === 'Verified' ? 'primary' : 'secondary'}
+                    onPress={() => void handleUpdateStatus('Verified')}
+                    disabled={updatingStatus}
+                    style={{ flex: 1, minWidth: '45%' }}
+                  />
+                  <AuthButton
+                    title={updatingStatus ? "Updating..." : "Reject"}
+                    variant={incident.status === 'Rejected' ? 'primary' : 'secondary'}
+                    onPress={() => void handleUpdateStatus('Rejected')}
+                    disabled={updatingStatus}
+                    style={{ flex: 1, minWidth: '45%' }}
+                  />
+                </View>
               </View>
             )}
 
