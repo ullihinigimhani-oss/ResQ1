@@ -4,6 +4,7 @@ import bcrypt from 'bcrypt';
 import jwt, { type SignOptions } from 'jsonwebtoken';
 
 import { sql } from '../config/database.js';
+import { sendPasswordResetOtpEmail } from './emailService.js';
 import type {
   AuthResult,
   ForgotPasswordInput,
@@ -21,7 +22,7 @@ const PASSWORD_SALT_ROUNDS = 12;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PREFERRED_LANGUAGES = new Set<PreferredLanguage>(['English', 'Sinhala', 'Tamil']);
 const PASSWORD_RESET_GENERIC_MESSAGE =
-  'If an account exists for this email, a verification code has been generated.';
+  'If an account exists for this email, a verification code has been sent.';
 const PASSWORD_RESET_OTP_MIN = 100000;
 const PASSWORD_RESET_OTP_MAX = 1000000;
 const PASSWORD_RESET_OTP_EXPIRES_IN_MINUTES = 5;
@@ -408,8 +409,36 @@ export async function loginResident(input: LoginResidentInput): Promise<AuthResu
   };
 }
 
+let isPasswordResetTableChecked = false;
+
+async function ensurePasswordResetTokensTable() {
+  if (isPasswordResetTableChecked) return;
+
+  try {
+    await sql`
+      CREATE TABLE IF NOT EXISTS password_reset_tokens (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        otp_hash TEXT NOT NULL,
+        reset_token_hash TEXT,
+        expires_at TIMESTAMP NOT NULL,
+        reset_token_expires_at TIMESTAMP,
+        attempt_count INTEGER NOT NULL DEFAULT 0,
+        used BOOLEAN NOT NULL DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        verified_at TIMESTAMP,
+        reset_at TIMESTAMP
+      );
+    `;
+    isPasswordResetTableChecked = true;
+  } catch (error) {
+    console.error('Auto-create password_reset_tokens table error:', error);
+  }
+}
+
 export async function requestPasswordReset(input: ForgotPasswordInput) {
   const { email } = validateForgotPasswordInput(input);
+  await ensurePasswordResetTokensTable();
 
   const users = await sql`
     SELECT id, email
@@ -449,7 +478,7 @@ export async function requestPasswordReset(input: ForgotPasswordInput) {
       AND used = FALSE
   `;
 
-  await sql`
+  const inserted = await sql`
     INSERT INTO password_reset_tokens (
       user_id,
       otp_hash,
@@ -464,10 +493,35 @@ export async function requestPasswordReset(input: ForgotPasswordInput) {
       0,
       FALSE
     )
+    RETURNING id
   `;
 
+  const tokenId = (inserted[0] as { id: number } | undefined)?.id;
+
+  // Send plain OTP via Nodemailer / SMTP
+  const emailResult = await sendPasswordResetOtpEmail({
+    toEmail: user.email,
+    otp,
+  });
+
+  if (!emailResult.success) {
+    // Invalidate created token on delivery failure so user isn't stuck with an un-sent token
+    if (tokenId) {
+      await sql`
+        UPDATE password_reset_tokens
+        SET used = TRUE
+        WHERE id = ${tokenId}
+      `;
+    }
+
+    throw new AuthServiceError(
+      400,
+      'Unable to send verification email at this time. Please check your SMTP settings or try again later.',
+    );
+  }
+
   if (process.env.NODE_ENV !== 'production') {
-    console.info(`[DEV] Password reset OTP for ${maskEmail(user.email)}: ${otp}`);
+    console.info(`[DEV] Password reset OTP email dispatched for ${maskEmail(user.email)}`);
   }
 
   return { message: PASSWORD_RESET_GENERIC_MESSAGE };
