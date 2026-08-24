@@ -1,7 +1,17 @@
 import { StatusBar } from 'expo-status-bar';
 import { Redirect, useFocusEffect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Modal,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  type GestureResponderEvent,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppIcon, BottomNavigation, EmptyState, LoadingState, PrimaryButton } from '@/components/ui/app-components';
@@ -520,77 +530,9 @@ function AuthorityEmergencyActionCard({ onPress }: { onPress: () => void }) {
   );
 }
 
-function AuthorityAlertSummary({ alerts }: { alerts: Alert[] }) {
-  const severityCounts = alerts.reduce(
-    (counts, alert) => ({
-      ...counts,
-      [alert.riskLevel]: counts[alert.riskLevel] + 1,
-    }),
-    {
-      Critical: 0,
-      High: 0,
-      Low: 0,
-      Moderate: 0,
-    } satisfies Record<AlertRiskLevel, number>,
-  );
-  const summaryItems = [
-    { label: 'Active Alerts', value: alerts.length, accent: colors.navy },
-    { label: 'Critical', value: severityCounts.Critical, accent: authoritySeverityTheme.Critical.accent },
-    { label: 'High', value: severityCounts.High, accent: authoritySeverityTheme.High.accent },
-    { label: 'Moderate', value: severityCounts.Moderate, accent: authoritySeverityTheme.Moderate.accent },
-    { label: 'Low', value: severityCounts.Low, accent: authoritySeverityTheme.Low.accent },
-  ];
-
-  return (
-    <View style={styles.authoritySummaryGrid}>
-      {summaryItems.map((item) => (
-        <View key={item.label} style={[styles.authoritySummaryChip, { borderTopColor: item.accent }]}>
-          <Text style={styles.authoritySummaryValue}>{item.value}</Text>
-          <Text style={styles.authoritySummaryLabel}>{item.label}</Text>
-        </View>
-      ))}
-    </View>
-  );
-}
-
-function AuthorityActionRow({
-  cancelling,
-  onCancelAlert,
-  onEditAlert,
-  onViewAlert,
-}: {
-  cancelling: boolean;
-  onCancelAlert: () => void;
-  onEditAlert: () => void;
-  onViewAlert: () => void;
-}) {
-  return (
-    <View style={styles.authorityCardActions}>
-      <Pressable
-        accessibilityRole="button"
-        onPress={onViewAlert}
-        style={({ pressed }) => [styles.authorityManageButton, pressed && styles.pressed]}>
-        <Text style={styles.authorityManageButtonText}>View / Manage Alert -&gt;</Text>
-      </Pressable>
-      <Pressable
-        accessibilityRole="button"
-        onPress={onEditAlert}
-        style={({ pressed }) => [styles.authorityEditButton, pressed && styles.pressed]}>
-        <Text style={styles.authorityEditButtonText}>Edit Alert</Text>
-      </Pressable>
-      <Pressable
-        accessibilityRole="button"
-        disabled={cancelling}
-        onPress={onCancelAlert}
-        style={({ pressed }) => [
-          styles.authorityCancelButton,
-          cancelling && styles.disabledAction,
-          pressed && !cancelling && styles.pressed,
-        ]}>
-        <Text style={styles.authorityCancelButtonText}>{cancelling ? 'Cancelling...' : 'Cancel Alert'}</Text>
-      </Pressable>
-    </View>
-  );
+function handleNestedCardAction(event: GestureResponderEvent, action: () => void) {
+  event.stopPropagation();
+  action();
 }
 
 function AuthorityAlertCard({
@@ -607,9 +549,19 @@ function AuthorityAlertCard({
   onViewAlert: (alertId: number) => void;
 }) {
   const severity = authoritySeverityTheme[alert.riskLevel];
+  const schoolSummary = schoolSummaryText(alert, 'English');
+  const messagePreview = alert.message.trim();
 
   return (
-    <View style={[styles.authorityAlertCard, { borderLeftColor: severity.accent }]}>
+    <Pressable
+      accessibilityLabel={`Open alert details for ${alert.title}`}
+      accessibilityRole="button"
+      onPress={() => onViewAlert(alert.id)}
+      style={({ pressed }) => [
+        styles.authorityAlertCard,
+        { borderLeftColor: severity.accent },
+        pressed && styles.pressed,
+      ]}>
       <View style={styles.authorityAlertTopRow}>
         <View style={styles.authorityAlertTitleRow}>
           <View
@@ -628,21 +580,55 @@ function AuthorityAlertCard({
         </Text>
       </View>
 
-      <Text style={styles.areaText}>{alert.affectedArea}</Text>
+      <Text numberOfLines={1} style={styles.areaText}>{alert.affectedArea}</Text>
 
       <View style={styles.authorityCardMetaRow}>
         <AuthorityAudienceBadge audience={alert.alertAudience} />
         <SeverityBadge riskLevel={alert.riskLevel} />
-        <Text style={styles.compactMetaText}>Issued: {formatDateTime(alert.createdAt)}</Text>
       </View>
 
-      <AuthorityActionRow
-        cancelling={cancelling}
-        onCancelAlert={() => onCancelAlert(alert)}
-        onEditAlert={() => onEditAlert(alert.id)}
-        onViewAlert={() => onViewAlert(alert.id)}
-      />
-    </View>
+      {schoolSummary ? (
+        <Text numberOfLines={1} style={styles.authoritySchoolText}>
+          School: {schoolSummary}
+        </Text>
+      ) : null}
+
+      <Text numberOfLines={3} ellipsizeMode="tail" style={styles.authorityMessagePreview}>
+        {messagePreview}
+      </Text>
+
+      <View style={styles.authorityCardFooter}>
+        <Text numberOfLines={1} style={styles.compactMetaText}>Issued: {formatDateTime(alert.createdAt)}</Text>
+        <View style={styles.authorityIconActions}>
+          <Pressable
+            accessibilityLabel="Edit alert"
+            accessibilityRole="button"
+            hitSlop={4}
+            onPress={(event) => handleNestedCardAction(event, () => onEditAlert(alert.id))}
+            style={({ pressed }) => [styles.authorityIconButton, pressed && styles.pressed]}>
+            <AppIcon fallback="E" name="pencil.fill" size={18} tintColor={colors.deepBlue} />
+          </Pressable>
+          <Pressable
+            accessibilityLabel="Cancel alert"
+            accessibilityRole="button"
+            disabled={cancelling}
+            hitSlop={4}
+            onPress={(event) => handleNestedCardAction(event, () => onCancelAlert(alert))}
+            style={({ pressed }) => [
+              styles.authorityIconButton,
+              styles.authorityCancelIconButton,
+              cancelling && styles.disabledAction,
+              pressed && !cancelling && styles.pressed,
+            ]}>
+            {cancelling ? (
+              <ActivityIndicator color={colors.red} size="small" />
+            ) : (
+              <AppIcon fallback="X" name="trash.fill" size={18} tintColor={colors.red} />
+            )}
+          </Pressable>
+        </View>
+      </View>
+    </Pressable>
   );
 }
 
@@ -829,8 +815,6 @@ function AuthorityDashboard({
         </View>
       ) : null}
 
-      <AuthorityAlertSummary alerts={alerts} />
-
       <View style={styles.authoritySectionHeader}>
         <View style={styles.authoritySectionTitleBlock}>
           <Text style={styles.sectionTitle}>Active Alerts</Text>
@@ -841,7 +825,7 @@ function AuthorityDashboard({
             accessibilityRole="button"
             onPress={onViewHistory}
             style={({ pressed }) => [styles.historyLink, pressed && styles.pressed]}>
-            <Text style={styles.historyLinkText}>View History -&gt;</Text>
+            <Text style={styles.historyLinkText}>View History</Text>
           </Pressable>
           <View style={styles.activeCountBadge}>
             <Text style={styles.activeCountBadgeText}>{alerts.length} ACTIVE</Text>
@@ -1595,48 +1579,18 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     textAlign: 'center',
   },
-  authoritySummaryGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  authoritySummaryChip: {
-    backgroundColor: colors.white,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    borderTopWidth: 3,
-    borderWidth: 1,
-    flexGrow: 1,
-    minWidth: '30%',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    ...shadows.card,
-  },
-  authoritySummaryValue: {
-    color: colors.navy,
-    fontSize: 18,
-    fontWeight: '900',
-    lineHeight: 23,
-  },
-  authoritySummaryLabel: {
-    color: colors.muted,
-    fontSize: 11,
-    fontWeight: '900',
-    lineHeight: 15,
-    textTransform: 'uppercase',
-  },
   authorityAlertCard: {
     backgroundColor: colors.white,
     borderColor: colors.border,
     borderRadius: radius.md,
     borderLeftWidth: 5,
     borderWidth: 1,
-    gap: spacing.sm,
+    gap: spacing.xs,
     padding: spacing.md,
     ...shadows.card,
   },
   authorityAlertTopRow: {
-    alignItems: 'flex-start',
+    alignItems: 'center',
     flexDirection: 'row',
     gap: spacing.sm,
     justifyContent: 'space-between',
@@ -1646,6 +1600,7 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     gap: spacing.sm,
+    minWidth: 0,
   },
   authorityAlertIcon: {
     alignItems: 'center',
@@ -1701,67 +1656,43 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     lineHeight: 15,
   },
-  authorityCardActions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
+  authoritySchoolText: {
+    color: colors.deepBlue,
+    fontSize: 12,
+    fontWeight: '800',
+    lineHeight: 17,
   },
-  authorityManageButton: {
+  authorityMessagePreview: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 19,
+  },
+  authorityCardFooter: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.sm,
+    justifyContent: 'space-between',
+    paddingTop: spacing.xs,
+  },
+  authorityIconActions: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.xs,
+  },
+  authorityIconButton: {
     alignItems: 'center',
     backgroundColor: colors.lightBlue,
     borderColor: colors.sky,
     borderRadius: radius.md,
     borderWidth: 1,
-    flexGrow: 1,
     justifyContent: 'center',
-    minHeight: 42,
-    minWidth: '56%',
-    paddingHorizontal: spacing.md,
+    minHeight: 40,
+    width: 40,
   },
-  authorityManageButtonText: {
-    color: colors.deepBlue,
-    fontSize: 13,
-    fontWeight: '900',
-    lineHeight: 18,
-    textAlign: 'center',
-  },
-  authorityEditButton: {
-    alignItems: 'center',
-    backgroundColor: colors.white,
-    borderColor: colors.red,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    flexGrow: 1,
-    justifyContent: 'center',
-    minHeight: 42,
-    minWidth: '34%',
-    paddingHorizontal: spacing.md,
-  },
-  authorityEditButtonText: {
-    color: colors.red,
-    fontSize: 13,
-    fontWeight: '900',
-    lineHeight: 18,
-    textAlign: 'center',
-  },
-  authorityCancelButton: {
-    alignItems: 'center',
+  authorityCancelIconButton: {
     backgroundColor: colors.redSoft,
     borderColor: colors.red,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    flexGrow: 1,
-    justifyContent: 'center',
-    minHeight: 42,
-    minWidth: '100%',
-    paddingHorizontal: spacing.md,
-  },
-  authorityCancelButtonText: {
-    color: colors.red,
-    fontSize: 13,
-    fontWeight: '900',
-    lineHeight: 18,
-    textAlign: 'center',
   },
   cardHeader: {
     alignItems: 'flex-start',
@@ -1778,9 +1709,9 @@ const styles = StyleSheet.create({
   authorityAlertTitle: {
     color: colors.navy,
     flex: 1,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '900',
-    lineHeight: 21,
+    lineHeight: 20,
   },
   statusText: {
     color: colors.deepBlue,
@@ -1791,10 +1722,11 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   areaText: {
-    color: colors.deepBlue,
-    fontSize: 13,
-    fontWeight: '900',
-    lineHeight: 18,
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: '800',
+    lineHeight: 17,
+    marginLeft: 40,
   },
   residentLocationBlock: {
     gap: 1,
@@ -1923,10 +1855,12 @@ const styles = StyleSheet.create({
     lineHeight: 15,
   },
   compactMetaText: {
-    color: colors.text,
+    color: colors.muted,
+    flex: 1,
     fontSize: 12,
     fontWeight: '800',
     lineHeight: 17,
+    minWidth: 0,
   },
   inlineError: {
     backgroundColor: colors.redSoft,

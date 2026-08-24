@@ -111,6 +111,14 @@ export function AppIcon({
     return <SliderIcon size={size} tintColor={tintColor} />;
   }
 
+  if (iconName.includes('pencil')) {
+    return <PencilIcon size={size} tintColor={tintColor} />;
+  }
+
+  if (iconName.includes('trash')) {
+    return <TrashIcon size={size} tintColor={tintColor} />;
+  }
+
   return (
     <Text style={[styles.iconFallback, { color: tintColor, fontSize: Math.max(12, size * 0.55) }]}>
       {fallback}
@@ -235,6 +243,28 @@ function SliderIcon({ size, tintColor }: { size: number; tintColor: string }) {
       <View style={[styles.sliderKnobLeft, { borderColor: tintColor }]} />
       <View style={[styles.sliderKnobRight, { borderColor: tintColor }]} />
       <View style={[styles.sliderKnobCenter, { borderColor: tintColor }]} />
+    </IconCanvas>
+  );
+}
+
+function PencilIcon({ size, tintColor }: { size: number; tintColor: string }) {
+  return (
+    <IconCanvas size={size}>
+      <View style={[styles.pencilBody, { backgroundColor: tintColor }]} />
+      <View style={[styles.pencilTip, { borderLeftColor: tintColor }]} />
+      <View style={[styles.pencilEnd, { backgroundColor: tintColor }]} />
+    </IconCanvas>
+  );
+}
+
+function TrashIcon({ size, tintColor }: { size: number; tintColor: string }) {
+  return (
+    <IconCanvas size={size}>
+      <View style={[styles.trashLid, { backgroundColor: tintColor }]} />
+      <View style={[styles.trashHandle, { borderColor: tintColor }]} />
+      <View style={[styles.trashBody, { borderColor: tintColor }]} />
+      <View style={[styles.trashLineLeft, { backgroundColor: tintColor }]} />
+      <View style={[styles.trashLineRight, { backgroundColor: tintColor }]} />
     </IconCanvas>
   );
 }
@@ -1043,6 +1073,75 @@ const styles = StyleSheet.create({
     height: 8,
     position: 'absolute',
     width: 8,
+  },
+  pencilBody: {
+    borderRadius: 2,
+    height: 4,
+    position: 'absolute',
+    transform: [{ rotate: '-45deg' }],
+    width: '62%',
+  },
+  pencilTip: {
+    borderBottomColor: 'transparent',
+    borderBottomWidth: 4,
+    borderLeftWidth: 7,
+    borderTopColor: 'transparent',
+    borderTopWidth: 4,
+    position: 'absolute',
+    right: '18%',
+    top: '24%',
+    transform: [{ rotate: '-45deg' }],
+  },
+  pencilEnd: {
+    borderRadius: 1,
+    height: 6,
+    left: '20%',
+    position: 'absolute',
+    top: '61%',
+    transform: [{ rotate: '-45deg' }],
+    width: 3,
+  },
+  trashLid: {
+    borderRadius: 1,
+    height: 2,
+    position: 'absolute',
+    top: '22%',
+    width: '62%',
+  },
+  trashHandle: {
+    borderBottomWidth: 0,
+    borderRadius: 3,
+    borderWidth: 2,
+    height: '18%',
+    position: 'absolute',
+    top: '10%',
+    width: '28%',
+  },
+  trashBody: {
+    borderBottomLeftRadius: 4,
+    borderBottomRightRadius: 4,
+    borderTopWidth: 0,
+    borderWidth: 2,
+    bottom: '16%',
+    height: '54%',
+    position: 'absolute',
+    width: '52%',
+  },
+  trashLineLeft: {
+    borderRadius: 1,
+    height: '34%',
+    left: '40%',
+    position: 'absolute',
+    top: '40%',
+    width: 2,
+  },
+  trashLineRight: {
+    borderRadius: 1,
+    height: '34%',
+    position: 'absolute',
+    right: '40%',
+    top: '40%',
+    width: 2,
   },
   safeArea: {
     backgroundColor: colors.background,
