@@ -33,7 +33,24 @@
           "imageWidth": 76
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Allow ResQ1 to use your camera to document a disaster incident.",
+          "photosPermission": "Allow ResQ1 to select photos as disaster evidence.",
+          "microphonePermission": false
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow ResQ1 to use your camera to document a disaster incident.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false,
+          "barcodeScannerEnabled": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

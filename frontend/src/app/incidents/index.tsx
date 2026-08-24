@@ -134,10 +134,16 @@ export default function MyIncidentsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const submitted = firstParam(params.submitted) === '1';
-  const successMessage = useMemo(
-    () => submitted ? 'Incident report submitted successfully.' : null,
-    [submitted],
-  );
+  const photoUploadFailed = firstParam(params.photoUploadFailed) === '1';
+  const successMessage = useMemo(() => {
+    if (!submitted) {
+      return null;
+    }
+
+    return photoUploadFailed
+      ? 'Incident report submitted, but some photo evidence could not be uploaded.'
+      : 'Incident report submitted successfully.';
+  }, [photoUploadFailed, submitted]);
 
   const loadIncidents = useCallback(async (refresh = false) => {
     if (!token) {
@@ -237,7 +243,7 @@ export default function MyIncidentsScreen() {
           />
         </View>
 
-        {successMessage ? <StatusBanner message={successMessage} type="success" /> : null}
+        {successMessage ? <StatusBanner message={successMessage} type={photoUploadFailed ? 'error' : 'success'} /> : null}
         {errorMessage && incidents.length > 0 ? <StatusBanner message={errorMessage} type="error" /> : null}
 
         {showInitialLoading ? (

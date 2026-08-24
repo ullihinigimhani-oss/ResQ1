@@ -3,6 +3,7 @@ import { Redirect, useLocalSearchParams, useRouter, type Href } from 'expo-route
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -21,6 +22,7 @@ import {
 import { BrandColors } from '@/constants/brand';
 import { useAuth } from '@/context/auth-context';
 import { getIncidentById, isIncidentApiError } from '@/services/incidentService';
+import { API_BASE_URL } from '@/services/authService';
 import type { Incident } from '@/types/incident';
 
 function firstParam(value: string | string[] | undefined) {
@@ -67,6 +69,10 @@ function coordinatesText(incident: Incident) {
   }
 
   return `${incident.latitude}, ${incident.longitude}`;
+}
+
+function photoUrl(path: string) {
+  return path.startsWith('http') ? path : `${API_BASE_URL}${path}`;
 }
 
 export default function IncidentDetailsScreen() {
@@ -238,6 +244,23 @@ export default function IncidentDetailsScreen() {
               <DetailRow label="Submitted Date" value={formatDateTime(incident.createdAt)} />
               <DetailRow label="Last Updated" value={formatDateTime(incident.updatedAt)} />
             </View>
+
+            {incident.photos.length > 0 ? (
+              <View style={styles.panel}>
+                <Text style={styles.sectionTitle}>Photo Evidence</Text>
+                <Text style={styles.sectionCopy}>{incident.photos.length} photo{incident.photos.length === 1 ? '' : 's'} attached to this report.</Text>
+                <View style={styles.photoGrid}>
+                  {incident.photos.map((photo, index) => (
+                    <Image
+                      accessibilityLabel={`Incident evidence photo ${index + 1}`}
+                      key={photo.id}
+                      source={{ uri: photoUrl(photo.url), headers: { Authorization: `Bearer ${token}` } }}
+                      style={styles.photo}
+                    />
+                  ))}
+                </View>
+              </View>
+            ) : null}
           </>
         ) : null}
       </ScrollView>
@@ -455,6 +478,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     lineHeight: 20,
+  },
+  photoGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  photo: {
+    borderColor: BrandColors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    height: 120,
+    width: 120,
   },
   pressed: {
     opacity: 0.72,

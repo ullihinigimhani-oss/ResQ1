@@ -68,3 +68,34 @@ CREATE INDEX IF NOT EXISTS idx_alert_audit_events_alert_id
 
 CREATE INDEX IF NOT EXISTS idx_alert_audit_events_created_at
     ON alert_audit_events(created_at DESC);
+
+CREATE TABLE IF NOT EXISTS incidents (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    incident_type VARCHAR(50) NOT NULL,
+    title VARCHAR(150) NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    location VARCHAR(150) NOT NULL,
+    latitude DECIMAL(9,6),
+    longitude DECIMAL(9,6),
+    severity VARCHAR(20) NOT NULL,
+    photo_url TEXT,
+    status VARCHAR(30) NOT NULL DEFAULT 'Reported',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS incident_photos (
+    id SERIAL PRIMARY KEY,
+    incident_id INTEGER NOT NULL REFERENCES incidents(id) ON DELETE CASCADE,
+    storage_key TEXT NOT NULL,
+    original_filename VARCHAR(255) NOT NULL,
+    mime_type VARCHAR(100) NOT NULL,
+    size_bytes INTEGER NOT NULL,
+    width INTEGER,
+    height INTEGER,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_incident_photos_incident_id
+    ON incident_photos(incident_id);

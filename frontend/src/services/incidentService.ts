@@ -1,8 +1,11 @@
 import { API_BASE_URL } from '@/services/authService';
+import { Platform } from 'react-native';
 import type {
   CreateIncidentPayload,
   Incident,
   IncidentFieldErrors,
+  IncidentPhoto,
+  SelectedIncidentPhoto,
 } from '@/types/incident';
 
 type ApiErrorBody = {
@@ -19,6 +22,12 @@ type ApiIncidentResponse = ApiErrorBody & {
 type ApiIncidentListResponse = ApiErrorBody & {
   success: boolean;
   incidents?: Incident[];
+};
+
+type ApiIncidentPhotoResponse = ApiErrorBody & {
+  success: boolean;
+  message: string;
+  photo?: IncidentPhoto;
 };
 
 export class IncidentApiError extends Error {
@@ -117,6 +126,53 @@ export async function createIncident(payload: CreateIncidentPayload, token: stri
   }
 
   return response.incident;
+}
+
+export async function uploadIncidentPhoto(
+  incidentId: number,
+  photo: SelectedIncidentPhoto,
+  token: string,
+) {
+  const formData = new FormData();
+
+  if (photo.file) {
+    // Expo ImagePicker provides the browser File object only on web.
+    formData.append('photo', photo.file, photo.fileName);
+  } else if (Platform.OS === 'web') {
+    const blob = await (await fetch(photo.uri)).blob();
+    formData.append('photo', blob, photo.fileName);
+  } else {
+    // React Native accepts this file descriptor for Android and iOS uploads.
+    formData.append('photo', {
+      uri: photo.uri,
+      name: photo.fileName,
+      type: photo.mimeType,
+    } as unknown as Blob);
+  }
+
+  let response: Response;
+
+  try {
+    response = await fetch(`${API_BASE_URL}/api/incidents/${incidentId}/photos`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+  } catch {
+    throw new IncidentApiError(0, 'Unable to upload photo evidence. Please check your connection.');
+  }
+
+  const data = await parseJson(response) as ApiIncidentPhotoResponse | null;
+
+  if (!response.ok) {
+    throw new IncidentApiError(response.status, data?.message || 'Unable to upload photo evidence.');
+  }
+
+  if (!data?.photo) {
+    throw new IncidentApiError(500, 'The server returned an unexpected upload response.');
+  }
+
+  return data.photo;
 }
 
 export async function getMyIncidents(token: string) {
