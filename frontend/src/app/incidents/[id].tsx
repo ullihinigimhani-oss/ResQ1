@@ -3,12 +3,14 @@ import { Redirect, useLocalSearchParams, useRouter, type Href } from 'expo-route
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
   View,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -21,6 +23,7 @@ import {
 import { BrandColors } from '@/constants/brand';
 import { useAuth } from '@/context/auth-context';
 import { getIncidentById, isIncidentApiError } from '@/services/incidentService';
+import { API_BASE_URL } from '@/services/authService';
 import type { Incident } from '@/types/incident';
 
 function firstParam(value: string | string[] | undefined) {
@@ -69,6 +72,10 @@ function coordinatesText(incident: Incident) {
   return `${incident.latitude}, ${incident.longitude}`;
 }
 
+function photoUrl(path: string) {
+  return path.startsWith('http') ? path : `${API_BASE_URL}${path}`;
+}
+
 export default function IncidentDetailsScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -78,6 +85,7 @@ export default function IncidentDetailsScreen() {
   const [loadingIncident, setLoadingIncident] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [viewingPhotoIndex, setViewingPhotoIndex] = useState<number | null>(null);
 
   const loadIncident = useCallback(async (refresh = false) => {
     if (!token || !incidentId) {
@@ -200,6 +208,16 @@ export default function IncidentDetailsScreen() {
               </View>
             </View>
 
+            {incident.status === 'Reported' && (
+              <View style={styles.editActionContainer}>
+                <AuthButton
+                  title="Edit Report"
+                  variant="secondary"
+                  onPress={() => router.push(`/incidents/edit?id=${incident.id}` as Href)}
+                />
+              </View>
+            )}
+
             <View style={styles.panel}>
               <View style={styles.panelHeader}>
                 <View style={styles.panelTitleBlock}>
@@ -238,9 +256,51 @@ export default function IncidentDetailsScreen() {
               <DetailRow label="Submitted Date" value={formatDateTime(incident.createdAt)} />
               <DetailRow label="Last Updated" value={formatDateTime(incident.updatedAt)} />
             </View>
+
+            {incident.photos.length > 0 ? (
+              <View style={styles.panel}>
+                <Text style={styles.sectionTitle}>Photo Evidence</Text>
+                <Text style={styles.sectionCopy}>{incident.photos.length} photo{incident.photos.length === 1 ? '' : 's'} attached to this report.</Text>
+                <View style={styles.photoGrid}>
+                  {incident.photos.map((photo, index) => (
+                    <Pressable
+                      key={photo.id}
+                      onPress={() => setViewingPhotoIndex(index)}
+                      style={({ pressed }) => [pressed && styles.pressed]}
+                    >
+                      <Image
+                        accessibilityLabel={`Incident evidence photo ${index + 1}`}
+                        source={{ uri: photoUrl(photo.url), headers: { Authorization: `Bearer ${token}` } }}
+                        style={styles.photo}
+                      />
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            ) : null}
           </>
         ) : null}
       </ScrollView>
+
+      {incident && viewingPhotoIndex !== null && incident.photos[viewingPhotoIndex] ? (
+        <Modal
+          animationType="fade"
+          transparent={true}
+          visible={true}
+          onRequestClose={() => setViewingPhotoIndex(null)}
+        >
+          <View style={styles.fullScreenModal}>
+            <Pressable style={styles.fullScreenClose} onPress={() => setViewingPhotoIndex(null)}>
+              <Text style={styles.fullScreenCloseText}>×</Text>
+            </Pressable>
+            <Image
+              source={{ uri: photoUrl(incident.photos[viewingPhotoIndex].url), headers: { Authorization: `Bearer ${token}` } }}
+              style={styles.fullScreenImage}
+              resizeMode="contain"
+            />
+          </View>
+        </Modal>
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -330,6 +390,10 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     lineHeight: 20,
     marginTop: 4,
+  },
+  editActionContainer: {
+    paddingHorizontal: 20,
+    marginBottom: 20,
   },
   panel: {
     backgroundColor: BrandColors.white,
@@ -456,7 +520,41 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     lineHeight: 20,
   },
+  photoGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  photo: {
+    borderColor: BrandColors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    height: 120,
+    width: 120,
+  },
   pressed: {
     opacity: 0.72,
+  },
+  fullScreenModal: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullScreenClose: {
+    position: 'absolute',
+    top: 40,
+    right: 20,
+    zIndex: 1,
+    padding: 10,
+  },
+  fullScreenCloseText: {
+    color: '#fff',
+    fontSize: 40,
+    lineHeight: 40,
+  },
+  fullScreenImage: {
+    width: '100%',
+    height: '100%',
   },
 });

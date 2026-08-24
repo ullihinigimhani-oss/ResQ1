@@ -1,11 +1,15 @@
 import { sql } from '../config/database.js';
+import { cloudinary } from '../config/cloudinary.js';
 import type {
   CreateIncidentInput,
   Incident,
+  IncidentPhoto,
+  IncidentPhotoRow,
   IncidentRow,
   IncidentSeverity,
   IncidentStatus,
   IncidentType,
+  UpdateIncidentInput,
   UpdateIncidentStatusInput,
   ValidatedIncidentInput,
 } from '../types/incident.js';
@@ -76,7 +80,20 @@ function optionalNumber(value: number | string | null) {
   return Number.isFinite(numericValue) ? numericValue : null;
 }
 
-function toIncident(row: IncidentRow): Incident {
+function toIncidentPhoto(row: IncidentPhotoRow): IncidentPhoto {
+  return {
+    id: row.id,
+    url: cloudinary.url(row.storage_key, { resource_type: "image", secure: true }),
+    originalFilename: row.original_filename,
+    mimeType: row.mime_type,
+    sizeBytes: row.size_bytes,
+    width: optionalNumber(row.width),
+    height: optionalNumber(row.height),
+    createdAt: formatTimestamp(row.created_at),
+  };
+}
+
+function toIncident(row: IncidentRow, photos: IncidentPhoto[] = []): Incident {
   return {
     id: row.id,
     incidentType: row.incident_type,
@@ -90,7 +107,30 @@ function toIncident(row: IncidentRow): Incident {
     status: row.status,
     createdAt: formatTimestamp(row.created_at),
     updatedAt: formatTimestamp(row.updated_at),
+    photos,
   };
+}
+
+async function getPhotosByIncidentIds(incidentIds: number[]) {
+  if (incidentIds.length === 0) {
+    return new Map<number, IncidentPhoto[]>();
+  }
+
+  const rows = await sql`
+    SELECT id, incident_id, storage_key, original_filename, mime_type, size_bytes, width, height, created_at
+    FROM incident_photos
+    WHERE incident_id = ANY(${incidentIds})
+    ORDER BY created_at ASC
+  `;
+  const photosByIncidentId = new Map<number, IncidentPhoto[]>();
+
+  for (const row of rows as IncidentPhotoRow[]) {
+    const photos = photosByIncidentId.get(row.incident_id) ?? [];
+    photos.push(toIncidentPhoto(row));
+    photosByIncidentId.set(row.incident_id, photos);
+  }
+
+  return photosByIncidentId;
 }
 
 function validateCreateIncidentInput(input: CreateIncidentInput): ValidatedIncidentInput {
@@ -219,7 +259,10 @@ export async function getMyIncidents(userId: number) {
     ORDER BY created_at DESC
   `;
 
-  return (rows as IncidentRow[]).map(toIncident);
+  const incidentRows = rows as IncidentRow[];
+  const photosByIncidentId = await getPhotosByIncidentIds(incidentRows.map((incident) => incident.id));
+
+  return incidentRows.map((incident) => toIncident(incident, photosByIncidentId.get(incident.id) ?? []));
 }
 
 export async function getIncidentById(userId: number, incidentId: string) {
@@ -239,7 +282,151 @@ export async function getIncidentById(userId: number, incidentId: string) {
     throw new IncidentServiceError(404, 'Incident report not found.');
   }
 
-  return toIncident(incident);
+  const photosByIncidentId = await getPhotosByIncidentIds([incident.id]);
+  return toIncident(incident, photosByIncidentId.get(incident.id) ?? []);
+}
+
+export async function addIncidentPhoto(
+  userId: number,
+  incidentId: string,
+  photo: { filename: string; originalname: string; mimetype: string; size: number },
+) {
+  const numericId = numericIncidentId(incidentId);
+  const ownerRows = await sql`
+    SELECT id FROM incidents WHERE id = ${numericId} AND user_id = ${userId} LIMIT 1
+  `;
+
+  if (ownerRows.length === 0) {
+    throw new IncidentServiceError(404, 'Incident report not found.');
+  }
+
+  const countRows = await sql`
+    SELECT COUNT(*)::int AS count FROM incident_photos WHERE incident_id = ${numericId}
+  `;
+  const count = Number((countRows[0] as { count?: number } | undefined)?.count ?? 0);
+
+  if (count >= 5) {
+    throw new IncidentServiceError(400, 'A report can contain a maximum of 5 photos.');
+  }
+
+  const rows = await sql`
+    INSERT INTO incident_photos (incident_id, storage_key, original_filename, mime_type, size_bytes)
+    VALUES (${numericId}, ${photo.filename}, ${photo.originalname}, ${photo.mimetype}, ${photo.size})
+    RETURNING id, incident_id, storage_key, original_filename, mime_type, size_bytes, width, height, created_at
+  `;
+  const addedPhoto = rows[0] as IncidentPhotoRow | undefined;
+
+  if (!addedPhoto) {
+    throw new IncidentServiceError(500, 'Photo evidence could not be saved.');
+  }
+
+  return toIncidentPhoto(addedPhoto);
+}
+
+export async function getIncidentPhotoFile(
+  userId: number,
+  role: string,
+  incidentId: string,
+  photoId: string,
+) {
+  const numericId = numericIncidentId(incidentId);
+  const numericPhotoId = Number(photoId);
+
+  if (!Number.isInteger(numericPhotoId) || numericPhotoId <= 0) {
+    throw new IncidentServiceError(400, 'Invalid photo id.');
+  }
+
+  const rows = await sql`
+    SELECT p.storage_key, p.mime_type
+    FROM incident_photos p
+    INNER JOIN incidents i ON i.id = p.incident_id
+    WHERE p.id = ${numericPhotoId}
+      AND p.incident_id = ${numericId}
+      AND (${role === 'admin' || role === 'authority'} OR i.user_id = ${userId})
+    LIMIT 1
+  `;
+  const file = rows[0] as { storage_key: string; mime_type: string } | undefined;
+
+  if (!file) {
+    throw new IncidentServiceError(404, 'Photo evidence not found.');
+  }
+
+  return file;
+}
+
+export async function removeIncidentPhoto(userId: number, incidentId: string, photoId: string) {
+  const numericId = numericIncidentId(incidentId);
+  const numericPhotoId = Number(photoId);
+
+  if (!Number.isInteger(numericPhotoId) || numericPhotoId <= 0) {
+    throw new IncidentServiceError(400, 'Invalid photo id.');
+  }
+
+  const ownerRows = await sql`
+    SELECT id, status FROM incidents WHERE id = ${numericId} AND user_id = ${userId} LIMIT 1
+  `;
+
+  if (ownerRows.length === 0) {
+    throw new IncidentServiceError(404, 'Incident report not found.');
+  }
+  
+  if ((ownerRows[0] as IncidentRow).status !== 'Reported') {
+    throw new IncidentServiceError(403, 'You can only remove photos while the incident is in Reported status.');
+  }
+
+  const result = await sql`
+    DELETE FROM incident_photos
+    WHERE id = ${numericPhotoId} AND incident_id = ${numericId}
+    RETURNING id
+  `;
+
+  if (result.length === 0) {
+    throw new IncidentServiceError(404, 'Photo evidence not found.');
+  }
+
+  return true;
+}
+
+export async function updateIncident(userId: number, incidentId: string, input: UpdateIncidentInput) {
+  const numericId = numericIncidentId(incidentId);
+  
+  const ownerRows = await sql`
+    SELECT id, status FROM incidents WHERE id = ${numericId} AND user_id = ${userId} LIMIT 1
+  `;
+
+  if (ownerRows.length === 0) {
+    throw new IncidentServiceError(404, 'Incident report not found.');
+  }
+  
+  if ((ownerRows[0] as IncidentRow).status !== 'Reported') {
+    throw new IncidentServiceError(403, 'You can only edit an incident while it is in Reported status.');
+  }
+
+  // Reuse the same validation logic as create
+  const incident = validateCreateIncidentInput(input as CreateIncidentInput);
+
+  const rows = await sql`
+    UPDATE incidents
+    SET incident_type = ${incident.incidentType},
+        title = ${incident.title},
+        description = ${incident.description},
+        location = ${incident.location},
+        latitude = ${incident.latitude},
+        longitude = ${incident.longitude},
+        severity = ${incident.severity},
+        updated_at = CURRENT_TIMESTAMP
+    WHERE id = ${numericId}
+    RETURNING id, incident_type, title, description, location, latitude, longitude, severity, photo_url, status, created_at, updated_at
+  `;
+
+  const updatedIncident = rows[0] as IncidentRow | undefined;
+
+  if (!updatedIncident) {
+    throw new IncidentServiceError(500, 'Incident report could not be updated.');
+  }
+  
+  const photosByIncidentId = await getPhotosByIncidentIds([updatedIncident.id]);
+  return toIncident(updatedIncident, photosByIncidentId.get(updatedIncident.id) ?? []);
 }
 
 export async function updateIncidentStatus(incidentId: string, input: UpdateIncidentStatusInput) {
@@ -273,5 +460,5 @@ export async function getAllIncidents() {
     ORDER BY created_at DESC
   `;
 
-  return (rows as IncidentRow[]).map(toIncident);
+  return (rows as IncidentRow[]).map(row => toIncident(row));
 }
