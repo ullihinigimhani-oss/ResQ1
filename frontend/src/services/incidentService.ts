@@ -6,6 +6,7 @@ import type {
   IncidentFieldErrors,
   IncidentPhoto,
   SelectedIncidentPhoto,
+  IncidentStatus,
 } from '@/types/incident';
 
 type ApiErrorBody = {
@@ -58,7 +59,7 @@ async function incidentRequest<T>(
   path: string,
   token: string,
   options: {
-    method?: 'GET' | 'POST' | 'PUT';
+    method?: 'GET' | 'POST' | 'PUT' | 'PATCH';
     body?: unknown;
   } = {},
 ) {
@@ -233,4 +234,17 @@ export async function deleteIncidentPhoto(incidentId: number, photoId: number, t
   }
 
   return true;
+}
+
+export async function updateIncidentStatus(incidentId: number, status: IncidentStatus, token: string) {
+  const response = await incidentRequest<ApiIncidentResponse>(`/api/incidents/${incidentId}/status`, token, {
+    method: 'PATCH',
+    body: { status },
+  });
+  
+  if (!response.incident) {
+    throw new IncidentApiError(500, 'The server returned an unexpected response.');
+  }
+
+  return response.incident;
 }

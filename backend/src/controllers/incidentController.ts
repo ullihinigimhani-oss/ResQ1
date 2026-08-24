@@ -74,7 +74,7 @@ export async function createIncidentReport(req: Request, res: Response) {
 export async function listMyIncidentReports(req: Request, res: Response) {
   try {
     const user = requireAuthenticatedUser(req);
-    const incidents = await getMyIncidents(user.id);
+    const incidents = await getMyIncidents(user.id, user.role);
 
     return res.status(200).json({
       success: true,
@@ -94,7 +94,7 @@ export async function getMyIncidentReport(req: Request, res: Response) {
       throw new IncidentServiceError(400, "Invalid incident id.");
     }
 
-    const incident = await getIncidentById(user.id, incidentId);
+    const incident = await getIncidentById(user.id, user.role, incidentId);
 
     return res.status(200).json({
       success: true,
@@ -128,8 +128,8 @@ export async function updateIncidentStatus(req: Request, res: Response) {
 
 export async function listAllIncidents(req: Request, res: Response) {
   try {
-    requireAuthenticatedUser(req);
-    const incidents = await getAllIncidents();
+    const user = requireAuthenticatedUser(req);
+    const incidents = await getAllIncidents(user.role);
 
     return res.status(200).json({
       success: true,

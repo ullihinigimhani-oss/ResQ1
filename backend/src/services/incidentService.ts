@@ -21,6 +21,8 @@ const INCIDENT_STATUSES = new Set<IncidentStatus>([
   'Under Review',
   'In Progress',
   'Resolved',
+  'Verified',
+  'Rejected',
 ]);
 const DEFAULT_INCIDENT_STATUS: IncidentStatus = 'Reported';
 
@@ -193,8 +195,8 @@ function validateIncidentStatus(input: UpdateIncidentStatusInput) {
   }
 
   if (!INCIDENT_STATUSES.has(status as IncidentStatus)) {
-    throw new IncidentServiceError(400, 'Choose Reported, Under Review, In Progress, or Resolved.', {
-      status: 'Choose Reported, Under Review, In Progress, or Resolved.',
+    throw new IncidentServiceError(400, 'Invalid incident status.', {
+      status: 'Invalid incident status.',
     });
   }
 
@@ -251,11 +253,13 @@ export async function createIncident(userId: number, input: CreateIncidentInput)
   return toIncident(createdIncident);
 }
 
-export async function getMyIncidents(userId: number) {
+export async function getMyIncidents(userId: number, role: string) {
+  const isAuthority = role === 'admin' || role === 'authority';
+
   const rows = await sql`
     SELECT id, incident_type, title, description, location, latitude, longitude, severity, photo_url, status, created_at, updated_at
     FROM incidents
-    WHERE user_id = ${userId}
+    WHERE (${isAuthority} OR user_id = ${userId})
     ORDER BY created_at DESC
   `;
 
@@ -265,14 +269,15 @@ export async function getMyIncidents(userId: number) {
   return incidentRows.map((incident) => toIncident(incident, photosByIncidentId.get(incident.id) ?? []));
 }
 
-export async function getIncidentById(userId: number, incidentId: string) {
+export async function getIncidentById(userId: number, role: string, incidentId: string) {
   const numericId = numericIncidentId(incidentId);
+  const isAuthority = role === 'admin' || role === 'authority';
 
   const rows = await sql`
     SELECT id, incident_type, title, description, location, latitude, longitude, severity, photo_url, status, created_at, updated_at
     FROM incidents
     WHERE id = ${numericId}
-      AND user_id = ${userId}
+      AND (${isAuthority} OR user_id = ${userId} OR status = 'Verified')
     LIMIT 1
   `;
 
@@ -342,7 +347,7 @@ export async function getIncidentPhotoFile(
     INNER JOIN incidents i ON i.id = p.incident_id
     WHERE p.id = ${numericPhotoId}
       AND p.incident_id = ${numericId}
-      AND (${role === 'admin' || role === 'authority'} OR i.user_id = ${userId})
+      AND (${role === 'admin' || role === 'authority'} OR i.user_id = ${userId} OR i.status = 'Verified')
     LIMIT 1
   `;
   const file = rows[0] as { storage_key: string; mime_type: string } | undefined;
@@ -450,13 +455,16 @@ export async function updateIncidentStatus(incidentId: string, input: UpdateInci
   return toIncident(incident);
 }
 
-export async function getAllIncidents() {
+export async function getAllIncidents(role: string) {
+  const isAuthority = role === 'admin' || role === 'authority';
+
   const rows = await sql`
     SELECT id, incident_type, title, description, location, latitude, longitude, severity, photo_url, status, created_at, updated_at
     FROM incidents
     WHERE latitude IS NOT NULL
       AND longitude IS NOT NULL
       AND status != 'Resolved'
+      AND (${isAuthority} OR status = 'Verified')
     ORDER BY created_at DESC
   `;
 

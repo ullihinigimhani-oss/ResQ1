@@ -5,6 +5,8 @@ export const incidentStatusWorkflow = [
   'Under Review',
   'In Progress',
   'Resolved',
+  'Verified',
+  'Rejected',
 ] as const;
 
 export type IncidentSeverity = (typeof incidentSeverityOptions)[number];
