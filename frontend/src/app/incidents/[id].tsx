@@ -208,6 +208,16 @@ export default function IncidentDetailsScreen() {
               </View>
             </View>
 
+            {incident.status === 'Reported' && (
+              <View style={styles.editActionContainer}>
+                <AuthButton
+                  title="Edit Report"
+                  variant="secondary"
+                  onPress={() => router.push(`/incidents/edit?id=${incident.id}` as Href)}
+                />
+              </View>
+            )}
+
             <View style={styles.panel}>
               <View style={styles.panelHeader}>
                 <View style={styles.panelTitleBlock}>
@@ -380,6 +390,10 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     lineHeight: 20,
     marginTop: 4,
+  },
+  editActionContainer: {
+    paddingHorizontal: 20,
+    marginBottom: 20,
   },
   panel: {
     backgroundColor: BrandColors.white,

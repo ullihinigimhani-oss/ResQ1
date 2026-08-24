@@ -9,6 +9,7 @@ import type {
   IncidentSeverity,
   IncidentStatus,
   IncidentType,
+  UpdateIncidentInput,
   UpdateIncidentStatusInput,
   ValidatedIncidentInput,
 } from '../types/incident.js';
@@ -351,6 +352,81 @@ export async function getIncidentPhotoFile(
   }
 
   return file;
+}
+
+export async function removeIncidentPhoto(userId: number, incidentId: string, photoId: string) {
+  const numericId = numericIncidentId(incidentId);
+  const numericPhotoId = Number(photoId);
+
+  if (!Number.isInteger(numericPhotoId) || numericPhotoId <= 0) {
+    throw new IncidentServiceError(400, 'Invalid photo id.');
+  }
+
+  const ownerRows = await sql`
+    SELECT id, status FROM incidents WHERE id = ${numericId} AND user_id = ${userId} LIMIT 1
+  `;
+
+  if (ownerRows.length === 0) {
+    throw new IncidentServiceError(404, 'Incident report not found.');
+  }
+  
+  if ((ownerRows[0] as IncidentRow).status !== 'Reported') {
+    throw new IncidentServiceError(403, 'You can only remove photos while the incident is in Reported status.');
+  }
+
+  const result = await sql`
+    DELETE FROM incident_photos
+    WHERE id = ${numericPhotoId} AND incident_id = ${numericId}
+    RETURNING id
+  `;
+
+  if (result.length === 0) {
+    throw new IncidentServiceError(404, 'Photo evidence not found.');
+  }
+
+  return true;
+}
+
+export async function updateIncident(userId: number, incidentId: string, input: UpdateIncidentInput) {
+  const numericId = numericIncidentId(incidentId);
+  
+  const ownerRows = await sql`
+    SELECT id, status FROM incidents WHERE id = ${numericId} AND user_id = ${userId} LIMIT 1
+  `;
+
+  if (ownerRows.length === 0) {
+    throw new IncidentServiceError(404, 'Incident report not found.');
+  }
+  
+  if ((ownerRows[0] as IncidentRow).status !== 'Reported') {
+    throw new IncidentServiceError(403, 'You can only edit an incident while it is in Reported status.');
+  }
+
+  // Reuse the same validation logic as create
+  const incident = validateCreateIncidentInput(input as CreateIncidentInput);
+
+  const rows = await sql`
+    UPDATE incidents
+    SET incident_type = ${incident.incidentType},
+        title = ${incident.title},
+        description = ${incident.description},
+        location = ${incident.location},
+        latitude = ${incident.latitude},
+        longitude = ${incident.longitude},
+        severity = ${incident.severity},
+        updated_at = CURRENT_TIMESTAMP
+    WHERE id = ${numericId}
+    RETURNING id, incident_type, title, description, location, latitude, longitude, severity, photo_url, status, created_at, updated_at
+  `;
+
+  const updatedIncident = rows[0] as IncidentRow | undefined;
+
+  if (!updatedIncident) {
+    throw new IncidentServiceError(500, 'Incident report could not be updated.');
+  }
+  
+  const photosByIncidentId = await getPhotosByIncidentIds([updatedIncident.id]);
+  return toIncident(updatedIncident, photosByIncidentId.get(updatedIncident.id) ?? []);
 }
 
 export async function updateIncidentStatus(incidentId: string, input: UpdateIncidentStatusInput) {

@@ -69,6 +69,17 @@ export interface CreateIncidentInput {
   photoUrl?: unknown;
 }
 
+export interface UpdateIncidentInput {
+  incidentType?: unknown;
+  title?: unknown;
+  description?: unknown;
+  location?: unknown;
+  latitude?: unknown;
+  longitude?: unknown;
+  severity?: unknown;
+  photoUrl?: unknown;
+}
+
 export interface UpdateIncidentStatusInput {
   status?: unknown;
 }

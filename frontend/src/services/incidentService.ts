@@ -58,7 +58,7 @@ async function incidentRequest<T>(
   path: string,
   token: string,
   options: {
-    method?: 'GET' | 'POST';
+    method?: 'GET' | 'POST' | 'PUT';
     body?: unknown;
   } = {},
 ) {
@@ -189,4 +189,42 @@ export async function getIncidentById(id: string, token: string) {
   }
 
   return response.incident;
+}
+
+export async function updateIncident(incidentId: number, payload: CreateIncidentPayload, token: string) {
+  const response = await incidentRequest<ApiIncidentResponse>(`/api/incidents/${incidentId}`, token, {
+    method: 'PUT',
+    body: payload,
+  });
+  
+  if (!response.incident) {
+    throw new IncidentApiError(500, 'The server returned an unexpected response.');
+  }
+
+  return response.incident;
+}
+
+export async function deleteIncidentPhoto(incidentId: number, photoId: number, token: string) {
+  if (!token) {
+    throw new IncidentApiError(401, 'Please log in to continue.');
+  }
+
+  let response: Response;
+
+  try {
+    response = await fetch(`${API_BASE_URL}/api/incidents/${incidentId}/photos/${photoId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  } catch {
+    throw new IncidentApiError(0, 'Unable to delete photo evidence. Please check your connection.');
+  }
+
+  const data = await parseJson(response);
+
+  if (!response.ok) {
+    throw new IncidentApiError(response.status, data?.message || 'Unable to delete photo evidence.');
+  }
+
+  return true;
 }

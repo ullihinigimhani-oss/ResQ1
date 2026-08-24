@@ -9,6 +9,8 @@ import {
   getMyIncidents,
   IncidentServiceError,
   updateIncidentStatus,
+  updateIncident,
+  removeIncidentPhoto,
 } from "../services/incidentService.js";
 
 function sendIncidentError(error: unknown, res: Response) {
@@ -208,6 +210,54 @@ export async function getIncidentPhoto(req: Request, res: Response) {
         secure: true,
       }),
     );
+  } catch (error) {
+    return sendIncidentError(error, res);
+  }
+}
+
+export async function updateIncidentReport(req: Request, res: Response) {
+  try {
+    const user = requireAuthenticatedUser(req);
+    const incidentId = Array.isArray(req.params.id)
+      ? req.params.id[0]
+      : req.params.id;
+
+    if (!incidentId) {
+      throw new IncidentServiceError(400, "Invalid incident id.");
+    }
+
+    const incident = await updateIncident(user.id, incidentId, req.body);
+
+    return res.status(200).json({
+      success: true,
+      message: "Incident report updated successfully.",
+      incident,
+    });
+  } catch (error) {
+    return sendIncidentError(error, res);
+  }
+}
+
+export async function deleteIncidentPhoto(req: Request, res: Response) {
+  try {
+    const user = requireAuthenticatedUser(req);
+    const incidentId = Array.isArray(req.params.id)
+      ? req.params.id[0]
+      : req.params.id;
+    const photoId = Array.isArray(req.params.photoId)
+      ? req.params.photoId[0]
+      : req.params.photoId;
+
+    if (!incidentId || !photoId) {
+      throw new IncidentServiceError(400, "Invalid photo request.");
+    }
+
+    await removeIncidentPhoto(user.id, incidentId, photoId);
+    
+    return res.status(200).json({
+      success: true,
+      message: "Photo evidence removed successfully.",
+    });
   } catch (error) {
     return sendIncidentError(error, res);
   }
