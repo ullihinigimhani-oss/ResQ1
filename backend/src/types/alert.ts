@@ -1,6 +1,17 @@
 export const alertRiskLevels = ['Low', 'Moderate', 'High', 'Critical'] as const;
 export const alertStatuses = ['Active', 'Expired', 'Resolved'] as const;
-export const alertDisasterTypes = ['Flood'] as const;
+export const alertDisasterTypes = [
+  'Flood',
+  'Landslide',
+  'Cyclone',
+  'Severe Weather',
+  'Heavy Rain',
+  'Strong Winds / Storm',
+  'Tsunami',
+  'Drought',
+  'Earthquake',
+  'Fire',
+] as const;
 export const alertAuditActions = ['PUBLISHED', 'UPDATED', 'CANCELLED', 'EXPIRED', 'RESOLVED'] as const;
 export const alertAudiences = ['ALL', 'GENERAL_PUBLIC', 'SCHOOL_EMERGENCY'] as const;
 
@@ -174,6 +185,7 @@ export interface AlertAcknowledgementReport {
 export interface CreateAlertInput {
   title?: unknown;
   disasterType?: unknown;
+  disaster_type?: unknown;
   affectedArea?: unknown;
   alertAudience?: unknown;
   riskLevel?: unknown;
@@ -191,7 +203,7 @@ export interface UpdateAlertInput extends CreateAlertInput {
 
 export interface ValidatedCreateAlertInput {
   title: string;
-  disasterType: AlertDisasterType;
+  disasterType: string;
   affectedArea: string;
   alertAudience: AlertAudience;
   riskLevel: AlertRiskLevel;

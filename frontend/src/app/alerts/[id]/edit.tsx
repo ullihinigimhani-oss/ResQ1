@@ -23,6 +23,14 @@ import {
   audienceLabel,
 } from '@/components/alerts/alert-audience-controls';
 import {
+  DisasterTypeSelector,
+  OTHER_DISASTER_TYPE_OPTION,
+  disasterTypeSelectionFromValue,
+  disasterTypeSummary,
+  submittedDisasterType,
+  type DisasterTypeSelection,
+} from '@/components/alerts/disaster-type-selector';
+import {
   AuthButton,
   AuthTextField,
   BackButton,
@@ -46,6 +54,8 @@ import { formatDateTime, isAuthorityRole } from '@/utils/format';
 
 type AlertForm = {
   title: string;
+  disasterType: DisasterTypeSelection;
+  otherDisasterType: string;
   affectedArea: string;
   alertAudience: AlertAudience;
   riskLevel: AlertRiskLevel | '';
@@ -72,6 +82,8 @@ type BannerState = {
 
 const initialForm: AlertForm = {
   title: '',
+  disasterType: '',
+  otherDisasterType: '',
   affectedArea: '',
   alertAudience: 'GENERAL_PUBLIC',
   riskLevel: '',
@@ -87,8 +99,11 @@ function firstParam(value: string | string[] | undefined) {
 }
 
 function formFromAlert(alert: Alert): AlertForm {
+  const disasterType = disasterTypeSelectionFromValue(alert.disasterType);
+
   return {
     title: alert.title,
+    ...disasterType,
     affectedArea: alert.affectedArea,
     alertAudience: alert.alertAudience,
     riskLevel: alert.riskLevel,
@@ -142,6 +157,7 @@ function previewText(value: string) {
 function validateForm(form: AlertForm) {
   const errors: AlertFieldErrors = {};
   const title = form.title.trim();
+  const disasterType = submittedDisasterType(form.disasterType, form.otherDisasterType);
   const affectedArea = form.affectedArea.trim();
   const message = form.message.trim();
   const safetyInstructions = form.safetyInstructions.trim();
@@ -154,6 +170,14 @@ function validateForm(form: AlertForm) {
 
   if (!affectedArea) {
     errors.affectedArea = 'Please enter the affected area.';
+  }
+
+  if (!form.disasterType) {
+    errors.disasterType = 'Please select a disaster type.';
+  } else if (form.disasterType === OTHER_DISASTER_TYPE_OPTION && !disasterType) {
+    errors.disasterType = 'Please enter the disaster type.';
+  } else if (disasterType.length > 100) {
+    errors.disasterType = 'Disaster type must be 100 characters or fewer.';
   }
 
   if (!form.riskLevel) {
@@ -191,7 +215,7 @@ function validateForm(form: AlertForm) {
 
   const payload: UpdateAlertPayload = {
     title,
-    disasterType: 'Flood',
+    disasterType,
     affectedArea,
     alertAudience: form.alertAudience,
     riskLevel: form.riskLevel as AlertRiskLevel,
@@ -266,6 +290,7 @@ function EditSummary({ alert, form }: { alert: Alert; form: AlertForm }) {
     <View style={styles.reviewCard}>
       <Text style={styles.reviewEyebrow}>Selected Alert #{alert.id}</Text>
       <SummaryRow label="Title" value={form.title.trim() || 'Not entered'} />
+      <SummaryRow label="Disaster Type" value={disasterTypeSummary(form.disasterType, form.otherDisasterType)} />
       <SummaryRow label="Affected Area" value={form.affectedArea.trim() || 'Not entered'} />
       <SummaryRow label="Alert Audience" value={audienceLabel(form.alertAudience)} />
       {form.alertAudience === 'SCHOOL_EMERGENCY' ? (
@@ -405,6 +430,28 @@ export default function EditAlertScreen() {
       [field]: undefined,
       ...(field === 'affectedArea' ? { schoolIds: undefined } : {}),
     }));
+
+    if (banner?.type === 'success') {
+      setBanner(null);
+    }
+  };
+
+  const updateDisasterType = (disasterType: DisasterTypeSelection) => {
+    setForm((current) => ({
+      ...current,
+      disasterType,
+      otherDisasterType: disasterType === OTHER_DISASTER_TYPE_OPTION ? current.otherDisasterType : '',
+    }));
+    setFieldErrors((current) => ({ ...current, disasterType: undefined }));
+
+    if (banner?.type === 'success') {
+      setBanner(null);
+    }
+  };
+
+  const updateOtherDisasterType = (otherDisasterType: string) => {
+    setForm((current) => ({ ...current, otherDisasterType }));
+    setFieldErrors((current) => ({ ...current, disasterType: undefined }));
 
     if (banner?.type === 'success') {
       setBanner(null);
@@ -575,12 +622,13 @@ export default function EditAlertScreen() {
                     value={form.title}
                   />
 
-                  <View style={styles.fieldGroup}>
-                    <Text style={styles.label}>Disaster Type</Text>
-                    <View style={styles.fixedField}>
-                      <Text style={styles.fixedFieldText}>Flood</Text>
-                    </View>
-                  </View>
+                  <DisasterTypeSelector
+                    customValue={form.otherDisasterType}
+                    error={fieldErrors.disasterType}
+                    onChange={updateDisasterType}
+                    onCustomChange={updateOtherDisasterType}
+                    value={form.disasterType}
+                  />
                 </FormSection>
 
                 <FormSection helper="Match the warning to a resident area where possible." title="Affected Area">
