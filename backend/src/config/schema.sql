@@ -68,3 +68,27 @@ CREATE INDEX IF NOT EXISTS idx_alert_audit_events_alert_id
 
 CREATE INDEX IF NOT EXISTS idx_alert_audit_events_created_at
     ON alert_audit_events(created_at DESC);
+
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    otp_hash TEXT NOT NULL,
+    reset_token_hash TEXT,
+    expires_at TIMESTAMP NOT NULL,
+    reset_token_expires_at TIMESTAMP,
+    attempt_count INTEGER NOT NULL DEFAULT 0,
+    used BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    verified_at TIMESTAMP,
+    reset_at TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_user_id
+    ON password_reset_tokens(user_id);
+
+CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_active_lookup
+    ON password_reset_tokens(user_id, used, expires_at);
+
+CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_reset_token
+    ON password_reset_tokens(reset_token_hash)
+    WHERE reset_token_hash IS NOT NULL;

@@ -36,6 +36,35 @@ export interface AuthSession {
   token: string;
 }
 
+export interface ForgotPasswordPayload {
+  email: string;
+}
+
+export interface VerifyResetOtpPayload {
+  email: string;
+  otp: string;
+}
+
+export interface ResetPasswordPayload {
+  resetToken: string;
+  newPassword: string;
+  confirmPassword?: string;
+}
+
+export interface VerifyResetOtpResponse {
+  success: boolean;
+  message: string;
+  resetToken: string;
+}
+
 export type FieldErrors = Partial<
-  Record<keyof RegisterResidentPayload | keyof LoginResidentPayload | keyof UpdateProfilePayload, string>
+  Record<
+    | keyof RegisterResidentPayload
+    | keyof LoginResidentPayload
+    | keyof UpdateProfilePayload
+    | keyof ForgotPasswordPayload
+    | keyof VerifyResetOtpPayload
+    | keyof ResetPasswordPayload,
+    string
+  >
 >;
