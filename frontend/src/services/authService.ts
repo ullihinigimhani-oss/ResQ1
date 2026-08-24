@@ -8,6 +8,7 @@ import type {
   FieldErrors,
   LoginResidentPayload,
   RegisterResidentPayload,
+  UpdateProfilePayload,
 } from '@/types/auth';
 
 type ApiAuthResponse = {
@@ -33,11 +34,29 @@ function getExpoLanHost() {
     return undefined;
   }
 
-  return hostUri.replace(/^https?:\/\//, '').replace(/^exp:\/\//, '').split(':')[0];
+  const host = hostUri.replace(/^https?:\/\//, '').replace(/^exp:\/\//, '').split(':')[0];
+
+  if (host && host !== 'localhost' && host !== '127.0.0.1') {
+    return host;
+  }
+
+  return undefined;
 }
 
 function resolveDefaultApiBaseUrl() {
+  const lanHost = getExpoLanHost();
+
+  if (lanHost) {
+    return `http://${lanHost}:${BACKEND_PORT}`;
+  }
+
   if (Platform.OS === 'android') {
+    const lanHost = getExpoLanHost();
+
+    if (lanHost && lanHost !== 'localhost' && lanHost !== '127.0.0.1') {
+      return `http://${lanHost}:${BACKEND_PORT}`;
+    }
+
     return `http://10.0.2.2:${BACKEND_PORT}`;
   }
 
@@ -81,9 +100,20 @@ async function parseJson(response: Response) {
   }
 }
 
-async function authRequest(path: string, body: RegisterResidentPayload | LoginResidentPayload) {
+async function authRequest(
+  path: string,
+  body: RegisterResidentPayload | LoginResidentPayload | UpdateProfilePayload,
+  options: { method?: 'POST' | 'PUT'; token?: string } = {},
+) {
   let response: Response;
   const url = `${API_BASE_URL}${path}`;
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+
+  if (options.token) {
+    headers.Authorization = `Bearer ${options.token}`;
+  }
 
   if (__DEV__) {
     console.log(`Auth request: ${url}`);
@@ -91,10 +121,8 @@ async function authRequest(path: string, body: RegisterResidentPayload | LoginRe
 
   try {
     response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      method: options.method || 'POST',
+      headers,
       body: JSON.stringify(body),
     });
   } catch (error) {
@@ -206,6 +234,15 @@ export async function loginResident(payload: LoginResidentPayload): Promise<Auth
   };
 }
 
+export async function updateProfile(token: string, payload: UpdateProfilePayload): Promise<AuthUser> {
+  const response = await authRequest('/api/auth/me', payload, {
+    method: 'PUT',
+    token,
+  });
+
+  return response.user;
+}
+
 export async function saveSession(session: AuthSession) {
   await setStoredValue(AUTH_TOKEN_KEY, session.token);
   await setStoredValue(AUTH_USER_KEY, JSON.stringify(session.user));
@@ -230,6 +267,17 @@ export async function loadSession(): Promise<AuthSession | null> {
     await clearSession();
     return null;
   }
+}
+
+export async function updateStoredUser(user: AuthUser) {
+  const token = await getStoredValue(AUTH_TOKEN_KEY);
+  const existingUser = await getStoredValue(AUTH_USER_KEY);
+
+  if (!token || !existingUser) {
+    return;
+  }
+
+  await setStoredValue(AUTH_USER_KEY, JSON.stringify(user));
 }
 
 export async function clearSession() {

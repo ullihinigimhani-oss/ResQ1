@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
-import { Redirect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
-import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
+import { Redirect, useFocusEffect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
+import { type ReactNode, useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -17,14 +17,26 @@ import { AuthButton, StatusBanner } from '@/components/common/auth-components';
 import { AppIcon } from '@/components/ui/app-components';
 import { BrandColors } from '@/constants/brand';
 import { useAuth } from '@/context/auth-context';
-import { getAlertById, getAlertRiskHistory, isAlertApiError } from '@/services/alertService';
-import type { Alert, AlertRiskHistoryPoint } from '@/types/alert';
+import {
+  acknowledgeAlert as acknowledgeAlertRequest,
+  getAlertAcknowledgement,
+  getAlertAcknowledgementReport,
+  getAlertById,
+  getAlertRiskHistory,
+  isAlertApiError,
+} from '@/services/alertService';
+import type {
+  Alert,
+  AlertAcknowledgementReport,
+  AlertAcknowledgementStatus,
+  AlertRiskHistoryPoint,
+} from '@/types/alert';
 import {
   alertDisplayThemeOrNull,
   alertDisplayThemeStyles,
   getResidentAlertDisplayTheme,
 } from '@/utils/alert-display';
-import { isAuthorityRole } from '@/utils/format';
+import { formatDateTime as formatApiDateTime, isAuthorityRole } from '@/utils/format';
 import {
   alertDetailUiText,
   fallbackSafetyInstruction,
@@ -32,6 +44,7 @@ import {
   preferredLanguageOrNull,
   residentAlertUiText,
   toPreferredLanguage,
+  translateAlertAudience,
   translateAlertMessage,
   translateAlertStatus,
   translateAlertTitle,
@@ -49,19 +62,7 @@ function formatDateTime(value: string | null) {
     return null;
   }
 
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return date.toLocaleString(undefined, {
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
+  return formatApiDateTime(value);
 }
 
 function safetyInstructionLines(value: string, fallback: string) {
@@ -176,6 +177,137 @@ function DetailInfoRow({
   );
 }
 
+function metricText(value: number | null | undefined, fallback: string) {
+  return value === null || value === undefined ? fallback : String(value);
+}
+
+function AcknowledgementPanel({
+  acknowledgement,
+  detailCopy,
+  errorMessage,
+  loading,
+  onAcknowledge,
+  submitting,
+}: {
+  acknowledgement: AlertAcknowledgementStatus | null;
+  detailCopy: typeof alertDetailUiText.English;
+  errorMessage: string | null;
+  loading: boolean;
+  onAcknowledge: () => void;
+  submitting: boolean;
+}) {
+  const acknowledged = acknowledgement?.acknowledged ?? false;
+  const acknowledgedAt = formatDateTime(acknowledgement?.acknowledgedAt ?? null);
+
+  return (
+    <View style={styles.panel}>
+      <Text style={styles.sectionTitle}>{detailCopy.acknowledgement}</Text>
+      {loading ? (
+        <View style={styles.inlineLoadingRow}>
+          <ActivityIndicator color={BrandColors.red} />
+          <Text style={styles.sectionCopy}>{detailCopy.acknowledgementLoading}</Text>
+        </View>
+      ) : acknowledged ? (
+        <View style={styles.acknowledgedCard}>
+          <Text style={styles.acknowledgedTitle}>✓ {detailCopy.alertAcknowledged}</Text>
+          <Text style={styles.acknowledgedText}>{detailCopy.acknowledgedMessage}</Text>
+          {acknowledgedAt ? (
+            <View style={styles.acknowledgedTimeBlock}>
+              <Text style={styles.acknowledgedTimeLabel}>{detailCopy.acknowledgedAt}</Text>
+              <Text style={styles.acknowledgedTimeText}>{acknowledgedAt}</Text>
+            </View>
+          ) : null}
+        </View>
+      ) : (
+        <>
+          <Text style={styles.sectionCopy}>{detailCopy.acknowledgementQuestion}</Text>
+          {errorMessage ? <StatusBanner message={errorMessage} type="error" /> : null}
+          {errorMessage && !acknowledgement ? null : (
+            <AuthButton
+              disabled={submitting}
+              loading={submitting}
+              title={`✓ ${detailCopy.acknowledgeAlert}`}
+              onPress={onAcknowledge}
+            />
+          )}
+        </>
+      )}
+    </View>
+  );
+}
+
+function AuthorityAcknowledgementPanel({
+  detailCopy,
+  errorMessage,
+  loading,
+  onViewAcknowledgements,
+  report,
+}: {
+  detailCopy: typeof alertDetailUiText.English;
+  errorMessage: string | null;
+  loading: boolean;
+  onViewAcknowledgements: () => void;
+  report: AlertAcknowledgementReport | null;
+}) {
+  const summary = report?.summary ?? null;
+  const targetedResidents = summary?.targetedResidents ?? null;
+  const acknowledged = summary?.acknowledged ?? 0;
+  const pending = summary?.pending ?? null;
+  const rate = summary?.acknowledgementRate ?? null;
+  const progressWidth = `${Math.max(0, Math.min(100, rate ?? 0))}%` as `${number}%`;
+
+  return (
+    <View style={styles.panel}>
+      <Text style={styles.sectionTitle}>{detailCopy.acknowledgementStatus}</Text>
+      {loading ? (
+        <View style={styles.inlineLoadingRow}>
+          <ActivityIndicator color={BrandColors.red} />
+          <Text style={styles.sectionCopy}>{detailCopy.acknowledgementMetricsLoading}</Text>
+        </View>
+      ) : errorMessage ? (
+        <StatusBanner message={errorMessage} type="error" />
+      ) : (
+        <>
+          <View style={styles.ackMetricGrid}>
+            <View style={styles.ackMetricCard}>
+              <Text style={styles.ackMetricLabel}>{detailCopy.targetedResidents}</Text>
+              <Text style={styles.ackMetricValue}>{metricText(targetedResidents, detailCopy.notAvailable)}</Text>
+            </View>
+            <View style={styles.ackMetricCard}>
+              <Text style={styles.ackMetricLabel}>{detailCopy.acknowledged}</Text>
+              <Text style={styles.ackMetricValue}>{acknowledged}</Text>
+            </View>
+            <View style={styles.ackMetricCard}>
+              <Text style={styles.ackMetricLabel}>{detailCopy.pending}</Text>
+              <Text style={styles.ackMetricValue}>{metricText(pending, detailCopy.notAvailable)}</Text>
+            </View>
+          </View>
+          <View style={styles.ackRateBlock}>
+            <View style={styles.ackRateTopRow}>
+              <Text style={styles.ackMetricLabel}>{detailCopy.acknowledgementRate}</Text>
+              <Text style={styles.ackRateText}>{rate === null ? detailCopy.notAvailable : `${rate}%`}</Text>
+            </View>
+            <View style={styles.progressTrack}>
+              <View style={[styles.progressFill, { width: progressWidth }]} />
+            </View>
+          </View>
+          <View style={styles.lastAcknowledgedRow}>
+            <Text style={styles.ackMetricLabel}>{detailCopy.lastAcknowledged}</Text>
+            <Text style={styles.lastAcknowledgedText}>
+              {summary?.lastAcknowledgedAt ? formatDateTime(summary.lastAcknowledgedAt) : detailCopy.notAvailable}
+            </Text>
+          </View>
+          <AuthButton
+            title={detailCopy.viewAcknowledgements}
+            variant="secondary"
+            onPress={onViewAcknowledgements}
+          />
+        </>
+      )}
+    </View>
+  );
+}
+
 export default function AlertDetailsScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -191,7 +323,13 @@ export default function AlertDetailsScreen() {
   const [loadingAlert, setLoadingAlert] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [acknowledged, setAcknowledged] = useState(false);
+  const [acknowledgement, setAcknowledgement] = useState<AlertAcknowledgementStatus | null>(null);
+  const [loadingAcknowledgement, setLoadingAcknowledgement] = useState(false);
+  const [acknowledgementError, setAcknowledgementError] = useState<string | null>(null);
+  const [submittingAcknowledgement, setSubmittingAcknowledgement] = useState(false);
+  const [acknowledgementReport, setAcknowledgementReport] = useState<AlertAcknowledgementReport | null>(null);
+  const [loadingAcknowledgementReport, setLoadingAcknowledgementReport] = useState(false);
+  const [acknowledgementReportError, setAcknowledgementReportError] = useState<string | null>(null);
   const userLanguage = toPreferredLanguage(user?.preferredLanguage);
   const selectedLanguage = routeLanguage ?? userLanguage;
   const showResidentLanguage = user ? !isAuthorityRole(user.role) : true;
@@ -213,6 +351,10 @@ export default function AlertDetailsScreen() {
     setErrorMessage(null);
     setRiskHistoryError(false);
     setLoadingRiskHistory(true);
+    setAcknowledgementError(null);
+    setAcknowledgementReportError(null);
+    setLoadingAcknowledgement(false);
+    setLoadingAcknowledgementReport(!showResidentLanguage);
 
     try {
       const alertDetails = await getAlertById(alertId, token);
@@ -228,6 +370,37 @@ export default function AlertDetailsScreen() {
         setRiskHistory([]);
         setRiskHistoryError(true);
       }
+
+      const canAcknowledgeResidentAlert = showResidentLanguage
+        && getResidentAlertDisplayTheme(alertDetails, user?.location) === 'danger';
+
+      if (canAcknowledgeResidentAlert) {
+        try {
+          setLoadingAcknowledgement(true);
+          setAcknowledgement(await getAlertAcknowledgement(alertId, token));
+        } catch (acknowledgementLoadError) {
+          if (__DEV__ && !isAlertApiError(acknowledgementLoadError)) {
+            console.warn('Unexpected acknowledgement status error:', acknowledgementLoadError);
+          }
+
+          setAcknowledgement(null);
+          setAcknowledgementError(detailCopy.unableAcknowledge);
+        }
+      } else if (showResidentLanguage) {
+        setAcknowledgement(null);
+        setAcknowledgementError(null);
+      } else {
+        try {
+          setAcknowledgementReport(await getAlertAcknowledgementReport(alertId, token));
+        } catch (reportError) {
+          if (__DEV__ && !isAlertApiError(reportError)) {
+            console.warn('Unexpected acknowledgement report error:', reportError);
+          }
+
+          setAcknowledgementReport(null);
+          setAcknowledgementReportError(detailCopy.acknowledgementMetricsError);
+        }
+      }
     } catch (error) {
       if (__DEV__ && !isAlertApiError(error)) {
         console.warn('Unexpected alert detail error:', error);
@@ -237,18 +410,27 @@ export default function AlertDetailsScreen() {
     } finally {
       setLoadingAlert(false);
       setLoadingRiskHistory(false);
+      setLoadingAcknowledgement(false);
+      setLoadingAcknowledgementReport(false);
       setRefreshing(false);
     }
-  }, [alertId, token]);
+  }, [
+    alertId,
+    detailCopy.acknowledgementMetricsError,
+    detailCopy.unableAcknowledge,
+    showResidentLanguage,
+    token,
+    user?.location,
+  ]);
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     if (token && alertId) {
       void loadAlert();
     } else if (!alertId) {
       setLoadingAlert(false);
       setErrorMessage('Unable to load this emergency alert.');
     }
-  }, [alertId, loadAlert, token]);
+  }, [alertId, loadAlert, token]));
 
   const safetyInstructions = useMemo(
     () => safetyInstructionLines(
@@ -282,6 +464,9 @@ export default function AlertDetailsScreen() {
   const alertTone = showResidentLanguage
     ? alertDisplayThemeStyles[residentAlertDisplayTheme]
     : alertToneForRisk(alert?.riskLevel);
+  const residentCanAcknowledgeAlert = showResidentLanguage && alert
+    ? getResidentAlertDisplayTheme(alert, user.location) === 'danger'
+    : false;
   const handleBackToAlerts = () => {
     if (showResidentLanguage) {
       router.replace({
@@ -292,6 +477,33 @@ export default function AlertDetailsScreen() {
     }
 
     router.replace('/alerts' as Href);
+  };
+
+  const handleAcknowledge = async () => {
+    if (
+      !token
+      || !alertId
+      || !residentCanAcknowledgeAlert
+      || acknowledgement?.acknowledged
+      || submittingAcknowledgement
+    ) {
+      return;
+    }
+
+    setSubmittingAcknowledgement(true);
+    setAcknowledgementError(null);
+
+    try {
+      setAcknowledgement(await acknowledgeAlertRequest(alertId, token));
+    } catch (error) {
+      if (__DEV__ && !isAlertApiError(error)) {
+        console.warn('Unexpected acknowledge alert error:', error);
+      }
+
+      setAcknowledgementError(detailCopy.unableAcknowledge);
+    } finally {
+      setSubmittingAcknowledgement(false);
+    }
   };
 
   return (
@@ -388,6 +600,28 @@ export default function AlertDetailsScreen() {
 
               <View style={styles.detailInfoList}>
                 <DetailInfoRow fallback="A" label={detailCopy.area} name="house.fill" value={alert.affectedArea} />
+                {alert.alertAudience !== 'GENERAL_PUBLIC' ? (
+                  <DetailInfoRow
+                    fallback="G"
+                    label={detailCopy.alertAudience}
+                    name="bell.fill"
+                    value={translateAlertAudience(alert.alertAudience, displayLanguage)}
+                  />
+                ) : null}
+                {alert.alertAudience === 'SCHOOL_EMERGENCY' && alert.schools.length > 0 ? (
+                  <DetailInfoRow
+                    fallback="S"
+                    label={`${detailCopy.selectedSchools} (${alert.schools.length})`}
+                    name="house.fill">
+                    <View style={styles.schoolList}>
+                      {alert.schools.map((school) => (
+                        <Text key={school.id} style={styles.schoolListText}>
+                          - {school.schoolName}
+                        </Text>
+                      ))}
+                    </View>
+                  </DetailInfoRow>
+                ) : null}
                 <DetailInfoRow
                   fallback="T"
                   label={detailCopy.emergencyType}
@@ -424,17 +658,33 @@ export default function AlertDetailsScreen() {
               </View>
             </View>
 
+            {residentCanAcknowledgeAlert ? (
+              <AcknowledgementPanel
+                acknowledgement={acknowledgement}
+                detailCopy={detailCopy}
+                errorMessage={acknowledgementError}
+                loading={loadingAcknowledgement}
+                onAcknowledge={handleAcknowledge}
+                submitting={submittingAcknowledgement}
+              />
+            ) : !showResidentLanguage ? (
+              <AuthorityAcknowledgementPanel
+                detailCopy={detailCopy}
+                errorMessage={acknowledgementReportError}
+                loading={loadingAcknowledgementReport}
+                onViewAcknowledgements={() => router.push({
+                  pathname: '/alerts/[id]/acknowledgements',
+                  params: { id: String(alert.id) },
+                } as unknown as Href)}
+                report={acknowledgementReport}
+              />
+            ) : null}
+
             <View style={styles.panel}>
               <Text style={styles.sectionTitle}>{detailCopy.emergencyActions}</Text>
               <Text style={styles.sectionCopy}>
                 {detailCopy.emergencyActionsCopy}
               </Text>
-              {acknowledged ? (
-                <StatusBanner
-                  message={detailCopy.acknowledgedMessage}
-                  type="success"
-                />
-              ) : null}
               <View style={styles.actionButtons}>
                 <AuthButton
                   title={detailCopy.viewSafeEvacuationRoute}
@@ -449,11 +699,6 @@ export default function AlertDetailsScreen() {
                 <AuthButton
                   title={detailCopy.reportIncident}
                   onPress={() => router.push('/incidents/report' as Href)}
-                />
-                <AuthButton
-                  title={acknowledged ? detailCopy.acknowledged : detailCopy.acknowledgeAlert}
-                  variant="secondary"
-                  onPress={() => setAcknowledged(true)}
                 />
               </View>
             </View>
@@ -663,6 +908,15 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     lineHeight: 20,
   },
+  schoolList: {
+    gap: 4,
+  },
+  schoolListText: {
+    color: BrandColors.text,
+    fontSize: 14,
+    fontWeight: '800',
+    lineHeight: 20,
+  },
   sectionCopy: {
     color: BrandColors.muted,
     fontSize: 14,
@@ -676,6 +930,123 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: 14,
     padding: 16,
+  },
+  inlineLoadingRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 10,
+    minHeight: 42,
+  },
+  acknowledgedCard: {
+    backgroundColor: BrandColors.successSoft,
+    borderColor: BrandColors.success,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 8,
+    padding: 14,
+  },
+  acknowledgedTitle: {
+    color: BrandColors.success,
+    fontSize: 15,
+    fontWeight: '900',
+    lineHeight: 20,
+  },
+  acknowledgedText: {
+    color: BrandColors.text,
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 20,
+  },
+  acknowledgedTimeBlock: {
+    backgroundColor: BrandColors.white,
+    borderColor: BrandColors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 2,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  acknowledgedTimeLabel: {
+    color: BrandColors.muted,
+    fontSize: 11,
+    fontWeight: '900',
+    lineHeight: 15,
+    textTransform: 'uppercase',
+  },
+  acknowledgedTimeText: {
+    color: BrandColors.navy,
+    fontSize: 13,
+    fontWeight: '900',
+    lineHeight: 18,
+  },
+  ackMetricGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  ackMetricCard: {
+    backgroundColor: BrandColors.lightBlue,
+    borderColor: BrandColors.sky,
+    borderRadius: 8,
+    borderWidth: 1,
+    flexGrow: 1,
+    gap: 4,
+    minWidth: '30%',
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+  },
+  ackMetricLabel: {
+    color: BrandColors.muted,
+    fontSize: 11,
+    fontWeight: '900',
+    lineHeight: 15,
+    textTransform: 'uppercase',
+  },
+  ackMetricValue: {
+    color: BrandColors.navy,
+    fontSize: 20,
+    fontWeight: '900',
+    lineHeight: 25,
+  },
+  ackRateBlock: {
+    gap: 8,
+  },
+  ackRateTopRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'space-between',
+  },
+  ackRateText: {
+    color: BrandColors.navy,
+    fontSize: 14,
+    fontWeight: '900',
+    lineHeight: 19,
+  },
+  progressTrack: {
+    backgroundColor: BrandColors.lightBlue,
+    borderRadius: 999,
+    height: 8,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    backgroundColor: BrandColors.success,
+    borderRadius: 999,
+    height: '100%',
+  },
+  lastAcknowledgedRow: {
+    backgroundColor: BrandColors.white,
+    borderColor: BrandColors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 4,
+    padding: 12,
+  },
+  lastAcknowledgedText: {
+    color: BrandColors.text,
+    fontSize: 13,
+    fontWeight: '800',
+    lineHeight: 18,
   },
   actionButtons: {
     gap: 10,

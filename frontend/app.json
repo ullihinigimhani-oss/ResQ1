@@ -8,7 +8,11 @@
     "scheme": "resq1",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/images/icon.png"
+      "icon": "./assets/images/icon.png",
+      "bundleIdentifier": "com.lihinigimhani.resq1",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -17,7 +21,8 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.lihinigimhani.resq1"
     },
     "web": {
       "output": "static",
@@ -33,11 +38,18 @@
           "imageWidth": 76
         }
       ],
+      "expo-notifications",
       "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "7704b9d5-8def-428b-a2e3-f3d8d3cb67a2"
+      }
     }
   }
 }

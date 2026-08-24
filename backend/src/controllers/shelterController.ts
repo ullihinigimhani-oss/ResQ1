@@ -1,10 +1,12 @@
 import type { Request, Response } from 'express';
 
 import {
+  createShelter,
   getShelterById,
   getShelterRoutes,
   getShelters,
   ShelterServiceError,
+  updateShelter,
 } from '../services/shelterService.js';
 
 function sendShelterError(error: unknown, res: Response) {
@@ -30,6 +32,16 @@ function requireAuthenticatedUser(req: Request) {
   }
 
   return req.authUser;
+}
+
+function requireAuthorityUser(req: Request) {
+  const user = requireAuthenticatedUser(req);
+
+  if (user.role !== 'admin' && user.role !== 'authority') {
+    throw new ShelterServiceError(403, 'You are not authorized to create shelters.');
+  }
+
+  return user;
 }
 
 function firstParam(value: string | string[] | undefined) {
@@ -84,6 +96,42 @@ export async function listShelterEvacuationRoutes(req: Request, res: Response) {
     return res.status(200).json({
       success: true,
       routes,
+    });
+  } catch (error) {
+    return sendShelterError(error, res);
+  }
+}
+
+export async function createSafeShelter(req: Request, res: Response) {
+  try {
+    requireAuthorityUser(req);
+    const shelter = await createShelter(req.body);
+
+    return res.status(201).json({
+      success: true,
+      message: 'Safe shelter created successfully.',
+      shelter,
+    });
+  } catch (error) {
+    return sendShelterError(error, res);
+  }
+}
+
+export async function updateSafeShelter(req: Request, res: Response) {
+  try {
+    requireAuthorityUser(req);
+    const shelterId = firstParam(req.params.id);
+
+    if (!shelterId) {
+      throw new ShelterServiceError(400, 'Invalid shelter id.');
+    }
+
+    const shelter = await updateShelter(shelterId, req.body);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Safe shelter updated successfully.',
+      shelter,
     });
   } catch (error) {
     return sendShelterError(error, res);

@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import { type Href, usePathname, useRouter } from 'expo-router';
 import type { ReactNode } from 'react';
 import {
@@ -13,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 
+import resq1Logo from '@/assets/images/resq1-logo.jfif';
 import { colors, radius, shadows, spacing, typography } from '@/constants/design';
 
 type SymbolName = string;
@@ -107,6 +109,14 @@ export function AppIcon({
 
   if (iconName.includes('slider')) {
     return <SliderIcon size={size} tintColor={tintColor} />;
+  }
+
+  if (iconName.includes('pencil')) {
+    return <PencilIcon size={size} tintColor={tintColor} />;
+  }
+
+  if (iconName.includes('trash')) {
+    return <TrashIcon size={size} tintColor={tintColor} />;
   }
 
   return (
@@ -237,6 +247,29 @@ function SliderIcon({ size, tintColor }: { size: number; tintColor: string }) {
   );
 }
 
+function PencilIcon({ size, tintColor }: { size: number; tintColor: string }) {
+  return (
+    <IconCanvas size={size}>
+      <View style={[styles.pencilBody, { backgroundColor: tintColor }]} />
+      <View style={styles.pencilWood} />
+      <View style={styles.pencilLead} />
+      <View style={[styles.pencilEraser, { backgroundColor: tintColor }]} />
+    </IconCanvas>
+  );
+}
+
+function TrashIcon({ size, tintColor }: { size: number; tintColor: string }) {
+  return (
+    <IconCanvas size={size}>
+      <View style={[styles.trashLid, { backgroundColor: tintColor }]} />
+      <View style={[styles.trashHandle, { borderColor: tintColor }]} />
+      <View style={[styles.trashBody, { borderColor: tintColor }]} />
+      <View style={[styles.trashLineLeft, { backgroundColor: tintColor }]} />
+      <View style={[styles.trashLineRight, { backgroundColor: tintColor }]} />
+    </IconCanvas>
+  );
+}
+
 export function ScreenContainer({
   children,
   bottomNav = true,
@@ -349,7 +382,7 @@ export function HomeHeader({
     <View style={styles.homeHeader}>
       <View style={styles.homeBrandBlock}>
         <View style={styles.wordmark}>
-          <Text style={styles.wordmarkText}>R1</Text>
+          <Image contentFit="contain" source={resq1Logo} style={styles.wordmarkLogo} />
         </View>
         <View style={styles.homeGreetingBlock}>
           <Text style={styles.wordmarkName}>ResQ1</Text>
@@ -697,7 +730,7 @@ const tabs = [
   {
     label: 'Alerts',
     route: '/alerts' as Href,
-    match: ['/alerts'],
+    match: ['/alerts', '/community-notifications'],
     icon: 'bell.fill' as SymbolName,
     fallback: 'A',
   },
@@ -738,7 +771,11 @@ export function BottomNavigation() {
             accessibilityRole="button"
             accessibilityState={{ selected: active }}
             key={tab.label}
-            onPress={() => router.replace(tab.route)}
+            onPress={() => {
+              if (!active) {
+                router.replace(tab.route);
+              }
+            }}
             style={({ pressed }) => [styles.tabButton, pressed && styles.pressed]}>
             <AppIcon
               fallback={tab.fallback}
@@ -1038,6 +1075,90 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: 8,
   },
+  pencilBody: {
+    borderRadius: 2,
+    height: 5,
+    left: '28%',
+    position: 'absolute',
+    top: '45%',
+    transform: [{ rotate: '-45deg' }],
+    width: '46%',
+  },
+  pencilWood: {
+    borderBottomColor: 'transparent',
+    borderBottomWidth: 3,
+    borderLeftColor: '#F7C15C',
+    borderLeftWidth: 7,
+    borderTopColor: 'transparent',
+    borderTopWidth: 3,
+    position: 'absolute',
+    right: '18%',
+    top: '32%',
+    transform: [{ rotate: '-45deg' }],
+  },
+  pencilLead: {
+    borderBottomColor: 'transparent',
+    borderBottomWidth: 2,
+    borderLeftColor: colors.navy,
+    borderLeftWidth: 4,
+    borderTopColor: 'transparent',
+    borderTopWidth: 2,
+    position: 'absolute',
+    right: '14%',
+    top: '29%',
+    transform: [{ rotate: '-45deg' }],
+  },
+  pencilEraser: {
+    borderRadius: 1,
+    height: 5,
+    left: '20%',
+    position: 'absolute',
+    top: '62%',
+    transform: [{ rotate: '-45deg' }],
+    width: 6,
+  },
+  trashLid: {
+    borderRadius: 1,
+    height: 2,
+    position: 'absolute',
+    top: '22%',
+    width: '62%',
+  },
+  trashHandle: {
+    borderBottomWidth: 0,
+    borderRadius: 3,
+    borderWidth: 2,
+    height: '18%',
+    position: 'absolute',
+    top: '10%',
+    width: '28%',
+  },
+  trashBody: {
+    borderBottomLeftRadius: 4,
+    borderBottomRightRadius: 4,
+    borderTopWidth: 0,
+    borderWidth: 2,
+    bottom: '16%',
+    height: '54%',
+    position: 'absolute',
+    width: '52%',
+  },
+  trashLineLeft: {
+    borderRadius: 1,
+    height: '34%',
+    left: '40%',
+    position: 'absolute',
+    top: '40%',
+    width: 2,
+  },
+  trashLineRight: {
+    borderRadius: 1,
+    height: '34%',
+    position: 'absolute',
+    right: '40%',
+    top: '40%',
+    width: 2,
+  },
   safeArea: {
     backgroundColor: colors.background,
     flex: 1,
@@ -1097,17 +1218,18 @@ const styles = StyleSheet.create({
   },
   wordmark: {
     alignItems: 'center',
-    backgroundColor: colors.navy,
+    backgroundColor: colors.white,
+    borderColor: colors.border,
     borderRadius: radius.md,
-    height: 42,
+    borderWidth: 1,
+    height: 44,
     justifyContent: 'center',
-    width: 42,
+    padding: 4,
+    width: 44,
   },
-  wordmarkText: {
-    color: colors.white,
-    fontSize: 14,
-    fontWeight: '900',
-    lineHeight: 18,
+  wordmarkLogo: {
+    height: '100%',
+    width: '100%',
   },
   wordmarkName: {
     color: colors.navy,

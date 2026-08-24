@@ -89,17 +89,8 @@ export default function ProfileScreen() {
         <InfoRow label="Registered Area" value={user.location || 'Not set'} />
       </SectionCard>
 
-      <SectionCard title="Emergency Contact">
-        <DemoNotice text="Emergency contact storage is a Sprint 2 backend gap. This route is frontend-ready only." />
-        <ActionRow
-          label="Emergency Contacts"
-          onPress={() => router.push('/contacts' as Href)}
-          status="Configured later"
-        />
-      </SectionCard>
-
       <SectionCard title="Account">
-        <ActionRow label="Edit Profile" status="Future" onPress={() => router.push('/profile/edit' as Href)} />
+        <ActionRow label="Edit Profile" onPress={() => router.push('/profile/edit' as Href)} />
         <ActionRow
           label="Change Password"
           status="Future"

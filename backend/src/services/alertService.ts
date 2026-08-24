@@ -1,10 +1,17 @@
 import { sql } from '../config/database.js';
 import {
   alertAuditActions,
+  alertAudiences,
   alertDisasterTypes,
   alertRiskLevels,
   alertStatuses,
   type Alert,
+  type AlertAudience,
+  type AlertAcknowledgementReport,
+  type AlertAcknowledgementResident,
+  type AlertAcknowledgementRow,
+  type AlertAcknowledgementStatus,
+  type AlertAcknowledgementSummary,
   type AlertAuditAction,
   type AlertAuditEvent,
   type AlertAuditRow,
@@ -15,15 +22,31 @@ import {
   type AlertRow,
   type AlertStatus,
   type CreateAlertInput,
+  type School,
+  type SchoolRow,
+  type SchoolSearchResult,
+  type SchoolSelectionInput,
   type UpdateAlertInput,
   type ValidatedCreateAlertInput,
   type ValidatedUpdateAlertInput,
 } from '../types/alert.js';
+import type { AuthenticatedUser } from '../types/auth.js';
 
 const ACTIVE_ALERT_STATUS: AlertStatus = 'Active';
+const DEFAULT_ALERT_AUDIENCE: AlertAudience = 'GENERAL_PUBLIC';
+const SCHOOL_ALERT_AUDIENCE: AlertAudience = 'SCHOOL_EMERGENCY';
 const ALERT_TITLE_MAX_LENGTH = 150;
 const ALERT_AREA_MAX_LENGTH = 150;
+const SCHOOL_NAME_MAX_LENGTH = 150;
+const OSM_ID_MAX_LENGTH = 80;
+const OSM_TYPE_MAX_LENGTH = 20;
+const NOMINATIM_SEARCH_URL = 'https://nominatim.openstreetmap.org/search';
+const OVERPASS_INTERPRETER_URL = 'https://overpass-api.de/api/interpreter';
+const SCHOOL_SEARCH_CACHE_DURATION_MS = 10 * 60 * 1000;
 let auditTableReady: Promise<void> | null = null;
+let alertSchemaReady: Promise<void> | null = null;
+let acknowledgementTableReady: Promise<void> | null = null;
+const schoolSearchCache = new Map<string, { expiresAt: number; schools: SchoolSearchResult[] }>();
 
 export class AlertServiceError extends Error {
   constructor(
@@ -41,15 +64,89 @@ function trimmedText(value: unknown) {
 }
 
 function formatTimestamp(value: Date | string) {
-  return value instanceof Date ? value.toISOString() : String(value);
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  const timestamp = String(value).trim();
+
+  if (!timestamp) {
+    return timestamp;
+  }
+
+  const hasTimezone = /(?:z|[+-]\d{2}(?::?\d{2})?)$/i.test(timestamp);
+  const normalizedTimestamp = timestamp.replace(' ', 'T');
+
+  if (hasTimezone) {
+    return normalizedTimestamp;
+  }
+
+  const utcDate = new Date(`${normalizedTimestamp}Z`);
+
+  return Number.isNaN(utcDate.getTime()) ? timestamp : utcDate.toISOString();
 }
 
 function optionalTimestamp(value: Date | string | null) {
   return value ? formatTimestamp(value) : null;
 }
 
+function optionalNumber(value: unknown) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  if (typeof value !== 'number' && typeof value !== 'string') {
+    return null;
+  }
+
+  const numericValue = Number(value);
+
+  return Number.isFinite(numericValue) ? numericValue : null;
+}
+
+function optionalText(value: unknown) {
+  const text = trimmedText(value);
+
+  return text || null;
+}
+
 function canonicalOption<T extends string>(value: string, options: readonly T[]) {
   return options.find((option) => option.toLowerCase() === value.toLowerCase()) ?? null;
+}
+
+function toSchool(row: SchoolRow): School {
+  return {
+    id: row.id,
+    schoolName: row.school_name,
+    area: row.area,
+    latitude: optionalNumber(row.latitude),
+    longitude: optionalNumber(row.longitude),
+    osmId: row.osm_id ?? null,
+    osmType: row.osm_type ?? null,
+    createdAt: formatTimestamp(row.created_at),
+  };
+}
+
+function parseSchools(value: unknown) {
+  if (!value) {
+    return [];
+  }
+
+  let rawSchools: unknown;
+
+  try {
+    rawSchools = typeof value === 'string' ? JSON.parse(value) : value;
+  } catch {
+    return [];
+  }
+
+  if (!Array.isArray(rawSchools)) {
+    return [];
+  }
+
+  return rawSchools
+    .filter((school): school is SchoolRow => Boolean(school && typeof school === 'object' && 'id' in school))
+    .map(toSchool);
 }
 
 function effectiveAlertStatus(status: AlertRow['status'], expiresAt: AlertRow['expires_at']): AlertStatus {
@@ -69,11 +166,14 @@ function effectiveAlertStatus(status: AlertRow['status'], expiresAt: AlertRow['e
 }
 
 function toAlert(row: AlertRow): Alert {
+  const alertAudience = canonicalOption(trimmedText(row.alert_audience), alertAudiences) ?? DEFAULT_ALERT_AUDIENCE;
+
   return {
     id: row.id,
     title: row.title,
     disasterType: row.disaster_type,
     affectedArea: row.affected_area,
+    alertAudience,
     riskLevel: row.risk_level,
     message: row.message,
     safetyInstructions: row.safety_instructions ?? '',
@@ -83,6 +183,7 @@ function toAlert(row: AlertRow): Alert {
     createdAt: formatTimestamp(row.created_at),
     updatedAt: formatTimestamp(row.updated_at),
     isRelevantToResident: Boolean(row.is_relevant_to_resident),
+    schools: parseSchools(row.schools),
   };
 }
 
@@ -128,6 +229,82 @@ async function ensureAlertAuditTable() {
   await auditTableReady;
 }
 
+async function createAlertAcknowledgementTable() {
+  await sql`
+    CREATE TABLE IF NOT EXISTS alert_acknowledgements (
+      id SERIAL PRIMARY KEY,
+      alert_id INTEGER NOT NULL REFERENCES alerts(id) ON DELETE CASCADE,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      acknowledged_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(user_id, alert_id)
+    )
+  `;
+
+  await sql`
+    CREATE INDEX IF NOT EXISTS idx_alert_acknowledgements_alert_id
+    ON alert_acknowledgements(alert_id)
+  `;
+
+  await sql`
+    CREATE INDEX IF NOT EXISTS idx_alert_acknowledgements_user_id
+    ON alert_acknowledgements(user_id)
+  `;
+}
+
+async function ensureAlertAcknowledgementTable() {
+  acknowledgementTableReady ??= createAlertAcknowledgementTable();
+
+  await acknowledgementTableReady;
+}
+
+async function ensureAlertSchoolSchema() {
+  alertSchemaReady ??= (async () => {
+    await sql`ALTER TABLE alerts ADD COLUMN IF NOT EXISTS alert_audience VARCHAR(30) NOT NULL DEFAULT 'GENERAL_PUBLIC'`;
+
+    await sql`
+      CREATE TABLE IF NOT EXISTS schools (
+        id SERIAL PRIMARY KEY,
+        school_name VARCHAR(150) NOT NULL,
+        area VARCHAR(150) NOT NULL,
+        latitude DECIMAL(10, 7),
+        longitude DECIMAL(10, 7),
+        osm_id VARCHAR(80),
+        osm_type VARCHAR(20),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `;
+
+    await sql`ALTER TABLE schools ADD COLUMN IF NOT EXISTS osm_id VARCHAR(80)`;
+    await sql`ALTER TABLE schools ADD COLUMN IF NOT EXISTS osm_type VARCHAR(20)`;
+
+    await sql`
+      CREATE INDEX IF NOT EXISTS idx_schools_area
+      ON schools(area)
+    `;
+
+    await sql`
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_schools_osm_identity
+      ON schools(osm_type, osm_id)
+      WHERE osm_type IS NOT NULL AND osm_id IS NOT NULL
+    `;
+
+    await sql`
+      CREATE TABLE IF NOT EXISTS alert_schools (
+        alert_id INTEGER NOT NULL REFERENCES alerts(id) ON DELETE CASCADE,
+        school_id INTEGER NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+        PRIMARY KEY(alert_id, school_id)
+      )
+    `;
+
+    await sql`
+      CREATE INDEX IF NOT EXISTS idx_alert_schools_school_id
+      ON alert_schools(school_id)
+    `;
+  })();
+
+  await alertSchemaReady;
+}
+
 function toAuditEvent(row: AlertAuditRow): AlertAuditEvent {
   return {
     id: row.id,
@@ -153,6 +330,485 @@ function toRiskHistoryPoint(row: AlertRiskHistoryRow): AlertRiskHistoryPoint {
     riskLevel: row.risk_level,
     timestamp: formatTimestamp(row.created_at),
   };
+}
+
+async function getSchoolsForArea(area: string) {
+  const rows = await sql`
+    SELECT id, school_name, area, latitude, longitude, osm_id, osm_type, created_at
+    FROM schools
+    WHERE LOWER(area) = LOWER(${area})
+    ORDER BY school_name ASC
+  `;
+
+  return (rows as SchoolRow[]).map(toSchool);
+}
+
+function parseSchoolIds(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const ids = value
+    .map((item) => Number(item))
+    .filter((item) => Number.isInteger(item) && item > 0);
+
+  return [...new Set(ids)];
+}
+
+function parseSchoolSelections(value: unknown): SchoolSelectionInput[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.filter((item): item is SchoolSelectionInput => Boolean(item && typeof item === 'object'));
+}
+
+type NominatimResult = {
+  boundingbox?: string[];
+  display_name?: string;
+  lat?: string;
+  lon?: string;
+};
+
+type OverpassElement = {
+  center?: {
+    lat?: number;
+    lon?: number;
+  };
+  id: number;
+  lat?: number;
+  lon?: number;
+  tags?: Record<string, string | undefined>;
+  type: string;
+};
+
+type OverpassResponse = {
+  elements?: OverpassElement[];
+};
+
+function schoolSearchUserAgent() {
+  return trimmedText(process.env.RESQ1_OSM_USER_AGENT)
+    || 'ResQ1/1.0 school-alert-search (local development)';
+}
+
+function schoolSearchDedupeKey(school: SchoolSearchResult) {
+  if (school.osmId && school.osmType) {
+    return `osm:${school.osmType.toLowerCase()}:${school.osmId.toLowerCase()}`;
+  }
+
+  return [
+    school.schoolName.toLowerCase(),
+    school.area.toLowerCase(),
+    school.latitude ?? '',
+    school.longitude ?? '',
+  ].join('|');
+}
+
+function cachedSchoolSearch(area: string) {
+  const cacheKey = area.toLowerCase();
+  const cached = schoolSearchCache.get(cacheKey);
+
+  if (!cached || cached.expiresAt <= Date.now()) {
+    schoolSearchCache.delete(cacheKey);
+    return null;
+  }
+
+  return cached.schools;
+}
+
+function setCachedSchoolSearch(area: string, schools: SchoolSearchResult[]) {
+  schoolSearchCache.set(area.toLowerCase(), {
+    expiresAt: Date.now() + SCHOOL_SEARCH_CACHE_DURATION_MS,
+    schools,
+  });
+}
+
+function fallbackBounds(latitude: number, longitude: number) {
+  const latitudeDelta = 0.16;
+  const longitudeDelta = 0.16;
+
+  return {
+    east: longitude + longitudeDelta,
+    north: latitude + latitudeDelta,
+    south: latitude - latitudeDelta,
+    west: longitude - longitudeDelta,
+  };
+}
+
+function boundsFromGeocode(result: NominatimResult) {
+  const latitude = optionalNumber(result.lat);
+  const longitude = optionalNumber(result.lon);
+
+  if (latitude === null || longitude === null) {
+    return null;
+  }
+
+  const [southRaw, northRaw, westRaw, eastRaw] = result.boundingbox ?? [];
+  const south = optionalNumber(southRaw);
+  const north = optionalNumber(northRaw);
+  const west = optionalNumber(westRaw);
+  const east = optionalNumber(eastRaw);
+
+  if (south !== null && north !== null && west !== null && east !== null) {
+    return { east, north, south, west };
+  }
+
+  return fallbackBounds(latitude, longitude);
+}
+
+async function geocodeAreaForSchoolSearch(area: string) {
+  const url = new URL(NOMINATIM_SEARCH_URL);
+  url.searchParams.set('format', 'jsonv2');
+  url.searchParams.set('limit', '1');
+  url.searchParams.set('q', area);
+
+  let response: Response;
+
+  try {
+    response = await fetch(url, {
+      headers: {
+        Accept: 'application/json',
+        'User-Agent': schoolSearchUserAgent(),
+      },
+    });
+  } catch (error) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn('Nominatim area geocoding failed:', error);
+    }
+
+    throw new AlertServiceError(502, 'Unable to search school locations. Please try again.');
+  }
+
+  if (!response.ok) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn('Nominatim area geocoding error:', response.status);
+    }
+
+    throw new AlertServiceError(502, 'Unable to search school locations. Please try again.');
+  }
+
+  let results: NominatimResult[] = [];
+
+  try {
+    results = await response.json() as NominatimResult[];
+  } catch {
+    results = [];
+  }
+
+  const result = results[0];
+
+  if (!result) {
+    return null;
+  }
+
+  return boundsFromGeocode(result);
+}
+
+function buildOverpassSchoolQuery(bounds: { east: number; north: number; south: number; west: number }) {
+  const bbox = `${bounds.south},${bounds.west},${bounds.north},${bounds.east}`;
+
+  return `
+    [out:json][timeout:25];
+    (
+      node["amenity"="school"](${bbox});
+      way["amenity"="school"](${bbox});
+      relation["amenity"="school"](${bbox});
+    );
+    out center 50;
+  `;
+}
+
+async function queryOverpassSchools(bounds: { east: number; north: number; south: number; west: number }) {
+  let response: Response;
+
+  try {
+    response = await fetch(OVERPASS_INTERPRETER_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+        'User-Agent': schoolSearchUserAgent(),
+      },
+      body: new URLSearchParams({ data: buildOverpassSchoolQuery(bounds) }).toString(),
+    });
+  } catch (error) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn('Overpass school search failed:', error);
+    }
+
+    throw new AlertServiceError(502, 'Unable to search school locations. Please try again.');
+  }
+
+  if (!response.ok) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn('Overpass school search error:', response.status);
+    }
+
+    throw new AlertServiceError(502, 'Unable to search school locations. Please try again.');
+  }
+
+  try {
+    return await response.json() as OverpassResponse;
+  } catch {
+    throw new AlertServiceError(502, 'Unable to search school locations. Please try again.');
+  }
+}
+
+function addressText(tags: Record<string, string | undefined>, fallbackArea: string) {
+  return [
+    tags['addr:housenumber'],
+    tags['addr:street'],
+    tags['addr:suburb'],
+    tags['addr:city'],
+    tags['addr:district'],
+  ].filter(Boolean).join(', ') || fallbackArea;
+}
+
+function toSchoolSearchResult(element: OverpassElement, area: string): SchoolSearchResult | null {
+  const tags = element.tags ?? {};
+  const schoolName = trimmedText(tags.name ?? tags['name:en']);
+
+  if (!schoolName) {
+    return null;
+  }
+
+  const latitude = optionalNumber(element.lat ?? element.center?.lat);
+  const longitude = optionalNumber(element.lon ?? element.center?.lon);
+
+  if (latitude === null || longitude === null) {
+    return null;
+  }
+
+  return {
+    id: null,
+    schoolName,
+    area,
+    latitude,
+    longitude,
+    osmId: String(element.id),
+    osmType: element.type,
+    formattedAddress: addressText(tags, area),
+  };
+}
+
+async function hydrateExistingSchoolIds(results: SchoolSearchResult[]) {
+  const hydrated = await Promise.all(
+    results.map(async (result) => {
+      if (!result.osmId || !result.osmType) {
+        return result;
+      }
+
+      const rows = await sql`
+        SELECT id, school_name, area, latitude, longitude, osm_id, osm_type, created_at
+        FROM schools
+        WHERE osm_id = ${result.osmId}
+          AND osm_type = ${result.osmType}
+        LIMIT 1
+      `;
+      const existingSchool = (rows as SchoolRow[])[0];
+
+      return {
+        ...result,
+        id: existingSchool?.id ?? null,
+      };
+    }),
+  );
+
+  return hydrated;
+}
+
+export async function searchSchoolsByArea(area: string) {
+  await ensureAlertSchoolSchema();
+
+  const affectedArea = trimmedText(area);
+
+  if (!affectedArea) {
+    throw new AlertServiceError(400, 'Enter an affected area before searching schools.');
+  }
+
+  const cached = cachedSchoolSearch(affectedArea);
+
+  if (cached) {
+    return cached;
+  }
+
+  const bounds = await geocodeAreaForSchoolSearch(affectedArea);
+
+  if (!bounds) {
+    setCachedSchoolSearch(affectedArea, []);
+    return [];
+  }
+
+  const overpassData = await queryOverpassSchools(bounds);
+  const deduped = new Map<string, SchoolSearchResult>();
+
+  for (const element of overpassData.elements ?? []) {
+    const result = toSchoolSearchResult(element, affectedArea);
+
+    if (result) {
+      deduped.set(schoolSearchDedupeKey(result), result);
+    }
+  }
+
+  const schools = await hydrateExistingSchoolIds([...deduped.values()].slice(0, 50));
+  setCachedSchoolSearch(affectedArea, schools);
+
+  return schools;
+}
+
+async function getExistingSchoolById(schoolId: number) {
+  const rows = await sql`
+    SELECT id, school_name, area, latitude, longitude, osm_id, osm_type, created_at
+    FROM schools
+    WHERE id = ${schoolId}
+    LIMIT 1
+  `;
+
+  return (rows as SchoolRow[])[0] ? toSchool((rows as SchoolRow[])[0]) : null;
+}
+
+async function findExistingSchoolByNameAndArea(schoolName: string, area: string) {
+  const rows = await sql`
+    SELECT id, school_name, area, latitude, longitude, osm_id, osm_type, created_at
+    FROM schools
+    WHERE LOWER(school_name) = LOWER(${schoolName})
+      AND LOWER(area) = LOWER(${area})
+    LIMIT 1
+  `;
+
+  return (rows as SchoolRow[])[0] ? toSchool((rows as SchoolRow[])[0]) : null;
+}
+
+async function findExistingSchoolByNameAndCoordinates(
+  schoolName: string,
+  latitude: number | null,
+  longitude: number | null,
+) {
+  if (latitude === null || longitude === null) {
+    return null;
+  }
+
+  const rows = await sql`
+    SELECT id, school_name, area, latitude, longitude, osm_id, osm_type, created_at
+    FROM schools
+    WHERE LOWER(school_name) = LOWER(${schoolName})
+      AND latitude IS NOT NULL
+      AND longitude IS NOT NULL
+      AND ABS(CAST(latitude AS DOUBLE PRECISION) - ${latitude}) < 0.0001
+      AND ABS(CAST(longitude AS DOUBLE PRECISION) - ${longitude}) < 0.0001
+    LIMIT 1
+  `;
+
+  return (rows as SchoolRow[])[0] ? toSchool((rows as SchoolRow[])[0]) : null;
+}
+
+async function upsertSelectedSchool(affectedArea: string, selection: SchoolSelectionInput) {
+  const schoolId = Number(selection.id);
+
+  if (Number.isInteger(schoolId) && schoolId > 0) {
+    const existingSchool = await getExistingSchoolById(schoolId);
+
+    if (!existingSchool) {
+      return null;
+    }
+
+    if (existingSchool.area.toLowerCase() === affectedArea.toLowerCase() || existingSchool.osmId) {
+      return existingSchool.id;
+    }
+
+    if (!trimmedText(selection.osmId)) {
+      return null;
+    }
+  }
+
+  const schoolName = trimmedText(selection.schoolName).slice(0, SCHOOL_NAME_MAX_LENGTH);
+  const osmId = trimmedText(selection.osmId).slice(0, OSM_ID_MAX_LENGTH);
+  const osmType = trimmedText(selection.osmType).slice(0, OSM_TYPE_MAX_LENGTH);
+  const latitude = optionalNumber(selection.latitude);
+  const longitude = optionalNumber(selection.longitude);
+
+  if (!schoolName) {
+    return null;
+  }
+
+  if (osmId && osmType) {
+    const rows = await sql`
+      INSERT INTO schools (school_name, area, latitude, longitude, osm_id, osm_type)
+      VALUES (${schoolName}, ${affectedArea}, ${latitude}, ${longitude}, ${osmId}, ${osmType})
+      ON CONFLICT (osm_type, osm_id) WHERE osm_type IS NOT NULL AND osm_id IS NOT NULL
+      DO UPDATE SET
+        school_name = EXCLUDED.school_name,
+        area = EXCLUDED.area,
+        latitude = EXCLUDED.latitude,
+        longitude = EXCLUDED.longitude
+      RETURNING id, school_name, area, latitude, longitude, osm_id, osm_type, created_at
+    `;
+    const savedSchool = (rows as SchoolRow[])[0];
+
+    return savedSchool?.id ?? null;
+  }
+
+  const existingSchoolByCoordinates = await findExistingSchoolByNameAndCoordinates(schoolName, latitude, longitude);
+
+  if (existingSchoolByCoordinates) {
+    return existingSchoolByCoordinates.id;
+  }
+
+  const existingSchool = await findExistingSchoolByNameAndArea(schoolName, affectedArea);
+
+  if (existingSchool) {
+    return existingSchool.id;
+  }
+
+  const rows = await sql`
+    INSERT INTO schools (school_name, area, latitude, longitude)
+    VALUES (${schoolName}, ${affectedArea}, ${latitude}, ${longitude})
+    RETURNING id, school_name, area, latitude, longitude, osm_id, osm_type, created_at
+  `;
+  const savedSchool = (rows as SchoolRow[])[0];
+
+  return savedSchool?.id ?? null;
+}
+
+async function validateSelectedSchools(
+  affectedArea: string,
+  alertAudience: AlertAudience,
+  schoolIds: number[],
+  schoolSelections: SchoolSelectionInput[],
+  fieldErrors: Record<string, string>,
+) {
+  if (alertAudience !== SCHOOL_ALERT_AUDIENCE) {
+    return [];
+  }
+
+  if (schoolIds.length === 0 && schoolSelections.length === 0) {
+    fieldErrors.schoolIds = 'Select at least one school for a school emergency alert.';
+    return [];
+  }
+
+  const selectedIds = await Promise.all([
+    ...schoolIds.map((schoolId) => upsertSelectedSchool(affectedArea, { id: schoolId })),
+    ...schoolSelections.map((school) => upsertSelectedSchool(affectedArea, school)),
+  ]);
+  const validSelectedIds = selectedIds.filter((schoolId): schoolId is number => Boolean(schoolId));
+
+  if (validSelectedIds.length !== schoolIds.length + schoolSelections.length) {
+    fieldErrors.schoolIds = 'Choose real schools that belong to the selected affected area.';
+    return [];
+  }
+
+  return [...new Set(validSelectedIds)];
+}
+
+async function replaceAlertSchoolLinks(alertId: number, schoolIds: number[]) {
+  await sql`DELETE FROM alert_schools WHERE alert_id = ${alertId}`;
+
+  await Promise.all(
+    schoolIds.map((schoolId) => sql`
+      INSERT INTO alert_schools (alert_id, school_id)
+      VALUES (${alertId}, ${schoolId})
+      ON CONFLICT (alert_id, school_id) DO NOTHING
+    `),
+  );
 }
 
 function statusText(row: AlertRow) {
@@ -252,16 +908,19 @@ function validateExpiresAt(value: unknown, fieldErrors: Record<string, string>) 
   return expirationDate.toISOString();
 }
 
-function validateAlertFields(
+async function validateAlertFields(
   input: CreateAlertInput,
   fieldErrors: Record<string, string>,
-): ValidatedCreateAlertInput | null {
+): Promise<ValidatedCreateAlertInput | null> {
   const title = trimmedText(input.title);
   const disasterTypeText = trimmedText(input.disasterType) || 'Flood';
   const affectedArea = trimmedText(input.affectedArea);
+  const alertAudienceText = trimmedText(input.alertAudience) || DEFAULT_ALERT_AUDIENCE;
   const riskLevelText = trimmedText(input.riskLevel);
   const message = trimmedText(input.message);
   const safetyInstructions = trimmedText(input.safetyInstructions);
+  const schoolIds = parseSchoolIds(input.schoolIds);
+  const schoolSelections = parseSchoolSelections(input.schools);
 
   if (!title) {
     fieldErrors.title = 'Please enter an alert title.';
@@ -279,6 +938,12 @@ function validateAlertFields(
     fieldErrors.affectedArea = 'Please enter the affected area.';
   } else if (affectedArea.length > ALERT_AREA_MAX_LENGTH) {
     fieldErrors.affectedArea = `Affected area must be ${ALERT_AREA_MAX_LENGTH} characters or fewer.`;
+  }
+
+  const alertAudience = canonicalOption(alertAudienceText, alertAudiences);
+
+  if (!alertAudience) {
+    fieldErrors.alertAudience = 'Choose All, General Public, or School Emergency.';
   }
 
   const riskLevel = canonicalOption(riskLevelText, alertRiskLevels);
@@ -299,7 +964,23 @@ function validateAlertFields(
 
   const expiresAt = validateExpiresAt(input.expiresAt, fieldErrors);
 
-  if (Object.keys(fieldErrors).length > 0 || !disasterType || !riskLevel) {
+  if (alertAudience === SCHOOL_ALERT_AUDIENCE && schoolIds.length === 0 && schoolSelections.length === 0) {
+    fieldErrors.schoolIds = 'Select at least one school for a school emergency alert.';
+  }
+
+  if (Object.keys(fieldErrors).length > 0 || !disasterType || !riskLevel || !alertAudience) {
+    return null;
+  }
+
+  const validatedSchoolIds = await validateSelectedSchools(
+    affectedArea,
+    alertAudience,
+    schoolIds,
+    schoolSelections,
+    fieldErrors,
+  );
+
+  if (Object.keys(fieldErrors).length > 0) {
     return null;
   }
 
@@ -307,16 +988,18 @@ function validateAlertFields(
     title,
     disasterType,
     affectedArea,
+    alertAudience,
     riskLevel,
     message,
     safetyInstructions,
     expiresAt,
+    schoolIds: validatedSchoolIds,
   };
 }
 
-function validateCreateAlertInput(input: CreateAlertInput): ValidatedCreateAlertInput {
+async function validateCreateAlertInput(input: CreateAlertInput): Promise<ValidatedCreateAlertInput> {
   const fieldErrors: Record<string, string> = {};
-  const alert = validateAlertFields(input, fieldErrors);
+  const alert = await validateAlertFields(input, fieldErrors);
 
   if (!alert) {
     throw new AlertServiceError(400, 'Please correct the highlighted fields.', fieldErrors);
@@ -325,9 +1008,9 @@ function validateCreateAlertInput(input: CreateAlertInput): ValidatedCreateAlert
   return alert;
 }
 
-function validateUpdateAlertInput(input: UpdateAlertInput): ValidatedUpdateAlertInput {
+async function validateUpdateAlertInput(input: UpdateAlertInput): Promise<ValidatedUpdateAlertInput> {
   const fieldErrors: Record<string, string> = {};
-  const alert = validateAlertFields(input, fieldErrors);
+  const alert = await validateAlertFields(input, fieldErrors);
   const statusText = trimmedText(input.status);
   const status = canonicalOption(statusText, alertStatuses);
 
@@ -348,6 +1031,8 @@ function validateUpdateAlertInput(input: UpdateAlertInput): ValidatedUpdateAlert
 }
 
 export async function getActiveAlerts(residentLocation: string | null | undefined) {
+  await ensureAlertSchoolSchema();
+
   const location = trimmedText(residentLocation);
 
   const rows = await sql`
@@ -359,6 +1044,7 @@ export async function getActiveAlerts(residentLocation: string | null | undefine
       alerts.title,
       alerts.disaster_type,
       alerts.affected_area,
+      alerts.alert_audience,
       alerts.risk_level,
       alerts.message,
       alerts.safety_instructions,
@@ -367,6 +1053,27 @@ export async function getActiveAlerts(residentLocation: string | null | undefine
       alerts.created_by,
       alerts.created_at,
       alerts.updated_at,
+      (
+        SELECT COALESCE(
+          json_agg(
+            json_build_object(
+              'id', schools.id,
+              'school_name', schools.school_name,
+              'area', schools.area,
+              'latitude', schools.latitude,
+              'longitude', schools.longitude,
+              'osm_id', schools.osm_id,
+              'osm_type', schools.osm_type,
+              'created_at', schools.created_at
+            )
+            ORDER BY schools.school_name
+          ) FILTER (WHERE schools.id IS NOT NULL),
+          '[]'::json
+        )
+        FROM alert_schools
+        INNER JOIN schools ON schools.id = alert_schools.school_id
+        WHERE alert_schools.alert_id = alerts.id
+      ) AS schools,
       (
         resident_context.resident_location <> ''
         AND (
@@ -433,6 +1140,8 @@ export async function getAlertHistory() {
 }
 
 export async function getAlertRiskHistory(alertId: string) {
+  await ensureAlertSchoolSchema();
+
   const numericId = numericAlertId(alertId);
 
   const alertRows = await sql`
@@ -468,6 +1177,8 @@ export async function getAlertRiskHistory(alertId: string) {
 }
 
 export async function getAlertById(alertId: string) {
+  await ensureAlertSchoolSchema();
+
   const numericId = numericAlertId(alertId);
 
   const rows = await sql`
@@ -476,6 +1187,7 @@ export async function getAlertById(alertId: string) {
       title,
       disaster_type,
       affected_area,
+      alert_audience,
       risk_level,
       message,
       safety_instructions,
@@ -484,6 +1196,27 @@ export async function getAlertById(alertId: string) {
       created_by,
       created_at,
       updated_at,
+      (
+        SELECT COALESCE(
+          json_agg(
+            json_build_object(
+              'id', schools.id,
+              'school_name', schools.school_name,
+              'area', schools.area,
+              'latitude', schools.latitude,
+              'longitude', schools.longitude,
+              'osm_id', schools.osm_id,
+              'osm_type', schools.osm_type,
+              'created_at', schools.created_at
+            )
+            ORDER BY schools.school_name
+          ) FILTER (WHERE schools.id IS NOT NULL),
+          '[]'::json
+        )
+        FROM alert_schools
+        INNER JOIN schools ON schools.id = alert_schools.school_id
+        WHERE alert_schools.alert_id = alerts.id
+      ) AS schools,
       FALSE AS is_relevant_to_resident
     FROM alerts
     WHERE id = ${numericId}
@@ -500,13 +1233,16 @@ export async function getAlertById(alertId: string) {
 }
 
 export async function createAlert(senderId: number, input: CreateAlertInput) {
-  const alert = validateCreateAlertInput(input);
+  await ensureAlertSchoolSchema();
+
+  const alert = await validateCreateAlertInput(input);
 
   const rows = await sql`
     INSERT INTO alerts (
       title,
       disaster_type,
       affected_area,
+      alert_audience,
       risk_level,
       message,
       safety_instructions,
@@ -518,6 +1254,7 @@ export async function createAlert(senderId: number, input: CreateAlertInput) {
       ${alert.title},
       ${alert.disasterType},
       ${alert.affectedArea},
+      ${alert.alertAudience},
       ${alert.riskLevel},
       ${alert.message},
       ${alert.safetyInstructions},
@@ -525,7 +1262,7 @@ export async function createAlert(senderId: number, input: CreateAlertInput) {
       ${alert.expiresAt},
       ${senderId}
     )
-    RETURNING id, title, disaster_type, affected_area, risk_level, message, safety_instructions, status, expires_at, created_by, created_at, updated_at
+    RETURNING id, title, disaster_type, affected_area, alert_audience, risk_level, message, safety_instructions, status, expires_at, created_by, created_at, updated_at
   `;
 
   const createdAlert = rows[0] as AlertRow | undefined;
@@ -533,6 +1270,8 @@ export async function createAlert(senderId: number, input: CreateAlertInput) {
   if (!createdAlert) {
     throw new AlertServiceError(500, 'Emergency alert could not be published.');
   }
+
+  await replaceAlertSchoolLinks(createdAlert.id, alert.schoolIds);
 
   await recordAlertAuditEvent({
     action: 'PUBLISHED',
@@ -544,12 +1283,14 @@ export async function createAlert(senderId: number, input: CreateAlertInput) {
     previousStatus: null,
   });
 
-  return toAlert(createdAlert);
+  return getAlertById(String(createdAlert.id));
 }
 
 export async function updateAlert(alertId: string, input: UpdateAlertInput, changedBy: number | null = null) {
+  await ensureAlertSchoolSchema();
+
   const numericId = numericAlertId(alertId);
-  const alert = validateUpdateAlertInput(input);
+  const alert = await validateUpdateAlertInput(input);
   const auditActionOverride = canonicalOption(trimmedText(input.auditAction), alertAuditActions);
   const requestedAuditAction = auditActionOverride === 'PUBLISHED' ? null : auditActionOverride;
 
@@ -559,6 +1300,7 @@ export async function updateAlert(alertId: string, input: UpdateAlertInput, chan
       title,
       disaster_type,
       affected_area,
+      alert_audience,
       risk_level,
       message,
       safety_instructions,
@@ -567,6 +1309,7 @@ export async function updateAlert(alertId: string, input: UpdateAlertInput, chan
       created_by,
       created_at,
       updated_at,
+      '[]'::json AS schools,
       FALSE AS is_relevant_to_resident
     FROM alerts
     WHERE id = ${numericId}
@@ -584,6 +1327,7 @@ export async function updateAlert(alertId: string, input: UpdateAlertInput, chan
     SET title = ${alert.title},
         disaster_type = ${alert.disasterType},
         affected_area = ${alert.affectedArea},
+        alert_audience = ${alert.alertAudience},
         risk_level = ${alert.riskLevel},
         message = ${alert.message},
         safety_instructions = ${alert.safetyInstructions},
@@ -591,7 +1335,7 @@ export async function updateAlert(alertId: string, input: UpdateAlertInput, chan
         expires_at = ${alert.expiresAt},
         updated_at = CURRENT_TIMESTAMP
     WHERE id = ${numericId}
-    RETURNING id, title, disaster_type, affected_area, risk_level, message, safety_instructions, status, expires_at, created_by, created_at, updated_at
+    RETURNING id, title, disaster_type, affected_area, alert_audience, risk_level, message, safety_instructions, status, expires_at, created_by, created_at, updated_at
   `;
 
   const updatedAlert = rows[0] as AlertRow | undefined;
@@ -599,6 +1343,8 @@ export async function updateAlert(alertId: string, input: UpdateAlertInput, chan
   if (!updatedAlert) {
     throw new AlertServiceError(404, 'Emergency alert not found.');
   }
+
+  await replaceAlertSchoolLinks(updatedAlert.id, alert.schoolIds);
 
   await recordAlertAuditEvent({
     action: auditActionForUpdate(previousAlert, updatedAlert, requestedAuditAction),
@@ -610,5 +1356,227 @@ export async function updateAlert(alertId: string, input: UpdateAlertInput, chan
     previousStatus: statusText(previousAlert),
   });
 
-  return toAlert(updatedAlert);
+  return getAlertById(String(updatedAlert.id));
+}
+
+export async function listSchoolsByArea(area: string) {
+  await ensureAlertSchoolSchema();
+
+  const affectedArea = trimmedText(area);
+
+  if (!affectedArea) {
+    return [];
+  }
+
+  return getSchoolsForArea(affectedArea);
+}
+
+function toAcknowledgementStatus(row: AlertAcknowledgementRow | undefined): AlertAcknowledgementStatus {
+  return {
+    acknowledged: Boolean(row),
+    acknowledgedAt: row ? formatTimestamp(row.acknowledged_at) : null,
+  };
+}
+
+function isResidentUser(user: AuthenticatedUser) {
+  return String(user.role).toLowerCase() === 'resident';
+}
+
+function normalizeAlertArea(value: string | null | undefined) {
+  return (value ?? '').trim().toLowerCase().replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function isResidentAreaMatch(alertArea: string, residentLocation: string | null | undefined) {
+  const area = normalizeAlertArea(alertArea);
+  const location = normalizeAlertArea(residentLocation);
+
+  return Boolean(
+    area
+    && location
+    && (area === location || area.includes(location) || location.includes(area)),
+  );
+}
+
+async function getResidentSchoolAlertsEnabled(userId: number) {
+  const rows = await sql`
+    SELECT school_alerts
+    FROM alert_preferences
+    WHERE user_id = ${userId}
+    LIMIT 1
+  `;
+  const row = rows[0] as { school_alerts?: boolean | null } | undefined;
+
+  return row?.school_alerts ?? true;
+}
+
+async function ensureResidentCanAcknowledge(alertId: string, user: AuthenticatedUser) {
+  if (!isResidentUser(user)) {
+    throw new AlertServiceError(403, 'Only resident accounts can acknowledge emergency alerts.');
+  }
+
+  const alert = await getAlertById(alertId);
+
+  if (alert.status !== ACTIVE_ALERT_STATUS) {
+    throw new AlertServiceError(403, 'This emergency alert is no longer active.');
+  }
+
+  if (!isResidentAreaMatch(alert.affectedArea, user.location)) {
+    throw new AlertServiceError(403, 'This emergency alert is not targeted to your registered area.');
+  }
+
+  if (
+    alert.alertAudience === SCHOOL_ALERT_AUDIENCE &&
+    !(await getResidentSchoolAlertsEnabled(user.id))
+  ) {
+    throw new AlertServiceError(403, 'School emergency alerts are disabled for this resident account.');
+  }
+
+  return alert;
+}
+
+export async function getAlertAcknowledgementStatus(alertId: string, user: AuthenticatedUser) {
+  await ensureAlertAcknowledgementTable();
+  const alert = await ensureResidentCanAcknowledge(alertId, user);
+
+  const rows = await sql`
+    SELECT id, alert_id, user_id, acknowledged_at
+    FROM alert_acknowledgements
+    WHERE alert_id = ${alert.id}
+      AND user_id = ${user.id}
+    LIMIT 1
+  `;
+
+  return toAcknowledgementStatus((rows as AlertAcknowledgementRow[])[0]);
+}
+
+export async function acknowledgeAlert(alertId: string, user: AuthenticatedUser) {
+  await ensureAlertAcknowledgementTable();
+  const alert = await ensureResidentCanAcknowledge(alertId, user);
+
+  const insertedRows = await sql`
+    INSERT INTO alert_acknowledgements (alert_id, user_id)
+    VALUES (${alert.id}, ${user.id})
+    ON CONFLICT (user_id, alert_id) DO NOTHING
+    RETURNING id, alert_id, user_id, acknowledged_at
+  `;
+  const inserted = (insertedRows as AlertAcknowledgementRow[])[0];
+
+  if (inserted) {
+    return toAcknowledgementStatus(inserted);
+  }
+
+  const existingRows = await sql`
+    SELECT id, alert_id, user_id, acknowledged_at
+    FROM alert_acknowledgements
+    WHERE alert_id = ${alert.id}
+      AND user_id = ${user.id}
+    LIMIT 1
+  `;
+
+  return toAcknowledgementStatus((existingRows as AlertAcknowledgementRow[])[0]);
+}
+
+type TargetedResidentRow = {
+  acknowledged_at: Date | string | null;
+  full_name: string;
+  id: number;
+  location: string | null;
+};
+
+function toAcknowledgementResident(row: TargetedResidentRow): AlertAcknowledgementResident {
+  return {
+    acknowledged: Boolean(row.acknowledged_at),
+    acknowledgedAt: row.acknowledged_at ? formatTimestamp(row.acknowledged_at) : null,
+    fullName: row.full_name,
+    id: row.id,
+    location: row.location,
+  };
+}
+
+async function getTargetedResidentRows(alert: Alert) {
+  if (alert.alertAudience === SCHOOL_ALERT_AUDIENCE) {
+    const rows = await sql`
+      SELECT
+        users.id,
+        users.full_name,
+        users.location,
+        alert_acknowledgements.acknowledged_at
+      FROM users
+      LEFT JOIN alert_preferences ON alert_preferences.user_id = users.id
+      LEFT JOIN alert_acknowledgements
+        ON alert_acknowledgements.user_id = users.id
+        AND alert_acknowledgements.alert_id = ${alert.id}
+      WHERE LOWER(users.role) = 'resident'
+        AND COALESCE(alert_preferences.school_alerts, TRUE) = TRUE
+      ORDER BY
+        alert_acknowledgements.acknowledged_at DESC NULLS LAST,
+        users.full_name ASC
+    `;
+
+    return (rows as TargetedResidentRow[])
+      .filter((resident) => isResidentAreaMatch(alert.affectedArea, resident.location));
+  }
+
+  const rows = await sql`
+    SELECT
+      users.id,
+      users.full_name,
+      users.location,
+      alert_acknowledgements.acknowledged_at
+    FROM users
+    LEFT JOIN alert_acknowledgements
+      ON alert_acknowledgements.user_id = users.id
+      AND alert_acknowledgements.alert_id = ${alert.id}
+    WHERE LOWER(users.role) = 'resident'
+    ORDER BY
+      alert_acknowledgements.acknowledged_at DESC NULLS LAST,
+      users.full_name ASC
+  `;
+
+  return (rows as TargetedResidentRow[])
+    .filter((resident) => isResidentAreaMatch(alert.affectedArea, resident.location));
+}
+
+function acknowledgementSummaryFromResidents(
+  residents: AlertAcknowledgementResident[],
+): AlertAcknowledgementSummary {
+  const targetedResidents = residents.length;
+  const acknowledged = residents.filter((resident) => resident.acknowledged).length;
+  const pending = Math.max(0, targetedResidents - acknowledged);
+  const acknowledgementRate = targetedResidents > 0
+    ? Math.min(100, Math.round((acknowledged / targetedResidents) * 100))
+    : 0;
+  const lastAcknowledgedAt = residents
+    .map((resident) => resident.acknowledgedAt)
+    .filter((value): value is string => Boolean(value))
+    .sort((left, right) => new Date(right).getTime() - new Date(left).getTime())[0] ?? null;
+
+  return {
+    acknowledged,
+    acknowledgementRate,
+    lastAcknowledgedAt,
+    pending,
+    targetedResidents,
+  };
+}
+
+export async function getAlertAcknowledgementReport(alertId: string): Promise<AlertAcknowledgementReport> {
+  await ensureAlertAcknowledgementTable();
+  const alert = await getAlertById(alertId);
+  const residentRows = await getTargetedResidentRows(alert);
+  const residents = residentRows.map(toAcknowledgementResident);
+  const acknowledgedResidents = residents.filter((resident) => resident.acknowledged);
+  const pendingResidents = residents.filter((resident) => !resident.acknowledged);
+
+  return {
+    acknowledgedResidents,
+    pendingResidents,
+    summary: acknowledgementSummaryFromResidents(residents),
+  };
+}
+
+export async function getAlertAcknowledgementSummary(alertId: string) {
+  const report = await getAlertAcknowledgementReport(alertId);
+
+  return report.summary;
 }

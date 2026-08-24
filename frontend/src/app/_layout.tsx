@@ -3,9 +3,24 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 
 import { BrandColors } from '@/constants/brand';
-import { AuthProvider } from '@/context/auth-context';
+import { AuthProvider, useAuth } from '@/context/auth-context';
+import {
+  configureForegroundNotificationHandler,
+  registerResidentDeviceForPushNotifications,
+} from '@/services/pushNotificationService';
 
 SplashScreen.preventAutoHideAsync().catch(() => null);
+void configureForegroundNotificationHandler();
+
+function ResidentPushNotificationRegistration() {
+  const { token, user } = useAuth();
+
+  useEffect(() => {
+    void registerResidentDeviceForPushNotifications(user, token);
+  }, [token, user]);
+
+  return null;
+}
 
 export default function RootLayout() {
   useEffect(() => {
@@ -14,6 +29,7 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
+      <ResidentPushNotificationRegistration />
       <Stack
         screenOptions={{
           headerShown: false,
@@ -39,6 +55,9 @@ export default function RootLayout() {
         <Stack.Screen name="alerts/risk-level" />
         <Stack.Screen name="alerts/history" />
         <Stack.Screen name="alerts/preferences" />
+        <Stack.Screen name="community-notifications/index" />
+        <Stack.Screen name="community-notifications/[id]" />
+        <Stack.Screen name="community-notifications/create" />
         <Stack.Screen name="incidents/index" />
         <Stack.Screen name="incidents/report" />
         <Stack.Screen name="incidents/[id]" />

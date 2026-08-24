@@ -46,6 +46,13 @@ export interface LoginResidentInput {
   password?: unknown;
 }
 
+export interface UpdateProfileInput {
+  fullName?: unknown;
+  email?: unknown;
+  location?: unknown;
+  preferredLanguage?: unknown;
+}
+
 export interface AuthResult {
   user: SafeUser;
   token?: string;

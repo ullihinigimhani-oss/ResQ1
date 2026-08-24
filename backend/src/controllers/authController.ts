@@ -1,6 +1,11 @@
 import type { Request, Response } from 'express';
 
-import { AuthServiceError, loginResident, registerResident } from '../services/authService.js';
+import {
+  AuthServiceError,
+  loginResident,
+  registerResident,
+  updateResidentProfile,
+} from '../services/authService.js';
 
 function sendErrorResponse(error: unknown, res: Response) {
   if (error instanceof AuthServiceError) {
@@ -42,6 +47,27 @@ export async function login(req: Request, res: Response) {
       message: 'Login successful.',
       user: result.user,
       token: result.token,
+    });
+  } catch (error) {
+    return sendErrorResponse(error, res);
+  }
+}
+
+export async function updateProfile(req: Request, res: Response) {
+  if (!req.authUser) {
+    return res.status(401).json({
+      success: false,
+      message: 'Authentication is required.',
+    });
+  }
+
+  try {
+    const result = await updateResidentProfile(req.authUser.id, req.body);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Profile updated successfully.',
+      user: result.user,
     });
   } catch (error) {
     return sendErrorResponse(error, res);

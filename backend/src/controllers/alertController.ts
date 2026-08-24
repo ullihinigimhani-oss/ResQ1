@@ -2,13 +2,19 @@ import type { Request, Response } from 'express';
 
 import {
   AlertServiceError,
+  acknowledgeAlert,
   createAlert,
+  getAlertAcknowledgementReport,
+  getAlertAcknowledgementStatus,
   getActiveAlerts,
   getAlertHistory,
   getAlertById,
   getAlertRiskHistory,
+  listSchoolsByArea,
+  searchSchoolsByArea,
   updateAlert,
 } from '../services/alertService.js';
+import { sendAlertPushNotifications } from '../services/notificationService.js';
 
 const AUTHORIZED_ALERT_ROLES = new Set(['admin', 'authority']);
 
@@ -85,6 +91,36 @@ export async function listAlertHistory(req: Request, res: Response) {
   }
 }
 
+export async function listAlertSchools(req: Request, res: Response) {
+  try {
+    requireAlertManager(req);
+    const area = Array.isArray(req.query.area) ? req.query.area[0] : req.query.area;
+    const schools = await listSchoolsByArea(typeof area === 'string' ? area : '');
+
+    return res.status(200).json({
+      success: true,
+      schools,
+    });
+  } catch (error) {
+    return sendAlertError(error, res);
+  }
+}
+
+export async function searchAlertSchools(req: Request, res: Response) {
+  try {
+    requireAlertManager(req);
+    const area = Array.isArray(req.query.area) ? req.query.area[0] : req.query.area;
+    const schools = await searchSchoolsByArea(typeof area === 'string' ? area : '');
+
+    return res.status(200).json({
+      success: true,
+      schools,
+    });
+  } catch (error) {
+    return sendAlertError(error, res);
+  }
+}
+
 export async function getEmergencyAlert(req: Request, res: Response) {
   try {
     requireAuthenticatedUser(req);
@@ -125,10 +161,75 @@ export async function getEmergencyAlertRiskHistory(req: Request, res: Response) 
   }
 }
 
+export async function getEmergencyAlertAcknowledgement(req: Request, res: Response) {
+  try {
+    const user = requireAuthenticatedUser(req);
+    const alertId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+
+    if (!alertId) {
+      throw new AlertServiceError(400, 'Invalid alert id.');
+    }
+
+    const acknowledgement = await getAlertAcknowledgementStatus(alertId, user);
+
+    return res.status(200).json({
+      success: true,
+      acknowledgement,
+    });
+  } catch (error) {
+    return sendAlertError(error, res);
+  }
+}
+
+export async function acknowledgeEmergencyAlert(req: Request, res: Response) {
+  try {
+    const user = requireAuthenticatedUser(req);
+    const alertId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+
+    if (!alertId) {
+      throw new AlertServiceError(400, 'Invalid alert id.');
+    }
+
+    const acknowledgement = await acknowledgeAlert(alertId, user);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Emergency alert acknowledged successfully.',
+      acknowledgement,
+    });
+  } catch (error) {
+    return sendAlertError(error, res);
+  }
+}
+
+export async function getEmergencyAlertAcknowledgements(req: Request, res: Response) {
+  try {
+    requireAlertManager(req);
+    const alertId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+
+    if (!alertId) {
+      throw new AlertServiceError(400, 'Invalid alert id.');
+    }
+
+    const report = await getAlertAcknowledgementReport(alertId);
+
+    return res.status(200).json({
+      success: true,
+      report,
+    });
+  } catch (error) {
+    return sendAlertError(error, res);
+  }
+}
+
 export async function createEmergencyAlert(req: Request, res: Response) {
   try {
     const user = requireAlertPublisher(req);
     const alert = await createAlert(user.id, req.body);
+
+    sendAlertPushNotifications(alert).catch((error) => {
+      console.error('Alert push notification dispatch failed:', error);
+    });
 
     return res.status(201).json({
       success: true,
