@@ -353,7 +353,7 @@ export default function AlertDetailsScreen() {
     setLoadingRiskHistory(true);
     setAcknowledgementError(null);
     setAcknowledgementReportError(null);
-    setLoadingAcknowledgement(showResidentLanguage);
+    setLoadingAcknowledgement(false);
     setLoadingAcknowledgementReport(!showResidentLanguage);
 
     try {
@@ -371,8 +371,12 @@ export default function AlertDetailsScreen() {
         setRiskHistoryError(true);
       }
 
-      if (showResidentLanguage) {
+      const canAcknowledgeResidentAlert = showResidentLanguage
+        && getResidentAlertDisplayTheme(alertDetails, user?.location) === 'danger';
+
+      if (canAcknowledgeResidentAlert) {
         try {
+          setLoadingAcknowledgement(true);
           setAcknowledgement(await getAlertAcknowledgement(alertId, token));
         } catch (acknowledgementLoadError) {
           if (__DEV__ && !isAlertApiError(acknowledgementLoadError)) {
@@ -382,6 +386,9 @@ export default function AlertDetailsScreen() {
           setAcknowledgement(null);
           setAcknowledgementError(detailCopy.unableAcknowledge);
         }
+      } else if (showResidentLanguage) {
+        setAcknowledgement(null);
+        setAcknowledgementError(null);
       } else {
         try {
           setAcknowledgementReport(await getAlertAcknowledgementReport(alertId, token));
@@ -413,6 +420,7 @@ export default function AlertDetailsScreen() {
     detailCopy.unableAcknowledge,
     showResidentLanguage,
     token,
+    user?.location,
   ]);
 
   useFocusEffect(useCallback(() => {
@@ -456,6 +464,9 @@ export default function AlertDetailsScreen() {
   const alertTone = showResidentLanguage
     ? alertDisplayThemeStyles[residentAlertDisplayTheme]
     : alertToneForRisk(alert?.riskLevel);
+  const residentCanAcknowledgeAlert = showResidentLanguage && alert
+    ? getResidentAlertDisplayTheme(alert, user.location) === 'danger'
+    : false;
   const handleBackToAlerts = () => {
     if (showResidentLanguage) {
       router.replace({
@@ -469,7 +480,13 @@ export default function AlertDetailsScreen() {
   };
 
   const handleAcknowledge = async () => {
-    if (!token || !alertId || acknowledgement?.acknowledged || submittingAcknowledgement) {
+    if (
+      !token
+      || !alertId
+      || !residentCanAcknowledgeAlert
+      || acknowledgement?.acknowledged
+      || submittingAcknowledgement
+    ) {
       return;
     }
 
@@ -641,7 +658,7 @@ export default function AlertDetailsScreen() {
               </View>
             </View>
 
-            {showResidentLanguage ? (
+            {residentCanAcknowledgeAlert ? (
               <AcknowledgementPanel
                 acknowledgement={acknowledgement}
                 detailCopy={detailCopy}
@@ -650,7 +667,7 @@ export default function AlertDetailsScreen() {
                 onAcknowledge={handleAcknowledge}
                 submitting={submittingAcknowledgement}
               />
-            ) : (
+            ) : !showResidentLanguage ? (
               <AuthorityAcknowledgementPanel
                 detailCopy={detailCopy}
                 errorMessage={acknowledgementReportError}
@@ -661,7 +678,7 @@ export default function AlertDetailsScreen() {
                 } as unknown as Href)}
                 report={acknowledgementReport}
               />
-            )}
+            ) : null}
 
             <View style={styles.panel}>
               <Text style={styles.sectionTitle}>{detailCopy.emergencyActions}</Text>

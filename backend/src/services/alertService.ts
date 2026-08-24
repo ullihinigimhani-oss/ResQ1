@@ -1382,9 +1382,13 @@ function isResidentUser(user: AuthenticatedUser) {
   return String(user.role).toLowerCase() === 'resident';
 }
 
+function normalizeAlertArea(value: string | null | undefined) {
+  return (value ?? '').trim().toLowerCase().replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
 function isResidentAreaMatch(alertArea: string, residentLocation: string | null | undefined) {
-  const area = alertArea.trim().toLowerCase();
-  const location = residentLocation?.trim().toLowerCase();
+  const area = normalizeAlertArea(alertArea);
+  const location = normalizeAlertArea(residentLocation);
 
   return Boolean(
     area
@@ -1503,19 +1507,14 @@ async function getTargetedResidentRows(alert: Alert) {
         ON alert_acknowledgements.user_id = users.id
         AND alert_acknowledgements.alert_id = ${alert.id}
       WHERE LOWER(users.role) = 'resident'
-        AND TRIM(COALESCE(users.location, '')) <> ''
-        AND (
-          LOWER(${alert.affectedArea}) = LOWER(users.location)
-          OR LOWER(${alert.affectedArea}) LIKE '%' || LOWER(users.location) || '%'
-          OR LOWER(users.location) LIKE '%' || LOWER(${alert.affectedArea}) || '%'
-        )
         AND COALESCE(alert_preferences.school_alerts, TRUE) = TRUE
       ORDER BY
         alert_acknowledgements.acknowledged_at DESC NULLS LAST,
         users.full_name ASC
     `;
 
-    return rows as TargetedResidentRow[];
+    return (rows as TargetedResidentRow[])
+      .filter((resident) => isResidentAreaMatch(alert.affectedArea, resident.location));
   }
 
   const rows = await sql`
@@ -1529,18 +1528,13 @@ async function getTargetedResidentRows(alert: Alert) {
       ON alert_acknowledgements.user_id = users.id
       AND alert_acknowledgements.alert_id = ${alert.id}
     WHERE LOWER(users.role) = 'resident'
-      AND TRIM(COALESCE(users.location, '')) <> ''
-      AND (
-        LOWER(${alert.affectedArea}) = LOWER(users.location)
-        OR LOWER(${alert.affectedArea}) LIKE '%' || LOWER(users.location) || '%'
-        OR LOWER(users.location) LIKE '%' || LOWER(${alert.affectedArea}) || '%'
-      )
     ORDER BY
       alert_acknowledgements.acknowledged_at DESC NULLS LAST,
       users.full_name ASC
   `;
 
-  return rows as TargetedResidentRow[];
+  return (rows as TargetedResidentRow[])
+    .filter((resident) => isResidentAreaMatch(alert.affectedArea, resident.location));
 }
 
 function acknowledgementSummaryFromResidents(
