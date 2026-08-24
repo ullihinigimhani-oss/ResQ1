@@ -2,7 +2,6 @@ import { sql } from '../config/database.js';
 import {
   alertAuditActions,
   alertAudiences,
-  alertDisasterTypes,
   alertRiskLevels,
   alertStatuses,
   type Alert,
@@ -15,7 +14,6 @@ import {
   type AlertAuditAction,
   type AlertAuditEvent,
   type AlertAuditRow,
-  type AlertDisasterType,
   type AlertRiskLevel,
   type AlertRiskHistoryPoint,
   type AlertRiskHistoryRow,
@@ -36,6 +34,7 @@ const ACTIVE_ALERT_STATUS: AlertStatus = 'Active';
 const DEFAULT_ALERT_AUDIENCE: AlertAudience = 'GENERAL_PUBLIC';
 const SCHOOL_ALERT_AUDIENCE: AlertAudience = 'SCHOOL_EMERGENCY';
 const ALERT_TITLE_MAX_LENGTH = 150;
+const ALERT_DISASTER_TYPE_MAX_LENGTH = 100;
 const ALERT_AREA_MAX_LENGTH = 150;
 const SCHOOL_NAME_MAX_LENGTH = 150;
 const OSM_ID_MAX_LENGTH = 80;
@@ -913,7 +912,7 @@ async function validateAlertFields(
   fieldErrors: Record<string, string>,
 ): Promise<ValidatedCreateAlertInput | null> {
   const title = trimmedText(input.title);
-  const disasterTypeText = trimmedText(input.disasterType) || 'Flood';
+  const disasterType = trimmedText(input.disasterType) || trimmedText(input.disaster_type);
   const affectedArea = trimmedText(input.affectedArea);
   const alertAudienceText = trimmedText(input.alertAudience) || DEFAULT_ALERT_AUDIENCE;
   const riskLevelText = trimmedText(input.riskLevel);
@@ -928,10 +927,10 @@ async function validateAlertFields(
     fieldErrors.title = `Alert title must be ${ALERT_TITLE_MAX_LENGTH} characters or fewer.`;
   }
 
-  const disasterType = canonicalOption(disasterTypeText, alertDisasterTypes);
-
   if (!disasterType) {
-    fieldErrors.disasterType = 'Disaster type must be Flood.';
+    fieldErrors.disasterType = 'Please select a disaster type.';
+  } else if (disasterType.length > ALERT_DISASTER_TYPE_MAX_LENGTH) {
+    fieldErrors.disasterType = `Disaster type must be ${ALERT_DISASTER_TYPE_MAX_LENGTH} characters or fewer.`;
   }
 
   if (!affectedArea) {
