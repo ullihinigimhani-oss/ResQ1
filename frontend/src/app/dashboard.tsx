@@ -23,16 +23,10 @@ import {
   setCachedDashboardSummary,
   type DashboardSummary,
 } from '@/services/dashboardSummaryService';
-import type { Alert, AlertRiskLevel } from '@/types/alert';
+import type { AlertRiskLevel } from '@/types/alert';
 import type { Shelter } from '@/types/shelter';
+import { getCurrentRiskAlert } from '@/utils/alert-risk';
 import { firstName, formatDateTime, isAuthorityRole, plural, userArea } from '@/utils/format';
-
-const riskRank: Record<AlertRiskLevel | string, number> = {
-  Critical: 4,
-  High: 3,
-  Moderate: 2,
-  Low: 1,
-};
 
 function greeting() {
   const hour = new Date().getHours();
@@ -46,18 +40,6 @@ function greeting() {
   }
 
   return 'Good evening';
-}
-
-function topAlert(alerts: Alert[]) {
-  return [...alerts].sort((left, right) => {
-    const riskDelta = (riskRank[right.riskLevel] ?? 0) - (riskRank[left.riskLevel] ?? 0);
-
-    if (riskDelta !== 0) {
-      return riskDelta;
-    }
-
-    return new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime();
-  })[0] ?? null;
 }
 
 function riskTone(riskLevel: AlertRiskLevel | string | null) {
@@ -181,7 +163,7 @@ export default function DashboardScreen() {
     }
   }, [loadSummary, token, userRole]);
 
-  const currentAlert = useMemo(() => topAlert(alerts), [alerts]);
+  const currentAlert = useMemo(() => getCurrentRiskAlert(alerts), [alerts]);
   const latestIncident = incidents[0] ?? null;
   const nearestShelter = shelters[0] ?? null;
   const unreadCommunityNotifications = communityNotifications.filter((notification) => !notification.isRead).length;
@@ -193,7 +175,16 @@ export default function DashboardScreen() {
       return;
     }
 
-    router.push(currentAlert ? '/alerts/risk-level' as Href : '/alerts' as Href);
+    router.push(currentAlert ? {
+      pathname: '/alerts/risk-level',
+      params: {
+        affectedArea: currentAlert.affectedArea,
+        alertId: String(currentAlert.id),
+        createdAt: currentAlert.createdAt,
+        riskLevel: currentAlert.riskLevel,
+        title: currentAlert.title,
+      },
+    } as unknown as Href : '/alerts' as Href);
   }, [currentAlert, initialLoading, initialSummaryError, router]);
 
   if (!isLoading && !user) {
