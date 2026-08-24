@@ -77,6 +77,7 @@ export default function DashboardScreen() {
     () => initialSummary.communityNotifications,
   );
   const [incidents, setIncidents] = useState<DashboardSummary['incidents']>(() => initialSummary.incidents);
+  const [communityIncidents, setCommunityIncidents] = useState<DashboardSummary['communityIncidents']>(() => initialSummary.communityIncidents);
   const [shelters, setShelters] = useState<DashboardSummary['shelters']>(() => initialSummary.shelters);
   const [hasLoadedSummary, setHasLoadedSummary] = useState(() => Boolean(cachedSummary));
   const [loadingSummary, setLoadingSummary] = useState(() => !cachedSummary);
@@ -92,6 +93,7 @@ export default function DashboardScreen() {
     setAlerts(summary.alerts);
     setCommunityNotifications(summary.communityNotifications);
     setIncidents(summary.incidents);
+    setCommunityIncidents(summary.communityIncidents);
     setShelters(summary.shelters);
   }, []);
 
@@ -359,6 +361,30 @@ export default function DashboardScreen() {
           onPress={() => router.push('/incidents' as Href)}
         />
       </SectionCard>
+
+      {!isAuthorityRole(user.role) && (communityIncidents || []).length > 0 ? (
+        <SectionCard title="Verified Community Incidents" subtitle="Official warnings from your neighbors.">
+          {(communityIncidents || []).slice(0, 3).map((incident) => (
+            <Pressable
+              key={incident.id}
+              accessibilityRole="button"
+              onPress={() => router.push({
+                pathname: '/incidents/[id]',
+                params: { id: String(incident.id) },
+              } as unknown as Href)}
+              style={({ pressed }) => [styles.compactRow, pressed && styles.pressed]}>
+              <View style={styles.compactTextBlock}>
+                <Text style={styles.compactTitle}>{incident.title}</Text>
+                <Text style={styles.compactMeta}>{incident.location}</Text>
+              </View>
+              <StatusBadge
+                label={incident.severity}
+                tone={incident.severity === 'Critical' ? 'red' : incident.severity === 'High' ? 'amber' : 'green'}
+              />
+            </Pressable>
+          ))}
+        </SectionCard>
+      ) : null}
 
       <SectionCard title="Nearest Safe Shelter" subtitle="Verified shelter data from Neon.">
         {nearestShelter ? (

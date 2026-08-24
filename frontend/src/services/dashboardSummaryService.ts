@@ -1,6 +1,6 @@
 import { getActiveAlerts } from '@/services/alertService';
 import { getCommunityNotifications } from '@/services/communityNotificationService';
-import { getMyIncidents } from '@/services/incidentService';
+import { getAllIncidents, getMyIncidents } from '@/services/incidentService';
 import { getShelters } from '@/services/shelterService';
 import type { Alert } from '@/types/alert';
 import type { AuthUser } from '@/types/auth';
@@ -13,6 +13,7 @@ export type DashboardSummary = {
   alerts: Alert[];
   communityNotifications: CommunityNotification[];
   incidents: Incident[];
+  communityIncidents: Incident[];
   shelters: Shelter[];
 };
 
@@ -35,6 +36,7 @@ export function emptyDashboardSummary(): DashboardSummary {
     alerts: [],
     communityNotifications: [],
     incidents: [],
+    communityIncidents: [],
     shelters: [],
   };
 }
@@ -77,13 +79,15 @@ export async function fetchDashboardSummary({
     getMyIncidents(token),
     getShelters(token),
     isAuthorityRole(userRole) ? Promise.resolve([]) : getCommunityNotifications(token),
+    isAuthorityRole(userRole) ? Promise.resolve([]) : getAllIncidents(token),
   ]).then(([
     alertResult,
     incidentResult,
     shelterResult,
     communityNotificationResult,
+    communityIncidentsResult,
   ]): DashboardSummaryResult => {
-    const results = [alertResult, incidentResult, shelterResult, communityNotificationResult];
+    const results = [alertResult, incidentResult, shelterResult, communityNotificationResult, communityIncidentsResult];
     const failed = results.some((result) => result.status === 'rejected');
     const fulfilled = results.some((result) => result.status === 'fulfilled');
     const summary: DashboardSummary = {
@@ -92,6 +96,7 @@ export async function fetchDashboardSummary({
         ? communityNotificationResult.value
         : previousSummary.communityNotifications,
       incidents: incidentResult.status === 'fulfilled' ? incidentResult.value : previousSummary.incidents,
+      communityIncidents: communityIncidentsResult.status === 'fulfilled' ? communityIncidentsResult.value : previousSummary.communityIncidents,
       shelters: shelterResult.status === 'fulfilled' ? shelterResult.value : previousSummary.shelters,
     };
 

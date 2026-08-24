@@ -215,7 +215,7 @@ export default function MyIncidentsScreen() {
         <View style={styles.header}>
           <Text style={styles.eyebrow}>Resident Response Tracking</Text>
           <Text style={styles.title}>Report Center</Text>
-          <Text style={styles.subtitle}>Submit a new incident or track the response status of your existing reports.</Text>
+          <Text style={styles.subtitle}>Review your submitted reports and response progress.</Text>
         </View>
 
         <View style={styles.reportActions}>
