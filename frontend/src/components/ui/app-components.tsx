@@ -383,13 +383,9 @@ export function AppHeader({
 export function HomeHeader({
   greeting,
   onNotifications,
-  onProfile,
-  userName,
 }: {
   greeting: string;
   onNotifications: () => void;
-  onProfile: () => void;
-  userName: string;
 }) {
   return (
     <View style={styles.homeHeader}>
@@ -409,13 +405,6 @@ export function HomeHeader({
           name="bell.fill"
           onPress={onNotifications}
         />
-        <Pressable
-          accessibilityLabel={`Open profile for ${userName}`}
-          accessibilityRole="button"
-          onPress={onProfile}
-          style={({ pressed }) => [styles.avatar, pressed && styles.pressed]}>
-          <AppIcon fallback="P" name="person.fill" size={22} tintColor={colors.navy} />
-        </Pressable>
       </View>
     </View>
   );

@@ -216,9 +216,7 @@ export default function DashboardScreen() {
     <ScreenContainer>
       <HomeHeader
         greeting={`${greeting()}, ${residentFirstName}`}
-        userName={user.fullName}
         onNotifications={() => router.push('/alerts/preferences' as Href)}
-        onProfile={() => router.push('/profile' as Href)}
       />
 
       <SectionCard tone={currentAlert ? (riskTone(currentAlert.riskLevel) === 'red' ? 'danger' : 'white') : 'blue'}>
