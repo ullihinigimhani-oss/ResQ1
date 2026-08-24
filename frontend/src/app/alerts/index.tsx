@@ -306,33 +306,8 @@ function SchoolAlertsDisabledState({
   );
 }
 
-function SeverityBadge({ riskLevel }: { riskLevel: AlertRiskLevel }) {
-  const severity = authoritySeverityTheme[riskLevel];
-
-  return (
-    <View
-      style={[
-        styles.authoritySeverityBadge,
-        {
-          backgroundColor: severity.badgeBackground,
-          borderColor: severity.badgeBorder,
-        },
-      ]}>
-      <Text style={[styles.authoritySeverityBadgeText, { color: severity.badgeText }]}>
-        {riskLevel.toUpperCase()}
-      </Text>
-    </View>
-  );
-}
-
-function AuthorityAudienceBadge({ audience }: { audience: AlertAudience }) {
-  const label = audience === 'SCHOOL_EMERGENCY' ? 'SCHOOL' : audience === 'GENERAL_PUBLIC' ? 'GENERAL PUBLIC' : 'ALL';
-
-  return (
-    <View style={styles.authorityAudienceBadge}>
-      <Text style={styles.authorityAudienceBadgeText}>{label}</Text>
-    </View>
-  );
+function authorityAudienceLabel(audience: AlertAudience) {
+  return audience === 'SCHOOL_EMERGENCY' ? 'SCHOOL' : audience === 'GENERAL_PUBLIC' ? 'GENERAL PUBLIC' : 'ALL';
 }
 
 function ResidentLoadingState({ language }: { language: PreferredLanguage }) {
@@ -550,6 +525,11 @@ function AuthorityAlertCard({
 }) {
   const severity = authoritySeverityTheme[alert.riskLevel];
   const schoolSummary = schoolSummaryText(alert, 'English');
+  const metaText = [
+    authorityAudienceLabel(alert.alertAudience),
+    alert.riskLevel.toUpperCase(),
+    schoolSummary,
+  ].filter(Boolean).join(' • ');
   const messagePreview = alert.message.trim();
 
   return (
@@ -569,9 +549,9 @@ function AuthorityAlertCard({
               styles.authorityAlertIcon,
               { backgroundColor: severity.badgeBackground, borderColor: severity.badgeBorder },
             ]}>
-            <AppIcon fallback="!" name="exclamationmark.triangle.fill" size={16} tintColor={severity.accent} />
+            <AppIcon fallback="!" name="exclamationmark.triangle.fill" size={14} tintColor={severity.accent} />
           </View>
-          <Text numberOfLines={2} style={styles.authorityAlertTitle}>
+          <Text numberOfLines={1} style={styles.authorityAlertTitle}>
             {alert.title}
           </Text>
         </View>
@@ -582,37 +562,28 @@ function AuthorityAlertCard({
 
       <Text numberOfLines={1} style={styles.areaText}>{alert.affectedArea}</Text>
 
-      <View style={styles.authorityCardMetaRow}>
-        <AuthorityAudienceBadge audience={alert.alertAudience} />
-        <SeverityBadge riskLevel={alert.riskLevel} />
-      </View>
+      <Text numberOfLines={1} style={styles.authorityCardMetaText}>{metaText}</Text>
 
-      {schoolSummary ? (
-        <Text numberOfLines={1} style={styles.authoritySchoolText}>
-          School: {schoolSummary}
-        </Text>
-      ) : null}
-
-      <Text numberOfLines={3} ellipsizeMode="tail" style={styles.authorityMessagePreview}>
+      <Text numberOfLines={2} ellipsizeMode="tail" style={styles.authorityMessagePreview}>
         {messagePreview}
       </Text>
 
       <View style={styles.authorityCardFooter}>
-        <Text numberOfLines={1} style={styles.compactMetaText}>Issued: {formatDateTime(alert.createdAt)}</Text>
+        <Text numberOfLines={1} style={styles.compactMetaText}>{formatCompactDateTime(alert.createdAt)}</Text>
         <View style={styles.authorityIconActions}>
           <Pressable
             accessibilityLabel="Edit alert"
             accessibilityRole="button"
-            hitSlop={4}
+            hitSlop={8}
             onPress={(event) => handleNestedCardAction(event, () => onEditAlert(alert.id))}
             style={({ pressed }) => [styles.authorityIconButton, pressed && styles.pressed]}>
-            <AppIcon fallback="E" name="pencil.fill" size={18} tintColor={colors.deepBlue} />
+            <AppIcon fallback="E" name="pencil.fill" size={16} tintColor={colors.red} />
           </Pressable>
           <Pressable
             accessibilityLabel="Cancel alert"
             accessibilityRole="button"
             disabled={cancelling}
-            hitSlop={4}
+            hitSlop={8}
             onPress={(event) => handleNestedCardAction(event, () => onCancelAlert(alert))}
             style={({ pressed }) => [
               styles.authorityIconButton,
@@ -623,7 +594,7 @@ function AuthorityAlertCard({
             {cancelling ? (
               <ActivityIndicator color={colors.red} size="small" />
             ) : (
-              <AppIcon fallback="X" name="trash.fill" size={18} tintColor={colors.red} />
+              <AppIcon fallback="X" name="trash.fill" size={16} tintColor={colors.red} />
             )}
           </Pressable>
         </View>
@@ -1244,7 +1215,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   compactAlertList: {
-    gap: spacing.sm,
+    gap: 6,
   },
   residentAlertCard: {
     backgroundColor: colors.white,
@@ -1583,16 +1554,17 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     borderColor: colors.border,
     borderRadius: radius.md,
-    borderLeftWidth: 5,
+    borderLeftWidth: 4,
     borderWidth: 1,
-    gap: spacing.xs,
-    padding: spacing.md,
+    gap: 3,
+    paddingHorizontal: 10,
+    paddingVertical: spacing.sm,
     ...shadows.card,
   },
   authorityAlertTopRow: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: spacing.sm,
+    gap: spacing.xs,
     justifyContent: 'space-between',
   },
   authorityAlertTitleRow: {
@@ -1606,9 +1578,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: radius.sm,
     borderWidth: 1,
-    height: 30,
+    height: 24,
     justifyContent: 'center',
-    width: 30,
+    width: 24,
   },
   authorityStatusBadge: {
     backgroundColor: colors.successSoft,
@@ -1616,69 +1588,37 @@ const styles = StyleSheet.create({
     borderRadius: radius.sm,
     borderWidth: 1,
     color: colors.success,
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '900',
-    lineHeight: 15,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
+    lineHeight: 13,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
     textAlign: 'center',
   },
-  authorityCardMetaRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  authoritySeverityBadge: {
-    alignSelf: 'flex-start',
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-  },
-  authoritySeverityBadgeText: {
-    fontSize: 11,
-    fontWeight: '900',
-    lineHeight: 15,
-  },
-  authorityAudienceBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: colors.lightBlue,
-    borderColor: colors.sky,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-  },
-  authorityAudienceBadgeText: {
+  authorityCardMetaText: {
     color: colors.deepBlue,
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '900',
-    lineHeight: 15,
-  },
-  authoritySchoolText: {
-    color: colors.deepBlue,
-    fontSize: 12,
-    fontWeight: '800',
-    lineHeight: 17,
+    lineHeight: 14,
+    marginLeft: 32,
   },
   authorityMessagePreview: {
     color: colors.text,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
-    lineHeight: 19,
+    lineHeight: 17,
+    marginTop: 1,
   },
   authorityCardFooter: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: spacing.sm,
+    gap: spacing.xs,
     justifyContent: 'space-between',
-    paddingTop: spacing.xs,
   },
   authorityIconActions: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: spacing.xs,
+    gap: 5,
   },
   authorityIconButton: {
     alignItems: 'center',
@@ -1687,8 +1627,8 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     borderWidth: 1,
     justifyContent: 'center',
-    minHeight: 40,
-    width: 40,
+    minHeight: 34,
+    width: 34,
   },
   authorityCancelIconButton: {
     backgroundColor: colors.redSoft,
@@ -1711,7 +1651,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     fontWeight: '900',
-    lineHeight: 20,
+    lineHeight: 18,
   },
   statusText: {
     color: colors.deepBlue,
@@ -1723,10 +1663,10 @@ const styles = StyleSheet.create({
   },
   areaText: {
     color: colors.muted,
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '800',
-    lineHeight: 17,
-    marginLeft: 40,
+    lineHeight: 14,
+    marginLeft: 32,
   },
   residentLocationBlock: {
     gap: 1,
@@ -1857,9 +1797,9 @@ const styles = StyleSheet.create({
   compactMetaText: {
     color: colors.muted,
     flex: 1,
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '800',
-    lineHeight: 17,
+    lineHeight: 15,
     minWidth: 0,
   },
   inlineError: {

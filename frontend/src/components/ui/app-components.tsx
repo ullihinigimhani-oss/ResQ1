@@ -251,8 +251,9 @@ function PencilIcon({ size, tintColor }: { size: number; tintColor: string }) {
   return (
     <IconCanvas size={size}>
       <View style={[styles.pencilBody, { backgroundColor: tintColor }]} />
-      <View style={[styles.pencilTip, { borderLeftColor: tintColor }]} />
-      <View style={[styles.pencilEnd, { backgroundColor: tintColor }]} />
+      <View style={styles.pencilWood} />
+      <View style={styles.pencilLead} />
+      <View style={[styles.pencilEraser, { backgroundColor: tintColor }]} />
     </IconCanvas>
   );
 }
@@ -1076,30 +1077,45 @@ const styles = StyleSheet.create({
   },
   pencilBody: {
     borderRadius: 2,
-    height: 4,
+    height: 5,
+    left: '28%',
     position: 'absolute',
+    top: '45%',
     transform: [{ rotate: '-45deg' }],
-    width: '62%',
+    width: '46%',
   },
-  pencilTip: {
+  pencilWood: {
     borderBottomColor: 'transparent',
-    borderBottomWidth: 4,
+    borderBottomWidth: 3,
+    borderLeftColor: '#F7C15C',
     borderLeftWidth: 7,
     borderTopColor: 'transparent',
-    borderTopWidth: 4,
+    borderTopWidth: 3,
     position: 'absolute',
     right: '18%',
-    top: '24%',
+    top: '32%',
     transform: [{ rotate: '-45deg' }],
   },
-  pencilEnd: {
+  pencilLead: {
+    borderBottomColor: 'transparent',
+    borderBottomWidth: 2,
+    borderLeftColor: colors.navy,
+    borderLeftWidth: 4,
+    borderTopColor: 'transparent',
+    borderTopWidth: 2,
+    position: 'absolute',
+    right: '14%',
+    top: '29%',
+    transform: [{ rotate: '-45deg' }],
+  },
+  pencilEraser: {
     borderRadius: 1,
-    height: 6,
+    height: 5,
     left: '20%',
     position: 'absolute',
-    top: '61%',
+    top: '62%',
     transform: [{ rotate: '-45deg' }],
-    width: 3,
+    width: 6,
   },
   trashLid: {
     borderRadius: 1,
