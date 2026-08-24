@@ -3,6 +3,7 @@ import { Redirect, useRouter, type Href } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Linking,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -84,6 +85,12 @@ function ShelterCard({
   onRoutePress: () => void;
   shelter: Shelter;
 }) {
+  const handleCall = () => {
+    if (shelter.contactNumber) {
+      Linking.openURL(`tel:${shelter.contactNumber}`);
+    }
+  };
+
   return (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
@@ -91,7 +98,17 @@ function ShelterCard({
           <Text style={styles.cardTitle}>{shelter.name}</Text>
           <Text style={styles.cardArea}>{shelter.area}</Text>
         </View>
-        <ShelterStatusBadge status={shelter.status} />
+        <View style={styles.headerRight}>
+          <ShelterStatusBadge status={shelter.status} />
+          {shelter.contactNumber && (
+            <Pressable
+              accessibilityRole="button"
+              onPress={handleCall}
+              style={({ pressed }) => [styles.callButton, pressed && styles.pressed]}>
+              <Text style={styles.callIcon}>📞</Text>
+            </Pressable>
+          )}
+        </View>
       </View>
 
       {shelter.isAreaMatch ? (
@@ -401,12 +418,18 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: 13,
     padding: 15,
+    position: 'relative',
   },
   cardHeader: {
     alignItems: 'flex-start',
     flexDirection: 'row',
     gap: 10,
     justifyContent: 'space-between',
+  },
+  headerRight: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
   },
   cardTitleBlock: {
     flex: 1,
@@ -483,6 +506,17 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '900',
     lineHeight: 17,
+  },
+  callButton: {
+    alignItems: 'center',
+    backgroundColor: BrandColors.success,
+    borderRadius: 20,
+    height: 40,
+    justifyContent: 'center',
+    width: 40,
+  },
+  callIcon: {
+    fontSize: 20,
   },
   centerState: {
     alignItems: 'center',
