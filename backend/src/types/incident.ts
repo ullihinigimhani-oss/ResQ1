@@ -32,9 +32,44 @@ export interface Incident {
   status: string;
   createdAt: string;
   updatedAt: string;
+  photos: IncidentPhoto[];
+}
+
+export interface IncidentPhotoRow {
+  id: number;
+  incident_id: number;
+  storage_key: string;
+  original_filename: string;
+  mime_type: string;
+  size_bytes: number;
+  width: number | null;
+  height: number | null;
+  created_at: Date | string;
+}
+
+export interface IncidentPhoto {
+  id: number;
+  url: string;
+  originalFilename: string;
+  mimeType: string;
+  sizeBytes: number;
+  width: number | null;
+  height: number | null;
+  createdAt: string;
 }
 
 export interface CreateIncidentInput {
+  incidentType?: unknown;
+  title?: unknown;
+  description?: unknown;
+  location?: unknown;
+  latitude?: unknown;
+  longitude?: unknown;
+  severity?: unknown;
+  photoUrl?: unknown;
+}
+
+export interface UpdateIncidentInput {
   incidentType?: unknown;
   title?: unknown;
   description?: unknown;

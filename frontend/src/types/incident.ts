@@ -28,7 +28,29 @@ export interface Incident {
   status: IncidentStatus;
   createdAt: string;
   updatedAt: string;
+  photos: IncidentPhoto[];
 }
+
+export interface IncidentPhoto {
+  id: number;
+  url: string;
+  originalFilename: string;
+  mimeType: string;
+  sizeBytes: number;
+  width: number | null;
+  height: number | null;
+  createdAt: string;
+}
+
+export type SelectedIncidentPhoto = {
+  uri: string;
+  fileName: string;
+  mimeType: string;
+  fileSize: number | null;
+  width: number;
+  height: number;
+  file: File | null;
+};
 
 export interface CreateIncidentPayload {
   incidentType: IncidentType;
