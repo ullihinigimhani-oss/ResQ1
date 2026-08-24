@@ -16,9 +16,11 @@ import {
 import { colors, radius, spacing, typography } from '@/constants/design';
 import { useAuth } from '@/context/auth-context';
 import { getActiveAlerts } from '@/services/alertService';
+import { getCommunityNotifications } from '@/services/communityNotificationService';
 import { getMyIncidents } from '@/services/incidentService';
 import { getShelters } from '@/services/shelterService';
 import type { Alert, AlertRiskLevel } from '@/types/alert';
+import type { CommunityNotification } from '@/types/communityNotification';
 import type { Incident } from '@/types/incident';
 import type { Shelter } from '@/types/shelter';
 import { firstName, formatDateTime, isAuthorityRole, plural, userArea } from '@/utils/format';
@@ -84,23 +86,25 @@ export default function DashboardScreen() {
   const router = useRouter();
   const { isLoading, token, user } = useAuth();
   const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [communityNotifications, setCommunityNotifications] = useState<CommunityNotification[]>([]);
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [shelters, setShelters] = useState<Shelter[]>([]);
   const [loadingSummary, setLoadingSummary] = useState(true);
   const [summaryWarning, setSummaryWarning] = useState<string | null>(null);
 
   const loadSummary = useCallback(async () => {
-    if (!token) {
+    if (!token || !user) {
       return;
     }
 
     setLoadingSummary(true);
     setSummaryWarning(null);
 
-    const [alertResult, incidentResult, shelterResult] = await Promise.allSettled([
+    const [alertResult, incidentResult, shelterResult, communityNotificationResult] = await Promise.allSettled([
       getActiveAlerts(token),
       getMyIncidents(token),
       getShelters(token),
+      isAuthorityRole(user.role) ? Promise.resolve([]) : getCommunityNotifications(token),
     ]);
 
     if (alertResult.status === 'fulfilled') {
@@ -115,14 +119,19 @@ export default function DashboardScreen() {
       setShelters(shelterResult.value);
     }
 
-    const failed = [alertResult, incidentResult, shelterResult].some((result) => result.status === 'rejected');
+    if (communityNotificationResult.status === 'fulfilled') {
+      setCommunityNotifications(communityNotificationResult.value);
+    }
+
+    const failed = [alertResult, incidentResult, shelterResult, communityNotificationResult]
+      .some((result) => result.status === 'rejected');
 
     if (failed) {
       setSummaryWarning('Some live dashboard data could not be refreshed.');
     }
 
     setLoadingSummary(false);
-  }, [token]);
+  }, [token, user]);
 
   useEffect(() => {
     if (token) {
@@ -133,6 +142,7 @@ export default function DashboardScreen() {
   const currentAlert = useMemo(() => topAlert(alerts), [alerts]);
   const latestIncident = incidents[0] ?? null;
   const nearestShelter = shelters[0] ?? null;
+  const unreadCommunityNotifications = communityNotifications.filter((notification) => !notification.isRead).length;
 
   if (!isLoading && !user) {
     return <Redirect href={'/auth/welcome' as Href} />;
@@ -205,6 +215,18 @@ export default function DashboardScreen() {
           tone="blue"
           onPress={() => router.push('/alerts' as Href)}
         />
+        {!canPublishAlerts ? (
+          <QuickActionCard
+            body={unreadCommunityNotifications > 0
+              ? `${unreadCommunityNotifications} unread local ${plural(unreadCommunityNotifications, 'update', 'updates')}`
+              : 'View road, utility, safety, and public updates'}
+            fallback="N"
+            name="bell.badge.fill"
+            title="Community Notifications"
+            tone="blue"
+            onPress={() => router.push('/community-notifications' as Href)}
+          />
+        ) : null}
         <QuickActionCard
           body="Find shelter availability"
           fallback="S"
@@ -301,6 +323,14 @@ export default function DashboardScreen() {
       {canPublishAlerts ? (
         <SectionCard title="Authority Tools" subtitle="Visible only to admin and authority roles.">
           <PrimaryButton title="Publish Emergency Alert" onPress={() => router.push('/alerts/create' as Href)} />
+          <SecondaryButton
+            title="Manage Community Notifications"
+            onPress={() => router.push('/community-notifications' as Href)}
+          />
+          <SecondaryButton
+            title="Create Community Notification"
+            onPress={() => router.push('/community-notifications/create' as Href)}
+          />
         </SectionCard>
       ) : null}
     </ScreenContainer>
