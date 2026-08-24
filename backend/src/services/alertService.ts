@@ -7,6 +7,11 @@ import {
   alertStatuses,
   type Alert,
   type AlertAudience,
+  type AlertAcknowledgementReport,
+  type AlertAcknowledgementResident,
+  type AlertAcknowledgementRow,
+  type AlertAcknowledgementStatus,
+  type AlertAcknowledgementSummary,
   type AlertAuditAction,
   type AlertAuditEvent,
   type AlertAuditRow,
@@ -25,6 +30,7 @@ import {
   type ValidatedCreateAlertInput,
   type ValidatedUpdateAlertInput,
 } from '../types/alert.js';
+import type { AuthenticatedUser } from '../types/auth.js';
 
 const ACTIVE_ALERT_STATUS: AlertStatus = 'Active';
 const DEFAULT_ALERT_AUDIENCE: AlertAudience = 'GENERAL_PUBLIC';
@@ -39,6 +45,7 @@ const OVERPASS_INTERPRETER_URL = 'https://overpass-api.de/api/interpreter';
 const SCHOOL_SEARCH_CACHE_DURATION_MS = 10 * 60 * 1000;
 let auditTableReady: Promise<void> | null = null;
 let alertSchemaReady: Promise<void> | null = null;
+let acknowledgementTableReady: Promise<void> | null = null;
 const schoolSearchCache = new Map<string, { expiresAt: number; schools: SchoolSearchResult[] }>();
 
 export class AlertServiceError extends Error {
@@ -57,7 +64,26 @@ function trimmedText(value: unknown) {
 }
 
 function formatTimestamp(value: Date | string) {
-  return value instanceof Date ? value.toISOString() : String(value);
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  const timestamp = String(value).trim();
+
+  if (!timestamp) {
+    return timestamp;
+  }
+
+  const hasTimezone = /(?:z|[+-]\d{2}(?::?\d{2})?)$/i.test(timestamp);
+  const normalizedTimestamp = timestamp.replace(' ', 'T');
+
+  if (hasTimezone) {
+    return normalizedTimestamp;
+  }
+
+  const utcDate = new Date(`${normalizedTimestamp}Z`);
+
+  return Number.isNaN(utcDate.getTime()) ? timestamp : utcDate.toISOString();
 }
 
 function optionalTimestamp(value: Date | string | null) {
@@ -201,6 +227,34 @@ async function ensureAlertAuditTable() {
   auditTableReady ??= createAlertAuditTable();
 
   await auditTableReady;
+}
+
+async function createAlertAcknowledgementTable() {
+  await sql`
+    CREATE TABLE IF NOT EXISTS alert_acknowledgements (
+      id SERIAL PRIMARY KEY,
+      alert_id INTEGER NOT NULL REFERENCES alerts(id) ON DELETE CASCADE,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      acknowledged_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(user_id, alert_id)
+    )
+  `;
+
+  await sql`
+    CREATE INDEX IF NOT EXISTS idx_alert_acknowledgements_alert_id
+    ON alert_acknowledgements(alert_id)
+  `;
+
+  await sql`
+    CREATE INDEX IF NOT EXISTS idx_alert_acknowledgements_user_id
+    ON alert_acknowledgements(user_id)
+  `;
+}
+
+async function ensureAlertAcknowledgementTable() {
+  acknowledgementTableReady ??= createAlertAcknowledgementTable();
+
+  await acknowledgementTableReady;
 }
 
 async function ensureAlertSchoolSchema() {
@@ -1315,4 +1369,220 @@ export async function listSchoolsByArea(area: string) {
   }
 
   return getSchoolsForArea(affectedArea);
+}
+
+function toAcknowledgementStatus(row: AlertAcknowledgementRow | undefined): AlertAcknowledgementStatus {
+  return {
+    acknowledged: Boolean(row),
+    acknowledgedAt: row ? formatTimestamp(row.acknowledged_at) : null,
+  };
+}
+
+function isResidentUser(user: AuthenticatedUser) {
+  return String(user.role).toLowerCase() === 'resident';
+}
+
+function isResidentAreaMatch(alertArea: string, residentLocation: string | null | undefined) {
+  const area = alertArea.trim().toLowerCase();
+  const location = residentLocation?.trim().toLowerCase();
+
+  return Boolean(
+    area
+    && location
+    && (area === location || area.includes(location) || location.includes(area)),
+  );
+}
+
+async function getResidentSchoolAlertsEnabled(userId: number) {
+  const rows = await sql`
+    SELECT school_alerts
+    FROM alert_preferences
+    WHERE user_id = ${userId}
+    LIMIT 1
+  `;
+  const row = rows[0] as { school_alerts?: boolean | null } | undefined;
+
+  return row?.school_alerts ?? true;
+}
+
+async function ensureResidentCanAcknowledge(alertId: string, user: AuthenticatedUser) {
+  if (!isResidentUser(user)) {
+    throw new AlertServiceError(403, 'Only resident accounts can acknowledge emergency alerts.');
+  }
+
+  const alert = await getAlertById(alertId);
+
+  if (alert.status !== ACTIVE_ALERT_STATUS) {
+    throw new AlertServiceError(403, 'This emergency alert is no longer active.');
+  }
+
+  if (!isResidentAreaMatch(alert.affectedArea, user.location)) {
+    throw new AlertServiceError(403, 'This emergency alert is not targeted to your registered area.');
+  }
+
+  if (
+    alert.alertAudience === SCHOOL_ALERT_AUDIENCE &&
+    !(await getResidentSchoolAlertsEnabled(user.id))
+  ) {
+    throw new AlertServiceError(403, 'School emergency alerts are disabled for this resident account.');
+  }
+
+  return alert;
+}
+
+export async function getAlertAcknowledgementStatus(alertId: string, user: AuthenticatedUser) {
+  await ensureAlertAcknowledgementTable();
+  const alert = await ensureResidentCanAcknowledge(alertId, user);
+
+  const rows = await sql`
+    SELECT id, alert_id, user_id, acknowledged_at
+    FROM alert_acknowledgements
+    WHERE alert_id = ${alert.id}
+      AND user_id = ${user.id}
+    LIMIT 1
+  `;
+
+  return toAcknowledgementStatus((rows as AlertAcknowledgementRow[])[0]);
+}
+
+export async function acknowledgeAlert(alertId: string, user: AuthenticatedUser) {
+  await ensureAlertAcknowledgementTable();
+  const alert = await ensureResidentCanAcknowledge(alertId, user);
+
+  const insertedRows = await sql`
+    INSERT INTO alert_acknowledgements (alert_id, user_id)
+    VALUES (${alert.id}, ${user.id})
+    ON CONFLICT (user_id, alert_id) DO NOTHING
+    RETURNING id, alert_id, user_id, acknowledged_at
+  `;
+  const inserted = (insertedRows as AlertAcknowledgementRow[])[0];
+
+  if (inserted) {
+    return toAcknowledgementStatus(inserted);
+  }
+
+  const existingRows = await sql`
+    SELECT id, alert_id, user_id, acknowledged_at
+    FROM alert_acknowledgements
+    WHERE alert_id = ${alert.id}
+      AND user_id = ${user.id}
+    LIMIT 1
+  `;
+
+  return toAcknowledgementStatus((existingRows as AlertAcknowledgementRow[])[0]);
+}
+
+type TargetedResidentRow = {
+  acknowledged_at: Date | string | null;
+  full_name: string;
+  id: number;
+  location: string | null;
+};
+
+function toAcknowledgementResident(row: TargetedResidentRow): AlertAcknowledgementResident {
+  return {
+    acknowledged: Boolean(row.acknowledged_at),
+    acknowledgedAt: row.acknowledged_at ? formatTimestamp(row.acknowledged_at) : null,
+    fullName: row.full_name,
+    id: row.id,
+    location: row.location,
+  };
+}
+
+async function getTargetedResidentRows(alert: Alert) {
+  if (alert.alertAudience === SCHOOL_ALERT_AUDIENCE) {
+    const rows = await sql`
+      SELECT
+        users.id,
+        users.full_name,
+        users.location,
+        alert_acknowledgements.acknowledged_at
+      FROM users
+      LEFT JOIN alert_preferences ON alert_preferences.user_id = users.id
+      LEFT JOIN alert_acknowledgements
+        ON alert_acknowledgements.user_id = users.id
+        AND alert_acknowledgements.alert_id = ${alert.id}
+      WHERE LOWER(users.role) = 'resident'
+        AND TRIM(COALESCE(users.location, '')) <> ''
+        AND (
+          LOWER(${alert.affectedArea}) = LOWER(users.location)
+          OR LOWER(${alert.affectedArea}) LIKE '%' || LOWER(users.location) || '%'
+          OR LOWER(users.location) LIKE '%' || LOWER(${alert.affectedArea}) || '%'
+        )
+        AND COALESCE(alert_preferences.school_alerts, TRUE) = TRUE
+      ORDER BY
+        alert_acknowledgements.acknowledged_at DESC NULLS LAST,
+        users.full_name ASC
+    `;
+
+    return rows as TargetedResidentRow[];
+  }
+
+  const rows = await sql`
+    SELECT
+      users.id,
+      users.full_name,
+      users.location,
+      alert_acknowledgements.acknowledged_at
+    FROM users
+    LEFT JOIN alert_acknowledgements
+      ON alert_acknowledgements.user_id = users.id
+      AND alert_acknowledgements.alert_id = ${alert.id}
+    WHERE LOWER(users.role) = 'resident'
+      AND TRIM(COALESCE(users.location, '')) <> ''
+      AND (
+        LOWER(${alert.affectedArea}) = LOWER(users.location)
+        OR LOWER(${alert.affectedArea}) LIKE '%' || LOWER(users.location) || '%'
+        OR LOWER(users.location) LIKE '%' || LOWER(${alert.affectedArea}) || '%'
+      )
+    ORDER BY
+      alert_acknowledgements.acknowledged_at DESC NULLS LAST,
+      users.full_name ASC
+  `;
+
+  return rows as TargetedResidentRow[];
+}
+
+function acknowledgementSummaryFromResidents(
+  residents: AlertAcknowledgementResident[],
+): AlertAcknowledgementSummary {
+  const targetedResidents = residents.length;
+  const acknowledged = residents.filter((resident) => resident.acknowledged).length;
+  const pending = Math.max(0, targetedResidents - acknowledged);
+  const acknowledgementRate = targetedResidents > 0
+    ? Math.min(100, Math.round((acknowledged / targetedResidents) * 100))
+    : 0;
+  const lastAcknowledgedAt = residents
+    .map((resident) => resident.acknowledgedAt)
+    .filter((value): value is string => Boolean(value))
+    .sort((left, right) => new Date(right).getTime() - new Date(left).getTime())[0] ?? null;
+
+  return {
+    acknowledged,
+    acknowledgementRate,
+    lastAcknowledgedAt,
+    pending,
+    targetedResidents,
+  };
+}
+
+export async function getAlertAcknowledgementReport(alertId: string): Promise<AlertAcknowledgementReport> {
+  await ensureAlertAcknowledgementTable();
+  const alert = await getAlertById(alertId);
+  const residentRows = await getTargetedResidentRows(alert);
+  const residents = residentRows.map(toAcknowledgementResident);
+  const acknowledgedResidents = residents.filter((resident) => resident.acknowledged);
+  const pendingResidents = residents.filter((resident) => !resident.acknowledged);
+
+  return {
+    acknowledgedResidents,
+    pendingResidents,
+    summary: acknowledgementSummaryFromResidents(residents),
+  };
+}
+
+export async function getAlertAcknowledgementSummary(alertId: string) {
+  const report = await getAlertAcknowledgementReport(alertId);
+
+  return report.summary;
 }

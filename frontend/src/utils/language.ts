@@ -54,8 +54,17 @@ type ResidentAlertUiKey =
 type AlertDetailUiKey =
   | 'acknowledgeAlert'
   | 'acknowledged'
+  | 'acknowledgedAt'
   | 'acknowledgedMessage'
+  | 'acknowledgement'
+  | 'acknowledgementLoading'
+  | 'acknowledgementMetricsError'
+  | 'acknowledgementMetricsLoading'
+  | 'acknowledgementQuestion'
+  | 'acknowledgementRate'
+  | 'acknowledgementStatus'
   | 'alertDetails'
+  | 'alertAcknowledged'
   | 'alertAudience'
   | 'allAudience'
   | 'area'
@@ -72,6 +81,9 @@ type AlertDetailUiKey =
   | 'language'
   | 'loadingBody'
   | 'loadingTitle'
+  | 'lastAcknowledged'
+  | 'notAvailable'
+  | 'pending'
   | 'publishedSuccess'
   | 'retry'
   | 'riskLevel'
@@ -79,8 +91,12 @@ type AlertDetailUiKey =
   | 'schoolEmergency'
   | 'selectedSchools'
   | 'reportIncident'
+  | 'residentAcknowledgements'
   | 'status'
+  | 'targetedResidents'
+  | 'unableAcknowledge'
   | 'unableLoadAlert'
+  | 'viewAcknowledgements'
   | 'viewSafeEvacuationRoute';
 
 type FloodRiskTrendUiKey =
@@ -226,8 +242,17 @@ export const alertDetailUiText: Record<PreferredLanguage, Record<AlertDetailUiKe
   English: {
     acknowledgeAlert: 'Acknowledge Alert',
     acknowledged: 'Acknowledged',
-    acknowledgedMessage: 'Alert acknowledged on this device only. Backend acknowledgement persistence is not connected in the current frontend service layer.',
+    acknowledgedAt: 'Acknowledged at',
+    acknowledgedMessage: 'You confirmed that you received and understood this warning.',
+    acknowledgement: 'Acknowledgement',
+    acknowledgementLoading: 'Loading acknowledgement status...',
+    acknowledgementMetricsError: 'Unable to load acknowledgement metrics. Please try again.',
+    acknowledgementMetricsLoading: 'Loading acknowledgement metrics...',
+    acknowledgementQuestion: 'Have you received and understood this emergency warning?',
+    acknowledgementRate: 'Acknowledgement Rate',
+    acknowledgementStatus: 'Acknowledgement Status',
     alertDetails: 'Alert Details',
+    alertAcknowledged: 'Alert Acknowledged',
     alertAudience: 'Alert Audience',
     allAudience: 'All',
     area: 'Area',
@@ -244,6 +269,9 @@ export const alertDetailUiText: Record<PreferredLanguage, Record<AlertDetailUiKe
     language: 'Language',
     loadingBody: 'Retrieving the latest verified warning.',
     loadingTitle: 'Loading alert details...',
+    lastAcknowledged: 'Last Acknowledged',
+    notAvailable: 'Not available',
+    pending: 'Pending',
     publishedSuccess: 'Emergency alert published successfully.',
     retry: 'Retry',
     riskLevel: 'Risk Level',
@@ -251,15 +279,28 @@ export const alertDetailUiText: Record<PreferredLanguage, Record<AlertDetailUiKe
     schoolEmergency: 'School Emergency',
     selectedSchools: 'Target Schools',
     reportIncident: 'Report Incident',
+    residentAcknowledgements: 'Resident Acknowledgements',
     status: 'Status',
+    targetedResidents: 'Targeted Residents',
+    unableAcknowledge: 'Unable to acknowledge this alert. Please try again.',
     unableLoadAlert: 'Unable to load this emergency alert.',
+    viewAcknowledgements: 'View Acknowledgements',
     viewSafeEvacuationRoute: 'View Safe Evacuation Route',
   },
   Sinhala: {
     acknowledgeAlert: 'අනතුරු ඇඟවීම තහවුරු කරන්න',
     acknowledged: 'තහවුරු කර ඇත',
-    acknowledgedMessage: 'මෙම උපාංගයේ පමණක් අනතුරු ඇඟවීම තහවුරු කර ඇත. පසුපස සේවා තහවුරු කිරීමේ සුරැකීම තවම සම්බන්ධ කර නැත.',
+    acknowledgedAt: 'තහවුරු කළ වේලාව',
+    acknowledgedMessage: 'ඔබ මෙම අනතුරු ඇඟවීම ලබාගෙන තේරුම් ගත් බව තහවුරු කළා.',
+    acknowledgement: 'තහවුරු කිරීම',
+    acknowledgementLoading: 'තහවුරු කිරීමේ තත්ත්වය පූරණය වෙමින් පවතී...',
+    acknowledgementMetricsError: 'තහවුරු කිරීමේ මිනුම් පූරණය කළ නොහැක. නැවත උත්සාහ කරන්න.',
+    acknowledgementMetricsLoading: 'තහවුරු කිරීමේ මිනුම් පූරණය වෙමින් පවතී...',
+    acknowledgementQuestion: 'ඔබ මෙම හදිසි අනතුරු ඇඟවීම ලබාගෙන තේරුම් ගත්තේද?',
+    acknowledgementRate: 'තහවුරු කිරීමේ ප්‍රතිශතය',
+    acknowledgementStatus: 'තහවුරු කිරීමේ තත්ත්වය',
     alertDetails: 'අනතුරු ඇඟවීමේ විස්තර',
+    alertAcknowledged: 'අනතුරු ඇඟවීම තහවුරු කර ඇත',
     alertAudience: 'අනතුරු ඇඟවීමේ ප්‍රේක්ෂකයින්',
     allAudience: 'සියල්ල',
     area: 'ප්‍රදේශය',
@@ -276,6 +317,9 @@ export const alertDetailUiText: Record<PreferredLanguage, Record<AlertDetailUiKe
     language: 'භාෂාව',
     loadingBody: 'නවතම තහවුරු කළ අනතුරු ඇඟවීම ලබා ගනිමින්...',
     loadingTitle: 'අනතුරු ඇඟවීමේ විස්තර පූරණය වෙමින්...',
+    lastAcknowledged: 'අවසන් තහවුරු කිරීම',
+    notAvailable: 'ලබා ගත නොහැක',
+    pending: 'බලාපොරොත්තුවෙන්',
     publishedSuccess: 'හදිසි අනතුරු ඇඟවීම සාර්ථකව පළ කර ඇත.',
     retry: 'නැවත උත්සාහ කරන්න',
     riskLevel: 'අවදානම් මට්ටම',
@@ -283,15 +327,28 @@ export const alertDetailUiText: Record<PreferredLanguage, Record<AlertDetailUiKe
     schoolEmergency: 'පාසල් හදිසි',
     selectedSchools: 'ඉලක්ක පාසල්',
     reportIncident: 'සිද්ධියක් වාර්තා කරන්න',
+    residentAcknowledgements: 'පදිංචිකරුවන්ගේ තහවුරු කිරීම්',
     status: 'තත්ත්වය',
+    targetedResidents: 'ඉලක්ක කළ පදිංචිකරුවන්',
+    unableAcknowledge: 'මෙම අනතුරු ඇඟවීම තහවුරු කළ නොහැක. නැවත උත්සාහ කරන්න.',
     unableLoadAlert: 'මෙම හදිසි අනතුරු ඇඟවීම පූරණය කළ නොහැක.',
+    viewAcknowledgements: 'තහවුරු කිරීම් බලන්න',
     viewSafeEvacuationRoute: 'ආරක්ෂිත ඉවත් කිරීමේ මාර්ගය බලන්න',
   },
   Tamil: {
     acknowledgeAlert: 'எச்சரிக்கையை உறுதிப்படுத்து',
     acknowledged: 'உறுதிப்படுத்தப்பட்டது',
-    acknowledgedMessage: 'இந்த சாதனத்தில் மட்டும் எச்சரிக்கை உறுதிப்படுத்தப்பட்டது. பின்புல உறுதிப்படுத்தல் சேமிப்பு தற்போது இணைக்கப்படவில்லை.',
+    acknowledgedAt: 'உறுதிப்படுத்திய நேரம்',
+    acknowledgedMessage: 'இந்த எச்சரிக்கையைப் பெற்றும் புரிந்தும் கொண்டதாக நீங்கள் உறுதிப்படுத்தினீர்கள்.',
+    acknowledgement: 'உறுதிப்படுத்தல்',
+    acknowledgementLoading: 'உறுதிப்படுத்தல் நிலை ஏற்றப்படுகிறது...',
+    acknowledgementMetricsError: 'உறுதிப்படுத்தல் அளவுகளை ஏற்ற முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
+    acknowledgementMetricsLoading: 'உறுதிப்படுத்தல் அளவுகள் ஏற்றப்படுகின்றன...',
+    acknowledgementQuestion: 'இந்த அவசர எச்சரிக்கையைப் பெற்று புரிந்துகொண்டீர்களா?',
+    acknowledgementRate: 'உறுதிப்படுத்தல் விகிதம்',
+    acknowledgementStatus: 'உறுதிப்படுத்தல் நிலை',
     alertDetails: 'எச்சரிக்கை விவரங்கள்',
+    alertAcknowledged: 'எச்சரிக்கை உறுதிப்படுத்தப்பட்டது',
     alertAudience: 'எச்சரிக்கை பெறுநர்கள்',
     allAudience: 'அனைவரும்',
     area: 'பகுதி',
@@ -308,6 +365,9 @@ export const alertDetailUiText: Record<PreferredLanguage, Record<AlertDetailUiKe
     language: 'மொழி',
     loadingBody: 'சமீபத்திய உறுதிப்படுத்தப்பட்ட எச்சரிக்கை பெறப்படுகிறது.',
     loadingTitle: 'எச்சரிக்கை விவரங்கள் ஏற்றப்படுகின்றன...',
+    lastAcknowledged: 'கடைசியாக உறுதிப்படுத்தியது',
+    notAvailable: 'கிடைக்கவில்லை',
+    pending: 'நிலுவையில்',
     publishedSuccess: 'அவசர எச்சரிக்கை வெற்றிகரமாக வெளியிடப்பட்டது.',
     retry: 'மீண்டும் முயற்சி',
     riskLevel: 'அபாய நிலை',
@@ -315,8 +375,12 @@ export const alertDetailUiText: Record<PreferredLanguage, Record<AlertDetailUiKe
     schoolEmergency: 'பள்ளி அவசரம்',
     selectedSchools: 'இலக்கு பள்ளிகள்',
     reportIncident: 'சம்பவத்தை அறிக்கை செய்',
+    residentAcknowledgements: 'குடியிருப்பாளர் உறுதிப்படுத்தல்கள்',
     status: 'நிலை',
+    targetedResidents: 'இலக்கு குடியிருப்பாளர்கள்',
+    unableAcknowledge: 'இந்த எச்சரிக்கையை உறுதிப்படுத்த முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
     unableLoadAlert: 'இந்த அவசர எச்சரிக்கையை ஏற்ற முடியவில்லை.',
+    viewAcknowledgements: 'உறுதிப்படுத்தல்களைப் பார்க்க',
     viewSafeEvacuationRoute: 'பாதுகாப்பான வெளியேற்ற பாதையைப் பார்க்க',
   },
 };
