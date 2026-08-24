@@ -131,7 +131,6 @@ export default function NearbySheltersScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filter, setFilter] = useState<FilterKey>('Nearest');
 
   const loadShelters = useCallback(async (refresh = false) => {
     if (!token) {
@@ -167,46 +166,17 @@ export default function NearbySheltersScreen() {
     }
   }, [loadShelters, token]);
 
-  const filterOptions = useMemo(
-    () => user?.location ? [...baseFilters, 'Area' as FilterKey] : baseFilters,
-    [user?.location],
-  );
-
   const filteredShelters = useMemo(() => {
     const query = normalizedText(searchQuery);
 
     return shelters.filter((shelter) => {
-      const matchesSearch =
+      return (
         !query ||
         normalizedText(shelter.name).includes(query) ||
-        normalizedText(shelter.area).includes(query);
-
-      if (!matchesSearch) {
-        return false;
-      }
-
-      if (filter === 'Available') {
-        return isAvailableShelter(shelter);
-      }
-
-      if (filter === 'Medical Support') {
-        return shelter.facilities.some((facility) => {
-          const normalizedFacility = normalizedText(facility);
-          return normalizedFacility.includes('medical') || normalizedFacility.includes('first aid');
-        });
-      }
-
-      if (filter === 'Family Friendly') {
-        return shelter.facilities.some((facility) => normalizedText(facility).includes('family'));
-      }
-
-      if (filter === 'Area') {
-        return shelter.isAreaMatch || areaMatches(shelter.area, user?.location);
-      }
-
-      return true;
+        normalizedText(shelter.area).includes(query)
+      );
     });
-  }, [filter, searchQuery, shelters, user?.location]);
+  }, [searchQuery, shelters]);
 
   if (!isLoading && !user) {
     return <Redirect href={'/auth/welcome' as Href} />;
@@ -262,9 +232,9 @@ export default function NearbySheltersScreen() {
 
         <View style={styles.searchPanel}>
           <TextInput
-            accessibilityLabel="Search shelters by name or area"
+            accessibilityLabel="Search shelters"
             autoCapitalize="words"
-            placeholder="Search shelter name or area"
+            placeholder="Search shelters"
             placeholderTextColor="#8B98A9"
             returnKeyType="search"
             selectionColor={BrandColors.blue}
@@ -272,26 +242,6 @@ export default function NearbySheltersScreen() {
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
-
-          <View style={styles.filterRow}>
-            {filterOptions.map((option) => {
-              const selected = filter === option;
-
-              return (
-                <Pressable
-                  accessibilityRole="button"
-                  key={option}
-                  onPress={() => setFilter(option)}
-                  style={({ pressed }) => [
-                    styles.filterChip,
-                    selected && styles.filterChipSelected,
-                    pressed && styles.pressed,
-                  ]}>
-                  <Text style={[styles.filterText, selected && styles.filterTextSelected]}>{option}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
         </View>
 
         {errorMessage && shelters.length > 0 ? (
