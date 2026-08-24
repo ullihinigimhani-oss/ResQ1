@@ -697,7 +697,7 @@ const tabs = [
   {
     label: 'Alerts',
     route: '/alerts' as Href,
-    match: ['/alerts'],
+    match: ['/alerts', '/community-notifications'],
     icon: 'bell.fill' as SymbolName,
     fallback: 'A',
   },

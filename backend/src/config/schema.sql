@@ -123,3 +123,36 @@ CREATE INDEX IF NOT EXISTS idx_alert_audit_events_alert_id
 
 CREATE INDEX IF NOT EXISTS idx_alert_audit_events_created_at
     ON alert_audit_events(created_at DESC);
+
+CREATE TABLE IF NOT EXISTS community_notifications (
+    id SERIAL PRIMARY KEY,
+    title VARCHAR(150) NOT NULL,
+    message TEXT NOT NULL,
+    category VARCHAR(50) NOT NULL,
+    target_area VARCHAR(150) NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
+    created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    expires_at TIMESTAMP NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_community_notifications_status_created_at
+    ON community_notifications(status, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_community_notifications_target_area
+    ON community_notifications(target_area);
+
+CREATE TABLE IF NOT EXISTS community_notification_reads (
+    id SERIAL PRIMARY KEY,
+    notification_id INTEGER NOT NULL REFERENCES community_notifications(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    read_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(notification_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_community_notification_reads_notification_id
+    ON community_notification_reads(notification_id);
+
+CREATE INDEX IF NOT EXISTS idx_community_notification_reads_user_id
+    ON community_notification_reads(user_id);
