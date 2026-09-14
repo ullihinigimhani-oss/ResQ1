@@ -101,6 +101,7 @@ type AlertDetailUiKey =
   | 'unableAcknowledge'
   | 'unableLoadAlert'
   | 'viewAcknowledgements'
+  | 'viewRiskAssessment'
   | 'viewSafeEvacuationRoute';
 
 type FloodRiskTrendUiKey =
@@ -112,6 +113,30 @@ type FloodRiskTrendUiKey =
   | 'time'
   | 'trendUnavailable'
   | 'yAxisRiskLevel';
+
+export type RiskAssessmentUiKey =
+  | 'alertArea'
+  | 'basedOnSelectedAlert'
+  | 'checkConnection'
+  | 'coreEnvironmentalFactors'
+  | 'currentAssessment'
+  | 'currentRiskLevel'
+  | 'environmentalSummary'
+  | 'estimated'
+  | 'factorConcernCritical'
+  | 'factorConcernHigh'
+  | 'factorConcernLow'
+  | 'factorConcernModerate'
+  | 'followAuthorityInstructions'
+  | 'loadingAssessment'
+  | 'notAvailable'
+  | 'rainfallIndex'
+  | 'recommendedActions'
+  | 'riskAssessment'
+  | 'riverWaterLevels'
+  | 'soilSaturation'
+  | 'stayInformed'
+  | 'unableLoadAssessment';
 
 type CommunityNotificationUiKey =
   | 'active'
@@ -452,6 +477,7 @@ export const alertDetailUiText: Record<PreferredLanguage, Record<AlertDetailUiKe
     unableAcknowledge: 'Unable to acknowledge this alert. Please try again.',
     unableLoadAlert: 'Unable to load this emergency alert.',
     viewAcknowledgements: 'View Acknowledgements',
+    viewRiskAssessment: 'View Risk Assessment',
     viewSafeEvacuationRoute: 'View Safe Evacuation Route',
   },
   Sinhala: {
@@ -500,6 +526,7 @@ export const alertDetailUiText: Record<PreferredLanguage, Record<AlertDetailUiKe
     unableAcknowledge: 'මෙම අනතුරු ඇඟවීම තහවුරු කළ නොහැක. නැවත උත්සාහ කරන්න.',
     unableLoadAlert: 'මෙම හදිසි අනතුරු ඇඟවීම පූරණය කළ නොහැක.',
     viewAcknowledgements: 'තහවුරු කිරීම් බලන්න',
+    viewRiskAssessment: 'අවදානම් තක්සේරුව බලන්න',
     viewSafeEvacuationRoute: 'ආරක්ෂිත ඉවත් කිරීමේ මාර්ගය බලන්න',
   },
   Tamil: {
@@ -548,7 +575,83 @@ export const alertDetailUiText: Record<PreferredLanguage, Record<AlertDetailUiKe
     unableAcknowledge: 'இந்த எச்சரிக்கையை உறுதிப்படுத்த முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
     unableLoadAlert: 'இந்த அவசர எச்சரிக்கையை ஏற்ற முடியவில்லை.',
     viewAcknowledgements: 'உறுதிப்படுத்தல்களைப் பார்க்க',
+    viewRiskAssessment: 'அபாய மதிப்பீட்டைப் பார்க்க',
     viewSafeEvacuationRoute: 'பாதுகாப்பான வெளியேற்ற பாதையைப் பார்க்க',
+  },
+};
+
+export const riskAssessmentUiText: Record<PreferredLanguage, Record<RiskAssessmentUiKey, string>> = {
+  English: {
+    alertArea: 'Alert area',
+    basedOnSelectedAlert: 'Based on the selected emergency alert.',
+    checkConnection: 'Check your connection and try again.',
+    coreEnvironmentalFactors: 'Core Environmental Factors',
+    currentAssessment: 'Current Assessment',
+    currentRiskLevel: 'Current risk level',
+    environmentalSummary: 'Environmental signals are summarized from the alert risk level and official warning details currently available.',
+    estimated: 'Estimated',
+    factorConcernCritical: 'Severe concern',
+    factorConcernHigh: 'High concern',
+    factorConcernLow: 'Low concern',
+    factorConcernModerate: 'Moderate concern',
+    followAuthorityInstructions: 'Follow official safety instructions from emergency authorities.',
+    loadingAssessment: 'Loading risk assessment...',
+    notAvailable: 'Not available',
+    rainfallIndex: 'Rainfall Index',
+    recommendedActions: 'Recommended Actions',
+    riskAssessment: 'Risk Assessment',
+    riverWaterLevels: 'River Water Levels',
+    soilSaturation: 'Soil Saturation',
+    stayInformed: 'Keep monitoring official ResQ1 alerts for updates.',
+    unableLoadAssessment: 'Unable to load risk assessment.',
+  },
+  Sinhala: {
+    alertArea: 'අනතුරු ඇඟවීමේ ප්‍රදේශය',
+    basedOnSelectedAlert: 'තෝරාගත් හදිසි අනතුරු ඇඟවීම මත පදනම් වේ.',
+    checkConnection: 'ඔබගේ සම්බන්ධතාව පරීක්ෂා කර නැවත උත්සාහ කරන්න.',
+    coreEnvironmentalFactors: 'ප්‍රධාන පාරිසරික සාධක',
+    currentAssessment: 'වත්මන් තක්සේරුව',
+    currentRiskLevel: 'වත්මන් අවදානම් මට්ටම',
+    environmentalSummary: 'දැනට ලබා ගත හැකි අනතුරු ඇඟවීමේ අවදානම් මට්ටම සහ නිල අනතුරු ඇඟවීමේ විස්තර අනුව පාරිසරික සංඥා සාරාංශ කර ඇත.',
+    estimated: 'ඇස්තමේන්තු කළ',
+    factorConcernCritical: 'අතිශය බරපතල අවධානය',
+    factorConcernHigh: 'ඉහළ අවධානය',
+    factorConcernLow: 'අඩු අවධානය',
+    factorConcernModerate: 'මධ්‍යම අවධානය',
+    followAuthorityInstructions: 'හදිසි බලධාරීන්ගේ නිල ආරක්ෂක උපදෙස් අනුගමනය කරන්න.',
+    loadingAssessment: 'අවදානම් තක්සේරුව පූරණය වෙමින්...',
+    notAvailable: 'ලබා ගත නොහැක',
+    rainfallIndex: 'වර්ෂාපතන දර්ශකය',
+    recommendedActions: 'නිර්දේශිත ක්‍රියාමාර්ග',
+    riskAssessment: 'අවදානම් තක්සේරුව',
+    riverWaterLevels: 'ගංගා ජල මට්ටම්',
+    soilSaturation: 'පස තෙතමනය',
+    stayInformed: 'යාවත්කාලීන සඳහා නිල ResQ1 අනතුරු ඇඟවීම් දිගටම නිරීක්ෂණය කරන්න.',
+    unableLoadAssessment: 'අවදානම් තක්සේරුව පූරණය කළ නොහැක.',
+  },
+  Tamil: {
+    alertArea: 'எச்சரிக்கை பகுதி',
+    basedOnSelectedAlert: 'தேர்ந்தெடுக்கப்பட்ட அவசர எச்சரிக்கையின் அடிப்படையில்.',
+    checkConnection: 'உங்கள் இணைப்பைச் சரிபார்த்து மீண்டும் முயற்சிக்கவும்.',
+    coreEnvironmentalFactors: 'முக்கிய சுற்றுச்சூழல் காரணிகள்',
+    currentAssessment: 'தற்போதைய மதிப்பீடு',
+    currentRiskLevel: 'தற்போதைய அபாய நிலை',
+    environmentalSummary: 'தற்போது கிடைக்கும் எச்சரிக்கை அபாய நிலை மற்றும் அதிகாரப்பூர்வ எச்சரிக்கை விவரங்களிலிருந்து சுற்றுச்சூழல் அறிகுறிகள் சுருக்கப்பட்டுள்ளன.',
+    estimated: 'மதிப்பிடப்பட்டது',
+    factorConcernCritical: 'மிகக் கடுமையான கவலை',
+    factorConcernHigh: 'அதிக கவலை',
+    factorConcernLow: 'குறைந்த கவலை',
+    factorConcernModerate: 'மிதமான கவலை',
+    followAuthorityInstructions: 'அவசர அதிகாரிகளின் அதிகாரப்பூர்வ பாதுகாப்பு வழிமுறைகளைப் பின்பற்றவும்.',
+    loadingAssessment: 'அபாய மதிப்பீடு ஏற்றப்படுகிறது...',
+    notAvailable: 'கிடைக்கவில்லை',
+    rainfallIndex: 'மழைப்பொழிவு குறியீடு',
+    recommendedActions: 'பரிந்துரைக்கப்பட்ட நடவடிக்கைகள்',
+    riskAssessment: 'அபாய மதிப்பீடு',
+    riverWaterLevels: 'நதி நீர்மட்டங்கள்',
+    soilSaturation: 'மண் ஈரப்பதம்',
+    stayInformed: 'புதுப்பிப்புகளுக்காக அதிகாரப்பூர்வ ResQ1 எச்சரிக்கைகளை தொடர்ந்து கண்காணிக்கவும்.',
+    unableLoadAssessment: 'அபாய மதிப்பீட்டை ஏற்ற முடியவில்லை.',
   },
 };
 

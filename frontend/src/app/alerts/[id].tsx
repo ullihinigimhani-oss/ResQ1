@@ -502,6 +502,25 @@ export default function AlertDetailsScreen() {
     router.replace('/alerts' as Href);
   };
 
+  const handleViewRiskAssessment = () => {
+    if (!alert) {
+      return;
+    }
+
+    const riskAssessmentDisplayTheme: AlertDisplayTheme = showResidentLanguage
+      ? residentAlertDisplayTheme
+      : alert.riskLevel === 'Critical' || alert.riskLevel === 'High' ? 'danger' : 'warning';
+
+    router.push({
+      pathname: '/alerts/[id]/risk-assessment',
+      params: {
+        id: String(alert.id),
+        language: selectedLanguage,
+        alertDisplayTheme: riskAssessmentDisplayTheme,
+      },
+    } as unknown as Href);
+  };
+
   const handleAcknowledge = async () => {
     if (
       !token
@@ -620,6 +639,20 @@ export default function AlertDetailsScreen() {
                   loading={loadingRiskHistory}
                   riskLevel={alert.riskLevel}
                 />
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={handleViewRiskAssessment}
+                  style={({ pressed }) => [
+                    styles.riskAssessmentButton,
+                    { backgroundColor: alertTone.accent },
+                    pressed && styles.pressed,
+                  ]}>
+                  <View style={styles.riskAssessmentButtonTextBlock}>
+                    <AppIcon fallback="R" name="gauge.fill" size={18} tintColor={BrandColors.white} />
+                    <Text style={styles.riskAssessmentButtonText}>{detailCopy.viewRiskAssessment}</Text>
+                  </View>
+                  <Text style={styles.riskAssessmentArrow}>-&gt;</Text>
+                </Pressable>
               </View>
 
               <View style={styles.detailInfoList}>
@@ -924,8 +957,38 @@ const styles = StyleSheet.create({
     backgroundColor: BrandColors.background,
     borderBottomColor: BrandColors.border,
     borderBottomWidth: 1,
+    gap: 10,
     paddingHorizontal: 16,
     paddingVertical: 14,
+  },
+  riskAssessmentButton: {
+    alignItems: 'center',
+    borderRadius: 8,
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'space-between',
+    minHeight: 46,
+    paddingHorizontal: 14,
+  },
+  riskAssessmentButtonTextBlock: {
+    alignItems: 'center',
+    flex: 1,
+    flexDirection: 'row',
+    gap: 8,
+    minWidth: 0,
+  },
+  riskAssessmentButtonText: {
+    color: BrandColors.white,
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '900',
+    lineHeight: 19,
+  },
+  riskAssessmentArrow: {
+    color: BrandColors.white,
+    fontSize: 13,
+    fontWeight: '900',
+    lineHeight: 18,
   },
   safetyBulletList: {
     gap: 4,
