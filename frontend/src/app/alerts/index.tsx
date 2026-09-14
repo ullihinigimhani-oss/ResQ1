@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import { Redirect, useFocusEffect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -9,6 +9,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   type GestureResponderEvent,
   View,
 } from 'react-native';
@@ -24,6 +25,7 @@ import type { PreferredLanguage } from '@/types/auth';
 import {
   alertDisplayThemeStyles,
   getResidentAlertDisplayTheme,
+  normalizeAlertArea,
   type AlertDisplayTheme,
 } from '@/utils/alert-display';
 import { formatDateTime, isAuthorityRole } from '@/utils/format';
@@ -33,12 +35,26 @@ import {
   preferredLanguages,
   residentAlertUiText,
   toPreferredLanguage,
+  translateAlertMessage,
   translateAlertStatus,
   translateAlertTitle,
+  translateDisasterType,
   translateRiskLevel,
 } from '@/utils/language';
 
 type ResidentAlertTab = Extract<AlertAudience, 'GENERAL_PUBLIC' | 'SCHOOL_EMERGENCY'>;
+const allDisasterTypesFilter = 'ALL_DISASTER_TYPES';
+const allLocationsFilter = 'ALL_LOCATIONS';
+const myAreaFilter = 'MY_AREA';
+
+type DisasterTypeFilterValue =
+  | typeof allDisasterTypesFilter
+  | `DISASTER:${string}`;
+
+type LocationFilterValue =
+  | typeof allLocationsFilter
+  | typeof myAreaFilter
+  | `LOCATION:${string}`;
 
 type DashboardStateProps = {
   alerts: Alert[];
@@ -98,6 +114,121 @@ function formatCompactDateTime(value: string) {
     minute: '2-digit',
     month: 'short',
   });
+}
+
+function disasterTypeFilterFor(disasterType: string): DisasterTypeFilterValue {
+  return `DISASTER:${disasterType.trim()}`;
+}
+
+function disasterTypeFromFilter(filter: DisasterTypeFilterValue) {
+  return filter.startsWith('DISASTER:') ? filter.replace(/^DISASTER:/, '') : null;
+}
+
+function locationFilterFor(location: string): LocationFilterValue {
+  return `LOCATION:${location.trim()}`;
+}
+
+function locationFromFilter(filter: LocationFilterValue) {
+  return filter.startsWith('LOCATION:') ? filter.replace(/^LOCATION:/, '') : null;
+}
+
+function searchableText(value: string | number | null | undefined) {
+  return String(value ?? '').trim().toLowerCase();
+}
+
+function uniqueAlertDisasterTypes(alerts: Alert[]) {
+  const disasterTypeByKey = new Map<string, string>();
+
+  alerts.forEach((alert) => {
+    const disasterType = String(alert.disasterType ?? '').trim();
+    const key = searchableText(disasterType);
+
+    if (disasterType && key && !disasterTypeByKey.has(key)) {
+      disasterTypeByKey.set(key, disasterType);
+    }
+  });
+
+  return [...disasterTypeByKey.values()].sort((left, right) => left.localeCompare(right));
+}
+
+function uniqueAlertLocations(alerts: Alert[]) {
+  const locationByKey = new Map<string, string>();
+
+  alerts.forEach((alert) => {
+    const location = alert.affectedArea.trim();
+    const key = normalizeAlertArea(location);
+
+    if (location && key && !locationByKey.has(key)) {
+      locationByKey.set(key, location);
+    }
+  });
+
+  return [...locationByKey.values()].sort((left, right) => left.localeCompare(right));
+}
+
+function alertMatchesSearch(
+  alert: Alert,
+  searchQuery: string,
+  language: PreferredLanguage,
+) {
+  const query = searchableText(searchQuery);
+
+  if (!query) {
+    return true;
+  }
+
+  const searchableAlertText = [
+    alert.title,
+    translateAlertTitle(alert, language),
+    alert.disasterType,
+    translateDisasterType(alert.disasterType, language),
+    alert.affectedArea,
+    alert.message,
+    translateAlertMessage(alert, language),
+    alert.safetyInstructions,
+    ...alert.schools.map((school) => school.schoolName),
+  ].map(searchableText).join(' ');
+
+  return searchableAlertText.includes(query);
+}
+
+function alertMatchesDisasterTypeFilter(
+  alert: Alert,
+  disasterTypeFilter: DisasterTypeFilterValue,
+) {
+  if (disasterTypeFilter === allDisasterTypesFilter) {
+    return true;
+  }
+
+  const selectedDisasterType = disasterTypeFromFilter(disasterTypeFilter);
+
+  if (!selectedDisasterType) {
+    return true;
+  }
+
+  return searchableText(alert.disasterType) === searchableText(selectedDisasterType);
+}
+
+function alertMatchesLocationFilter(
+  alert: Alert,
+  locationFilter: LocationFilterValue,
+  residentArea: string | null,
+) {
+  if (locationFilter === allLocationsFilter) {
+    return true;
+  }
+
+  if (locationFilter === myAreaFilter) {
+    return getResidentAlertDisplayTheme(alert, residentArea) === 'danger';
+  }
+
+  const selectedLocation = locationFromFilter(locationFilter);
+
+  if (!selectedLocation) {
+    return true;
+  }
+
+  return normalizeAlertArea(alert.affectedArea) === normalizeAlertArea(selectedLocation);
 }
 
 const authoritySeverityTheme: Record<AlertRiskLevel, {
@@ -190,6 +321,185 @@ function ResidentLanguageSelector({
             </Pressable>
           );
         })}
+      </View>
+    </View>
+  );
+}
+
+type CompactFilterOption<T extends string> = {
+  helper?: string;
+  label: string;
+  value: T;
+};
+
+function CompactFilterDropdown<T extends string>({
+  open,
+  options,
+  onSelect,
+  onToggle,
+  selectedLabel,
+  selectedValue,
+}: {
+  open: boolean;
+  options: CompactFilterOption<T>[];
+  onSelect: (value: T) => void;
+  onToggle: () => void;
+  selectedLabel: string;
+  selectedValue: T;
+}) {
+  return (
+    <View style={[styles.filterSelectColumn, open && styles.filterSelectColumnOpen]}>
+      <Pressable
+        accessibilityRole="button"
+        onPress={onToggle}
+        style={({ pressed }) => [styles.filterSelectButton, open && styles.filterSelectButtonOpen, pressed && styles.pressed]}>
+        <Text numberOfLines={1} style={styles.filterSelectText}>
+          {selectedLabel}
+        </Text>
+        <Text style={styles.filterSelectChevron}>v</Text>
+      </Pressable>
+
+      {open ? (
+        <ScrollView
+          contentContainerStyle={styles.filterOptionList}
+          nestedScrollEnabled
+          showsVerticalScrollIndicator={false}
+          style={styles.filterOptionScroller}>
+          {options.map((option) => {
+            const selected = option.value === selectedValue;
+
+            return (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                key={option.value}
+                onPress={() => onSelect(option.value)}
+                style={({ pressed }) => [
+                  styles.filterOptionRow,
+                  selected && styles.filterOptionRowSelected,
+                  pressed && styles.pressed,
+                ]}>
+                <Text
+                  numberOfLines={1}
+                  style={[styles.filterOptionText, selected && styles.filterOptionTextSelected]}>
+                  {option.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      ) : null}
+    </View>
+  );
+}
+
+function ResidentAlertFilters({
+  disasterTypeFilter,
+  disasterTypeOptions,
+  locationFilter,
+  locationOptions,
+  onDisasterTypeFilterChange,
+  onLocationFilterChange,
+  onSearchQueryChange,
+  residentArea,
+  searchQuery,
+  selectedLanguage,
+}: {
+  disasterTypeFilter: DisasterTypeFilterValue;
+  disasterTypeOptions: string[];
+  locationFilter: LocationFilterValue;
+  locationOptions: string[];
+  onDisasterTypeFilterChange: (filter: DisasterTypeFilterValue) => void;
+  onLocationFilterChange: (filter: LocationFilterValue) => void;
+  onSearchQueryChange: (query: string) => void;
+  residentArea: string | null;
+  searchQuery: string;
+  selectedLanguage: PreferredLanguage;
+}) {
+  const [openFilterMenu, setOpenFilterMenu] = useState<'disaster' | 'location' | null>(null);
+  const copy = residentAlertUiText[selectedLanguage];
+  const selectedDisasterType = disasterTypeFromFilter(disasterTypeFilter);
+  const selectedDisasterTypeLabel = selectedDisasterType
+    ? translateDisasterType(selectedDisasterType, selectedLanguage)
+    : copy.allDisasterTypes;
+  const selectedLocation = locationFromFilter(locationFilter);
+  const selectedLocationLabel = locationFilter === myAreaFilter
+    ? copy.myArea
+    : selectedLocation ?? copy.allLocations;
+  const disasterFilterOptions = [
+    {
+      label: copy.allDisasterTypes,
+      value: allDisasterTypesFilter,
+    },
+    ...disasterTypeOptions.map((disasterType) => ({
+      helper: disasterType === translateDisasterType(disasterType, selectedLanguage)
+        ? undefined
+        : disasterType,
+      label: translateDisasterType(disasterType, selectedLanguage),
+      value: disasterTypeFilterFor(disasterType),
+    })),
+  ] satisfies CompactFilterOption<DisasterTypeFilterValue>[];
+  const locationFilterOptions = [
+    {
+      helper: undefined,
+      label: copy.allLocations,
+      value: allLocationsFilter,
+    },
+    {
+      helper: residentArea?.trim() || undefined,
+      label: copy.myArea,
+      value: myAreaFilter,
+    },
+    ...locationOptions.map((location) => ({
+      helper: undefined,
+      label: location,
+      value: locationFilterFor(location),
+    })),
+  ] satisfies CompactFilterOption<LocationFilterValue>[];
+
+  const selectDisasterTypeFilter = (value: DisasterTypeFilterValue) => {
+    onDisasterTypeFilterChange(value);
+    setOpenFilterMenu(null);
+  };
+
+  const selectLocationFilter = (value: LocationFilterValue) => {
+    onLocationFilterChange(value);
+    setOpenFilterMenu(null);
+  };
+
+  return (
+    <View style={[styles.filterPanel, openFilterMenu && styles.filterPanelOpen]}>
+      <View style={styles.searchField}>
+        <AppIcon fallback="S" name="magnifyingglass" size={18} tintColor={colors.muted} />
+        <TextInput
+          autoCapitalize="none"
+          autoCorrect={false}
+          onChangeText={onSearchQueryChange}
+          placeholder={copy.searchPlaceholder}
+          placeholderTextColor="#8B98A9"
+          selectionColor={colors.blue}
+          style={styles.searchInput}
+          value={searchQuery}
+        />
+      </View>
+
+      <View style={styles.filterSelectRow}>
+        <CompactFilterDropdown
+          open={openFilterMenu === 'disaster'}
+          options={disasterFilterOptions}
+          selectedLabel={selectedDisasterTypeLabel}
+          selectedValue={disasterTypeFilter}
+          onSelect={selectDisasterTypeFilter}
+          onToggle={() => setOpenFilterMenu((current) => current === 'disaster' ? null : 'disaster')}
+        />
+        <CompactFilterDropdown
+          open={openFilterMenu === 'location'}
+          options={locationFilterOptions}
+          selectedLabel={selectedLocationLabel}
+          selectedValue={locationFilter}
+          onSelect={selectLocationFilter}
+          onToggle={() => setOpenFilterMenu((current) => current === 'location' ? null : 'location')}
+        />
       </View>
     </View>
   );
@@ -656,12 +966,19 @@ function ResidentDashboard({
   selectedAlertTab,
   selectedLanguage,
 }: ResidentDashboardProps) {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [disasterTypeFilter, setDisasterTypeFilter] = useState<DisasterTypeFilterValue>(allDisasterTypesFilter);
+  const [locationFilter, setLocationFilter] = useState<LocationFilterValue>(allLocationsFilter);
   const showInitialLoading = loadingAlerts && alerts.length === 0;
   const showError = Boolean(errorMessage) && alerts.length === 0 && !showInitialLoading;
   const showRiskIndicators = !showInitialLoading && !showError;
   const residentAreaName = residentArea?.trim() || null;
   const copy = residentAlertUiText[selectedLanguage];
-  const tabAlerts = alerts.filter((alert) => {
+  const disasterTypeOptions = useMemo(() => uniqueAlertDisasterTypes(alerts), [alerts]);
+  const selectedDisasterType = disasterTypeFromFilter(disasterTypeFilter);
+  const locationOptions = useMemo(() => uniqueAlertLocations(alerts), [alerts]);
+  const selectedLocation = locationFromFilter(locationFilter);
+  const tabAlerts = useMemo(() => alerts.filter((alert) => {
     if (selectedAlertTab === 'GENERAL_PUBLIC') {
       return alert.alertAudience === 'GENERAL_PUBLIC' || alert.alertAudience === 'ALL';
     }
@@ -669,9 +986,41 @@ function ResidentDashboard({
     return alert.alertAudience === 'ALL' || (
       schoolAlertsEnabled && alert.alertAudience === 'SCHOOL_EMERGENCY'
     );
-  });
+  }), [alerts, schoolAlertsEnabled, selectedAlertTab]);
+  const filteredTabAlerts = useMemo(
+    () => tabAlerts.filter((alert) => (
+      alertMatchesDisasterTypeFilter(alert, disasterTypeFilter)
+      && alertMatchesLocationFilter(alert, locationFilter, residentArea)
+      && alertMatchesSearch(alert, searchQuery, selectedLanguage)
+    )),
+    [disasterTypeFilter, locationFilter, residentArea, searchQuery, selectedLanguage, tabAlerts],
+  );
+
+  useEffect(() => {
+    if (
+      selectedLocation
+      && !locationOptions.some((location) => normalizeAlertArea(location) === normalizeAlertArea(selectedLocation))
+    ) {
+      setLocationFilter(allLocationsFilter);
+    }
+  }, [locationOptions, selectedLocation]);
+
+  useEffect(() => {
+    if (
+      selectedDisasterType
+      && !disasterTypeOptions.some((disasterType) => (
+        searchableText(disasterType) === searchableText(selectedDisasterType)
+      ))
+    ) {
+      setDisasterTypeFilter(allDisasterTypesFilter);
+    }
+  }, [disasterTypeOptions, selectedDisasterType]);
+
   const showSchoolDisabled = selectedAlertTab === 'SCHOOL_EMERGENCY' && !schoolAlertsEnabled;
-  const prioritizedAlerts = [...tabAlerts].sort(compareAlertsBySeverity);
+  const prioritizedAlerts = useMemo(
+    () => [...filteredTabAlerts].sort(compareAlertsBySeverity),
+    [filteredTabAlerts],
+  );
   const alertGroups = prioritizedAlerts.reduce(
     (groups, alert) => {
       if (getResidentAlertDisplayTheme(alert, residentArea) === 'danger') {
@@ -689,6 +1038,10 @@ function ResidentDashboard({
   );
   const { otherAreaAlerts, residentAreaAlerts } = alertGroups;
   const showTabEmptyState = showRiskIndicators && tabAlerts.length === 0 && !showSchoolDisabled;
+  const showFilteredEmptyState = showRiskIndicators
+    && tabAlerts.length > 0
+    && filteredTabAlerts.length === 0
+    && !showSchoolDisabled;
 
   return (
     <>
@@ -706,6 +1059,18 @@ function ResidentDashboard({
             <Text style={styles.preferencesButtonText}>Preferences</Text>
           </Pressable>
         </View>
+        <ResidentAlertFilters
+          disasterTypeFilter={disasterTypeFilter}
+          disasterTypeOptions={disasterTypeOptions}
+          locationFilter={locationFilter}
+          locationOptions={locationOptions}
+          onDisasterTypeFilterChange={setDisasterTypeFilter}
+          onLocationFilterChange={setLocationFilter}
+          onSearchQueryChange={setSearchQuery}
+          residentArea={residentAreaName}
+          searchQuery={searchQuery}
+          selectedLanguage={selectedLanguage}
+        />
         <ResidentLanguageSelector selectedLanguage={selectedLanguage} onChange={onLanguageChange} />
         <ResidentAudienceTabs
           onChange={onAlertTabChange}
@@ -746,6 +1111,13 @@ function ResidentDashboard({
         />
       ) : null}
 
+      {showFilteredEmptyState ? (
+        <TabEmptyState
+          body={copy.noFilteredAlertsBody}
+          title={copy.noFilteredAlerts}
+        />
+      ) : null}
+
       {showRiskIndicators && residentAreaAlerts.length > 0 ? (
         <View style={styles.alertList}>
           {residentAreaAlerts.map((alert) => (
@@ -759,7 +1131,7 @@ function ResidentDashboard({
         </View>
       ) : null}
 
-      {showRiskIndicators && tabAlerts.length > 0 && residentAreaAlerts.length === 0 ? (
+      {showRiskIndicators && filteredTabAlerts.length > 0 && residentAreaAlerts.length === 0 ? (
         <AllClearState
           hasOtherAreaAlerts={otherAreaAlerts.length > 0}
           language={selectedLanguage}
@@ -1230,6 +1602,9 @@ const styles = StyleSheet.create({
   },
   header: {
     gap: spacing.sm,
+    overflow: 'visible',
+    position: 'relative',
+    zIndex: 10,
   },
   residentHeaderTopRow: {
     alignItems: 'flex-start',
@@ -1410,6 +1785,133 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   languageOptionTextSelected: {
+    color: colors.white,
+  },
+  filterPanel: {
+    backgroundColor: colors.white,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    gap: spacing.sm,
+    overflow: 'visible',
+    padding: spacing.sm,
+    position: 'relative',
+    zIndex: 20,
+    ...shadows.card,
+  },
+  filterPanelOpen: {
+    zIndex: 200,
+  },
+  searchField: {
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    minHeight: 42,
+    paddingHorizontal: spacing.sm,
+  },
+  searchInput: {
+    color: colors.text,
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 18,
+    minHeight: 40,
+    minWidth: 0,
+    paddingVertical: 0,
+  },
+  filterSelectRow: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: spacing.sm,
+    overflow: 'visible',
+    position: 'relative',
+    zIndex: 210,
+  },
+  filterSelectColumn: {
+    flex: 1,
+    minWidth: 0,
+    overflow: 'visible',
+    position: 'relative',
+    zIndex: 1,
+  },
+  filterSelectColumnOpen: {
+    zIndex: 220,
+  },
+  filterSelectButton: {
+    alignItems: 'center',
+    backgroundColor: colors.white,
+    borderColor: colors.navy,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    justifyContent: 'space-between',
+    minHeight: 38,
+    paddingHorizontal: spacing.sm,
+  },
+  filterSelectButtonOpen: {
+    backgroundColor: colors.white,
+    borderColor: colors.navy,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+  },
+  filterSelectText: {
+    color: colors.navy,
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 16,
+    minWidth: 0,
+  },
+  filterSelectChevron: {
+    color: colors.navy,
+    fontSize: 12,
+    fontWeight: '900',
+    lineHeight: 16,
+  },
+  filterOptionScroller: {
+    backgroundColor: colors.white,
+    borderBottomLeftRadius: radius.sm,
+    borderBottomRightRadius: radius.sm,
+    borderColor: colors.navy,
+    borderWidth: 1,
+    borderTopWidth: 0,
+    left: 0,
+    maxHeight: 260,
+    overflow: 'hidden',
+    position: 'absolute',
+    right: 0,
+    top: 38,
+    zIndex: 230,
+  },
+  filterOptionList: {
+    paddingVertical: 2,
+  },
+  filterOptionRow: {
+    alignItems: 'center',
+    backgroundColor: colors.white,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    justifyContent: 'space-between',
+    minHeight: 36,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+  },
+  filterOptionRowSelected: {
+    backgroundColor: colors.blue,
+  },
+  filterOptionText: {
+    color: colors.navy,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 16,
+    minWidth: 0,
+  },
+  filterOptionTextSelected: {
     color: colors.white,
   },
   preferencesButton: {
