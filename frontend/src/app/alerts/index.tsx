@@ -231,6 +231,10 @@ function alertMatchesLocationFilter(
   return normalizeAlertArea(alert.affectedArea) === normalizeAlertArea(selectedLocation);
 }
 
+function isCriticalAlert(alert: Alert) {
+  return alert.riskLevel === 'Critical';
+}
+
 const authoritySeverityTheme: Record<AlertRiskLevel, {
   accent: string;
   badgeBackground: string;
@@ -984,7 +988,8 @@ function ResidentDashboard({
     }
 
     return alert.alertAudience === 'ALL' || (
-      schoolAlertsEnabled && alert.alertAudience === 'SCHOOL_EMERGENCY'
+      alert.alertAudience === 'SCHOOL_EMERGENCY'
+      && (schoolAlertsEnabled || isCriticalAlert(alert))
     );
   }), [alerts, schoolAlertsEnabled, selectedAlertTab]);
   const filteredTabAlerts = useMemo(
@@ -1016,7 +1021,11 @@ function ResidentDashboard({
     }
   }, [disasterTypeOptions, selectedDisasterType]);
 
-  const showSchoolDisabled = selectedAlertTab === 'SCHOOL_EMERGENCY' && !schoolAlertsEnabled;
+  const hasCriticalSchoolOverride = selectedAlertTab === 'SCHOOL_EMERGENCY'
+    && tabAlerts.some((alert) => alert.alertAudience === 'SCHOOL_EMERGENCY' && isCriticalAlert(alert));
+  const showSchoolDisabled = selectedAlertTab === 'SCHOOL_EMERGENCY'
+    && !schoolAlertsEnabled
+    && !hasCriticalSchoolOverride;
   const prioritizedAlerts = useMemo(
     () => [...filteredTabAlerts].sort(compareAlertsBySeverity),
     [filteredTabAlerts],

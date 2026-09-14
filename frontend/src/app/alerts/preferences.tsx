@@ -395,9 +395,14 @@ export default function AlertPreferencesScreen() {
         <ToggleRow
           locked
           title="Critical Emergency Alerts"
-          subtitle="Critical warnings may override normal notification preferences for safety."
+          subtitle="Critical emergency alerts are always delivered for your safety."
           value
         />
+        <View style={styles.criticalNotice}>
+          <Text style={styles.criticalNoticeText}>
+            These alerts bypass normal notification, sound, vibration, and quiet-hours preferences when your area is targeted.
+          </Text>
+        </View>
       </SectionCard>
 
       <SectionCard
@@ -431,6 +436,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
     lineHeight: 20,
+  },
+  criticalNotice: {
+    backgroundColor: colors.redSoft,
+    borderColor: colors.red,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    padding: spacing.md,
+  },
+  criticalNoticeText: {
+    color: colors.red,
+    fontSize: 12,
+    fontWeight: '800',
+    lineHeight: 18,
   },
   languageOptions: {
     flexDirection: 'row',
