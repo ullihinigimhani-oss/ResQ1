@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -30,6 +31,13 @@ type AuthButtonProps = {
 };
 
 const languageOptions: PreferredLanguage[] = ['English', 'Sinhala', 'Tamil'];
+
+function handlePressBlur(callback?: () => void) {
+  if (Platform.OS === 'web' && typeof document !== 'undefined') {
+    (document.activeElement as HTMLElement)?.blur?.();
+  }
+  callback?.();
+}
 
 export function AuthTextField({
   label,
@@ -69,7 +77,7 @@ export function PasswordField({
           accessibilityLabel={visible ? 'Hide password' : 'Show password'}
           accessibilityRole="button"
           hitSlop={8}
-          onPress={onToggleVisible}
+          onPress={() => handlePressBlur(onToggleVisible)}
           style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}>
           <Text style={styles.iconFallback}>{visible ? 'Hide' : 'Show'}</Text>
         </Pressable>
@@ -94,7 +102,7 @@ export function AuthButton({
     <Pressable
       accessibilityRole="button"
       disabled={inactive}
-      onPress={onPress}
+      onPress={() => handlePressBlur(onPress)}
       style={({ pressed }) => [
         styles.button,
         isSecondary && styles.secondaryButton,
@@ -124,7 +132,7 @@ export function LinkButton({ title, onPress }: Pick<AuthButtonProps, 'title' | '
     <Pressable
       accessibilityRole="button"
       hitSlop={8}
-      onPress={onPress}
+      onPress={() => handlePressBlur(onPress)}
       style={({ pressed }) => pressed && styles.pressed}>
       <Text style={styles.linkText}>{title}</Text>
     </Pressable>
@@ -151,7 +159,7 @@ export function LanguageSelector({
             <Pressable
               accessibilityRole="button"
               key={language}
-              onPress={() => onChange(language)}
+              onPress={() => handlePressBlur(() => onChange(language))}
               style={({ pressed }) => [
                 styles.languageOption,
                 selected && styles.languageOptionSelected,
@@ -195,7 +203,7 @@ export function BackButton({ onPress }: { onPress: () => void }) {
       accessibilityLabel="Back"
       accessibilityRole="button"
       hitSlop={8}
-      onPress={onPress}
+      onPress={() => handlePressBlur(onPress)}
       style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
       <Text style={styles.backFallback}>Back</Text>
     </Pressable>

@@ -1,7 +1,18 @@
 import { StatusBar } from 'expo-status-bar';
 import { Redirect, useFocusEffect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  Modal,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  type GestureResponderEvent,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppIcon, BottomNavigation, EmptyState, LoadingState, PrimaryButton } from '@/components/ui/app-components';
@@ -14,6 +25,7 @@ import type { PreferredLanguage } from '@/types/auth';
 import {
   alertDisplayThemeStyles,
   getResidentAlertDisplayTheme,
+  normalizeAlertArea,
   type AlertDisplayTheme,
 } from '@/utils/alert-display';
 import { formatDateTime, isAuthorityRole } from '@/utils/format';
@@ -23,12 +35,26 @@ import {
   preferredLanguages,
   residentAlertUiText,
   toPreferredLanguage,
+  translateAlertMessage,
   translateAlertStatus,
   translateAlertTitle,
+  translateDisasterType,
   translateRiskLevel,
 } from '@/utils/language';
 
 type ResidentAlertTab = Extract<AlertAudience, 'GENERAL_PUBLIC' | 'SCHOOL_EMERGENCY'>;
+const allDisasterTypesFilter = 'ALL_DISASTER_TYPES';
+const allLocationsFilter = 'ALL_LOCATIONS';
+const myAreaFilter = 'MY_AREA';
+
+type DisasterTypeFilterValue =
+  | typeof allDisasterTypesFilter
+  | `DISASTER:${string}`;
+
+type LocationFilterValue =
+  | typeof allLocationsFilter
+  | typeof myAreaFilter
+  | `LOCATION:${string}`;
 
 type DashboardStateProps = {
   alerts: Alert[];
@@ -88,6 +114,121 @@ function formatCompactDateTime(value: string) {
     minute: '2-digit',
     month: 'short',
   });
+}
+
+function disasterTypeFilterFor(disasterType: string): DisasterTypeFilterValue {
+  return `DISASTER:${disasterType.trim()}`;
+}
+
+function disasterTypeFromFilter(filter: DisasterTypeFilterValue) {
+  return filter.startsWith('DISASTER:') ? filter.replace(/^DISASTER:/, '') : null;
+}
+
+function locationFilterFor(location: string): LocationFilterValue {
+  return `LOCATION:${location.trim()}`;
+}
+
+function locationFromFilter(filter: LocationFilterValue) {
+  return filter.startsWith('LOCATION:') ? filter.replace(/^LOCATION:/, '') : null;
+}
+
+function searchableText(value: string | number | null | undefined) {
+  return String(value ?? '').trim().toLowerCase();
+}
+
+function uniqueAlertDisasterTypes(alerts: Alert[]) {
+  const disasterTypeByKey = new Map<string, string>();
+
+  alerts.forEach((alert) => {
+    const disasterType = String(alert.disasterType ?? '').trim();
+    const key = searchableText(disasterType);
+
+    if (disasterType && key && !disasterTypeByKey.has(key)) {
+      disasterTypeByKey.set(key, disasterType);
+    }
+  });
+
+  return [...disasterTypeByKey.values()].sort((left, right) => left.localeCompare(right));
+}
+
+function uniqueAlertLocations(alerts: Alert[]) {
+  const locationByKey = new Map<string, string>();
+
+  alerts.forEach((alert) => {
+    const location = alert.affectedArea.trim();
+    const key = normalizeAlertArea(location);
+
+    if (location && key && !locationByKey.has(key)) {
+      locationByKey.set(key, location);
+    }
+  });
+
+  return [...locationByKey.values()].sort((left, right) => left.localeCompare(right));
+}
+
+function alertMatchesSearch(
+  alert: Alert,
+  searchQuery: string,
+  language: PreferredLanguage,
+) {
+  const query = searchableText(searchQuery);
+
+  if (!query) {
+    return true;
+  }
+
+  const searchableAlertText = [
+    alert.title,
+    translateAlertTitle(alert, language),
+    alert.disasterType,
+    translateDisasterType(alert.disasterType, language),
+    alert.affectedArea,
+    alert.message,
+    translateAlertMessage(alert, language),
+    alert.safetyInstructions,
+    ...alert.schools.map((school) => school.schoolName),
+  ].map(searchableText).join(' ');
+
+  return searchableAlertText.includes(query);
+}
+
+function alertMatchesDisasterTypeFilter(
+  alert: Alert,
+  disasterTypeFilter: DisasterTypeFilterValue,
+) {
+  if (disasterTypeFilter === allDisasterTypesFilter) {
+    return true;
+  }
+
+  const selectedDisasterType = disasterTypeFromFilter(disasterTypeFilter);
+
+  if (!selectedDisasterType) {
+    return true;
+  }
+
+  return searchableText(alert.disasterType) === searchableText(selectedDisasterType);
+}
+
+function alertMatchesLocationFilter(
+  alert: Alert,
+  locationFilter: LocationFilterValue,
+  residentArea: string | null,
+) {
+  if (locationFilter === allLocationsFilter) {
+    return true;
+  }
+
+  if (locationFilter === myAreaFilter) {
+    return getResidentAlertDisplayTheme(alert, residentArea) === 'danger';
+  }
+
+  const selectedLocation = locationFromFilter(locationFilter);
+
+  if (!selectedLocation) {
+    return true;
+  }
+
+  return normalizeAlertArea(alert.affectedArea) === normalizeAlertArea(selectedLocation);
 }
 
 const authoritySeverityTheme: Record<AlertRiskLevel, {
@@ -181,6 +322,209 @@ function ResidentLanguageSelector({
           );
         })}
       </View>
+    </View>
+  );
+}
+
+type CompactFilterOption<T extends string> = {
+  helper?: string;
+  label: string;
+  value: T;
+};
+
+function CompactFilterDropdown<T extends string>({
+  open,
+  options,
+  onSelect,
+  onToggle,
+  selectedLabel,
+  selectedValue,
+}: {
+  open: boolean;
+  options: CompactFilterOption<T>[];
+  onSelect: (value: T) => void;
+  onToggle: () => void;
+  selectedLabel: string;
+  selectedValue: T;
+}) {
+  return (
+    <View style={[styles.filterSelectColumn, open && styles.filterSelectColumnOpen]}>
+      <Pressable
+        accessibilityRole="button"
+        onPress={onToggle}
+        style={({ pressed }) => [styles.filterSelectButton, open && styles.filterSelectButtonOpen, pressed && styles.pressed]}>
+        <Text numberOfLines={1} style={styles.filterSelectText}>
+          {selectedLabel}
+        </Text>
+        <Text style={styles.filterSelectChevron}>v</Text>
+      </Pressable>
+
+      {open ? (
+        <ScrollView
+          contentContainerStyle={styles.filterOptionList}
+          nestedScrollEnabled
+          showsVerticalScrollIndicator={false}
+          style={styles.filterOptionScroller}>
+          {options.map((option) => {
+            const selected = option.value === selectedValue;
+
+            return (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                key={option.value}
+                onPress={() => onSelect(option.value)}
+                style={({ pressed }) => [
+                  styles.filterOptionRow,
+                  selected && styles.filterOptionRowSelected,
+                  pressed && styles.pressed,
+                ]}>
+                <Text
+                  numberOfLines={1}
+                  style={[styles.filterOptionText, selected && styles.filterOptionTextSelected]}>
+                  {option.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      ) : null}
+    </View>
+  );
+}
+
+function ResidentAlertFilters({
+  disasterTypeFilter,
+  disasterTypeOptions,
+  locationFilter,
+  locationOptions,
+  onDisasterTypeFilterChange,
+  onLocationFilterChange,
+  onSearchQueryChange,
+  residentArea,
+  searchQuery,
+  selectedLanguage,
+}: {
+  disasterTypeFilter: DisasterTypeFilterValue;
+  disasterTypeOptions: string[];
+  locationFilter: LocationFilterValue;
+  locationOptions: string[];
+  onDisasterTypeFilterChange: (filter: DisasterTypeFilterValue) => void;
+  onLocationFilterChange: (filter: LocationFilterValue) => void;
+  onSearchQueryChange: (query: string) => void;
+  residentArea: string | null;
+  searchQuery: string;
+  selectedLanguage: PreferredLanguage;
+}) {
+  const [openFilterMenu, setOpenFilterMenu] = useState<'disaster' | 'location' | null>(null);
+  const copy = residentAlertUiText[selectedLanguage];
+  const selectedDisasterType = disasterTypeFromFilter(disasterTypeFilter);
+  const selectedDisasterTypeLabel = selectedDisasterType
+    ? translateDisasterType(selectedDisasterType, selectedLanguage)
+    : copy.allDisasterTypes;
+  const selectedLocation = locationFromFilter(locationFilter);
+  const selectedLocationLabel = locationFilter === myAreaFilter
+    ? copy.myArea
+    : selectedLocation ?? copy.allLocations;
+  const disasterFilterOptions = [
+    {
+      label: copy.allDisasterTypes,
+      value: allDisasterTypesFilter,
+    },
+    ...disasterTypeOptions.map((disasterType) => ({
+      helper: disasterType === translateDisasterType(disasterType, selectedLanguage)
+        ? undefined
+        : disasterType,
+      label: translateDisasterType(disasterType, selectedLanguage),
+      value: disasterTypeFilterFor(disasterType),
+    })),
+  ] satisfies CompactFilterOption<DisasterTypeFilterValue>[];
+  const locationFilterOptions = [
+    {
+      helper: undefined,
+      label: copy.allLocations,
+      value: allLocationsFilter,
+    },
+    {
+      helper: residentArea?.trim() || undefined,
+      label: copy.myArea,
+      value: myAreaFilter,
+    },
+    ...locationOptions.map((location) => ({
+      helper: undefined,
+      label: location,
+      value: locationFilterFor(location),
+    })),
+  ] satisfies CompactFilterOption<LocationFilterValue>[];
+
+  const selectDisasterTypeFilter = (value: DisasterTypeFilterValue) => {
+    onDisasterTypeFilterChange(value);
+    setOpenFilterMenu(null);
+  };
+
+  const selectLocationFilter = (value: LocationFilterValue) => {
+    onLocationFilterChange(value);
+    setOpenFilterMenu(null);
+  };
+
+  return (
+    <View style={[styles.filterPanel, openFilterMenu && styles.filterPanelOpen]}>
+      <View style={styles.searchField}>
+        <AppIcon fallback="S" name="magnifyingglass" size={18} tintColor={colors.muted} />
+        <TextInput
+          autoCapitalize="none"
+          autoCorrect={false}
+          onChangeText={onSearchQueryChange}
+          placeholder={copy.searchPlaceholder}
+          placeholderTextColor="#8B98A9"
+          selectionColor={colors.blue}
+          style={styles.searchInput}
+          value={searchQuery}
+        />
+      </View>
+
+      <View style={styles.filterSelectRow}>
+        <CompactFilterDropdown
+          open={openFilterMenu === 'disaster'}
+          options={disasterFilterOptions}
+          selectedLabel={selectedDisasterTypeLabel}
+          selectedValue={disasterTypeFilter}
+          onSelect={selectDisasterTypeFilter}
+          onToggle={() => setOpenFilterMenu((current) => current === 'disaster' ? null : 'disaster')}
+        />
+        <CompactFilterDropdown
+          open={openFilterMenu === 'location'}
+          options={locationFilterOptions}
+          selectedLabel={selectedLocationLabel}
+          selectedValue={locationFilter}
+          onSelect={selectLocationFilter}
+          onToggle={() => setOpenFilterMenu((current) => current === 'location' ? null : 'location')}
+        />
+      </View>
+    </View>
+  );
+}
+
+function AreaRelevanceBadge({
+  displayTheme,
+  label,
+}: {
+  displayTheme: AlertDisplayTheme;
+  label: string;
+}) {
+  const theme = alertDisplayThemeStyles[displayTheme];
+
+  return (
+    <View
+      style={[
+        styles.areaMatchBadge,
+        {
+          backgroundColor: theme.pillBackground,
+          borderColor: theme.pillBorder,
+        },
+      ]}>
+      <AppIcon fallback="F" name="flag.fill" size={14} tintColor={theme.pillText} />
+      <Text style={[styles.areaMatchBadgeText, { color: theme.pillText }]}>{label}</Text>
     </View>
   );
 }
@@ -296,33 +640,20 @@ function SchoolAlertsDisabledState({
   );
 }
 
-function SeverityBadge({ riskLevel }: { riskLevel: AlertRiskLevel }) {
-  const severity = authoritySeverityTheme[riskLevel];
-
-  return (
-    <View
-      style={[
-        styles.authoritySeverityBadge,
-        {
-          backgroundColor: severity.badgeBackground,
-          borderColor: severity.badgeBorder,
-        },
-      ]}>
-      <Text style={[styles.authoritySeverityBadgeText, { color: severity.badgeText }]}>
-        {riskLevel.toUpperCase()}
-      </Text>
-    </View>
-  );
+function authorityAudienceLabel(audience: AlertAudience) {
+  return audience === 'SCHOOL_EMERGENCY' ? 'SCHOOL' : audience === 'GENERAL_PUBLIC' ? 'GENERAL PUBLIC' : 'ALL';
 }
 
-function AuthorityAudienceBadge({ audience }: { audience: AlertAudience }) {
-  const label = audience === 'SCHOOL_EMERGENCY' ? 'SCHOOL' : audience === 'GENERAL_PUBLIC' ? 'GENERAL PUBLIC' : 'ALL';
+function authorityFlagColor(riskLevel: AlertRiskLevel) {
+  if (riskLevel === 'Critical') {
+    return colors.red;
+  }
 
-  return (
-    <View style={styles.authorityAudienceBadge}>
-      <Text style={styles.authorityAudienceBadgeText}>{label}</Text>
-    </View>
-  );
+  if (riskLevel === 'High' || riskLevel === 'Moderate') {
+    return colors.amber;
+  }
+
+  return colors.success;
 }
 
 function ResidentLoadingState({ language }: { language: PreferredLanguage }) {
@@ -374,13 +705,14 @@ function ResidentRiskAlertCard({
         <ResidentStatusBadge language={selectedLanguage} status={alert.status} />
       </View>
 
+      <View style={styles.relevanceRiskRow}>
+        <AreaRelevanceBadge displayTheme={displayTheme} label={copy.yourArea} />
+        <Text style={[styles.riskText, { color: theme.titleColor }]}>
+          {copy.risk}: {translateRiskLevel(alert.riskLevel, selectedLanguage)}
+        </Text>
+      </View>
+
       <View style={styles.compactInfoRow}>
-        <View style={styles.riskMetaGroup}>
-          <Text style={[styles.areaMatchBadge, styles.yourAreaBadge]}>{copy.yourArea}</Text>
-          <Text style={[styles.riskText, { color: theme.titleColor }]}>
-            {copy.risk}: {translateRiskLevel(alert.riskLevel, selectedLanguage)}
-          </Text>
-        </View>
         <Text style={styles.issuedText}>{copy.issued}: {formatCompactDateTime(alert.createdAt)}</Text>
       </View>
 
@@ -432,13 +764,14 @@ function ResidentWarningAlertCard({
         <ResidentStatusBadge language={selectedLanguage} status={alert.status} />
       </View>
 
+      <View style={styles.relevanceRiskRow}>
+        <AreaRelevanceBadge displayTheme={displayTheme} label={copy.warning} />
+        <Text style={[styles.riskText, { color: theme.titleColor }]}>
+          {copy.risk}: {translateRiskLevel(alert.riskLevel, selectedLanguage)}
+        </Text>
+      </View>
+
       <View style={styles.compactInfoRow}>
-        <View style={styles.riskMetaGroup}>
-          <Text style={[styles.areaMatchBadge, styles.warningAreaBadge]}>{copy.warning}</Text>
-          <Text style={[styles.riskText, { color: theme.titleColor }]}>
-            {copy.risk}: {translateRiskLevel(alert.riskLevel, selectedLanguage)}
-          </Text>
-        </View>
         <Text style={styles.issuedText}>{copy.issued}: {formatCompactDateTime(alert.createdAt)}</Text>
       </View>
 
@@ -520,77 +853,9 @@ function AuthorityEmergencyActionCard({ onPress }: { onPress: () => void }) {
   );
 }
 
-function AuthorityAlertSummary({ alerts }: { alerts: Alert[] }) {
-  const severityCounts = alerts.reduce(
-    (counts, alert) => ({
-      ...counts,
-      [alert.riskLevel]: counts[alert.riskLevel] + 1,
-    }),
-    {
-      Critical: 0,
-      High: 0,
-      Low: 0,
-      Moderate: 0,
-    } satisfies Record<AlertRiskLevel, number>,
-  );
-  const summaryItems = [
-    { label: 'Active Alerts', value: alerts.length, accent: colors.navy },
-    { label: 'Critical', value: severityCounts.Critical, accent: authoritySeverityTheme.Critical.accent },
-    { label: 'High', value: severityCounts.High, accent: authoritySeverityTheme.High.accent },
-    { label: 'Moderate', value: severityCounts.Moderate, accent: authoritySeverityTheme.Moderate.accent },
-    { label: 'Low', value: severityCounts.Low, accent: authoritySeverityTheme.Low.accent },
-  ];
-
-  return (
-    <View style={styles.authoritySummaryGrid}>
-      {summaryItems.map((item) => (
-        <View key={item.label} style={[styles.authoritySummaryChip, { borderTopColor: item.accent }]}>
-          <Text style={styles.authoritySummaryValue}>{item.value}</Text>
-          <Text style={styles.authoritySummaryLabel}>{item.label}</Text>
-        </View>
-      ))}
-    </View>
-  );
-}
-
-function AuthorityActionRow({
-  cancelling,
-  onCancelAlert,
-  onEditAlert,
-  onViewAlert,
-}: {
-  cancelling: boolean;
-  onCancelAlert: () => void;
-  onEditAlert: () => void;
-  onViewAlert: () => void;
-}) {
-  return (
-    <View style={styles.authorityCardActions}>
-      <Pressable
-        accessibilityRole="button"
-        onPress={onViewAlert}
-        style={({ pressed }) => [styles.authorityManageButton, pressed && styles.pressed]}>
-        <Text style={styles.authorityManageButtonText}>View / Manage Alert -&gt;</Text>
-      </Pressable>
-      <Pressable
-        accessibilityRole="button"
-        onPress={onEditAlert}
-        style={({ pressed }) => [styles.authorityEditButton, pressed && styles.pressed]}>
-        <Text style={styles.authorityEditButtonText}>Edit Alert</Text>
-      </Pressable>
-      <Pressable
-        accessibilityRole="button"
-        disabled={cancelling}
-        onPress={onCancelAlert}
-        style={({ pressed }) => [
-          styles.authorityCancelButton,
-          cancelling && styles.disabledAction,
-          pressed && !cancelling && styles.pressed,
-        ]}>
-        <Text style={styles.authorityCancelButtonText}>{cancelling ? 'Cancelling...' : 'Cancel Alert'}</Text>
-      </Pressable>
-    </View>
-  );
+function handleNestedCardAction(event: GestureResponderEvent, action: () => void) {
+  event.stopPropagation();
+  action();
 }
 
 function AuthorityAlertCard({
@@ -607,19 +872,35 @@ function AuthorityAlertCard({
   onViewAlert: (alertId: number) => void;
 }) {
   const severity = authoritySeverityTheme[alert.riskLevel];
+  const flagColor = authorityFlagColor(alert.riskLevel);
+  const schoolSummary = schoolSummaryText(alert, 'English');
+  const metaText = [
+    authorityAudienceLabel(alert.alertAudience),
+    alert.riskLevel.toUpperCase(),
+    schoolSummary,
+  ].filter(Boolean).join(' • ');
+  const messagePreview = alert.message.trim();
 
   return (
-    <View style={[styles.authorityAlertCard, { borderLeftColor: severity.accent }]}>
+    <Pressable
+      accessibilityLabel={`Open alert details for ${alert.title}`}
+      accessibilityRole="button"
+      onPress={() => onViewAlert(alert.id)}
+      style={({ pressed }) => [
+        styles.authorityAlertCard,
+        { borderLeftColor: severity.accent },
+        pressed && styles.pressed,
+      ]}>
       <View style={styles.authorityAlertTopRow}>
         <View style={styles.authorityAlertTitleRow}>
           <View
             style={[
               styles.authorityAlertIcon,
-              { backgroundColor: severity.badgeBackground, borderColor: severity.badgeBorder },
+              { backgroundColor: severity.badgeBackground, borderColor: flagColor },
             ]}>
-            <AppIcon fallback="!" name="exclamationmark.triangle.fill" size={16} tintColor={severity.accent} />
+            <AppIcon fallback="F" name="flag.fill" size={18} tintColor={flagColor} />
           </View>
-          <Text numberOfLines={2} style={styles.authorityAlertTitle}>
+          <Text numberOfLines={1} style={styles.authorityAlertTitle}>
             {alert.title}
           </Text>
         </View>
@@ -628,21 +909,46 @@ function AuthorityAlertCard({
         </Text>
       </View>
 
-      <Text style={styles.areaText}>{alert.affectedArea}</Text>
+      <Text numberOfLines={1} style={styles.areaText}>{alert.affectedArea}</Text>
 
-      <View style={styles.authorityCardMetaRow}>
-        <AuthorityAudienceBadge audience={alert.alertAudience} />
-        <SeverityBadge riskLevel={alert.riskLevel} />
-        <Text style={styles.compactMetaText}>Issued: {formatDateTime(alert.createdAt)}</Text>
+      <Text numberOfLines={1} style={styles.authorityCardMetaText}>{metaText}</Text>
+
+      <Text numberOfLines={2} ellipsizeMode="tail" style={styles.authorityMessagePreview}>
+        {messagePreview}
+      </Text>
+
+      <View style={styles.authorityCardFooter}>
+        <Text numberOfLines={1} style={styles.compactMetaText}>{formatCompactDateTime(alert.createdAt)}</Text>
+        <View style={styles.authorityIconActions}>
+          <Pressable
+            accessibilityLabel="Edit alert"
+            accessibilityRole="button"
+            hitSlop={8}
+            onPress={(event) => handleNestedCardAction(event, () => onEditAlert(alert.id))}
+            style={({ pressed }) => [styles.authorityIconButton, pressed && styles.pressed]}>
+            <AppIcon fallback="E" name="pencil.fill" size={16} tintColor={colors.red} />
+          </Pressable>
+          <Pressable
+            accessibilityLabel="Cancel alert"
+            accessibilityRole="button"
+            disabled={cancelling}
+            hitSlop={8}
+            onPress={(event) => handleNestedCardAction(event, () => onCancelAlert(alert))}
+            style={({ pressed }) => [
+              styles.authorityIconButton,
+              styles.authorityCancelIconButton,
+              cancelling && styles.disabledAction,
+              pressed && !cancelling && styles.pressed,
+            ]}>
+            {cancelling ? (
+              <ActivityIndicator color={colors.red} size="small" />
+            ) : (
+              <AppIcon fallback="X" name="trash.fill" size={16} tintColor={colors.red} />
+            )}
+          </Pressable>
+        </View>
       </View>
-
-      <AuthorityActionRow
-        cancelling={cancelling}
-        onCancelAlert={() => onCancelAlert(alert)}
-        onEditAlert={() => onEditAlert(alert.id)}
-        onViewAlert={() => onViewAlert(alert.id)}
-      />
-    </View>
+    </Pressable>
   );
 }
 
@@ -660,12 +966,19 @@ function ResidentDashboard({
   selectedAlertTab,
   selectedLanguage,
 }: ResidentDashboardProps) {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [disasterTypeFilter, setDisasterTypeFilter] = useState<DisasterTypeFilterValue>(allDisasterTypesFilter);
+  const [locationFilter, setLocationFilter] = useState<LocationFilterValue>(allLocationsFilter);
   const showInitialLoading = loadingAlerts && alerts.length === 0;
   const showError = Boolean(errorMessage) && alerts.length === 0 && !showInitialLoading;
   const showRiskIndicators = !showInitialLoading && !showError;
   const residentAreaName = residentArea?.trim() || null;
   const copy = residentAlertUiText[selectedLanguage];
-  const tabAlerts = alerts.filter((alert) => {
+  const disasterTypeOptions = useMemo(() => uniqueAlertDisasterTypes(alerts), [alerts]);
+  const selectedDisasterType = disasterTypeFromFilter(disasterTypeFilter);
+  const locationOptions = useMemo(() => uniqueAlertLocations(alerts), [alerts]);
+  const selectedLocation = locationFromFilter(locationFilter);
+  const tabAlerts = useMemo(() => alerts.filter((alert) => {
     if (selectedAlertTab === 'GENERAL_PUBLIC') {
       return alert.alertAudience === 'GENERAL_PUBLIC' || alert.alertAudience === 'ALL';
     }
@@ -673,9 +986,41 @@ function ResidentDashboard({
     return alert.alertAudience === 'ALL' || (
       schoolAlertsEnabled && alert.alertAudience === 'SCHOOL_EMERGENCY'
     );
-  });
+  }), [alerts, schoolAlertsEnabled, selectedAlertTab]);
+  const filteredTabAlerts = useMemo(
+    () => tabAlerts.filter((alert) => (
+      alertMatchesDisasterTypeFilter(alert, disasterTypeFilter)
+      && alertMatchesLocationFilter(alert, locationFilter, residentArea)
+      && alertMatchesSearch(alert, searchQuery, selectedLanguage)
+    )),
+    [disasterTypeFilter, locationFilter, residentArea, searchQuery, selectedLanguage, tabAlerts],
+  );
+
+  useEffect(() => {
+    if (
+      selectedLocation
+      && !locationOptions.some((location) => normalizeAlertArea(location) === normalizeAlertArea(selectedLocation))
+    ) {
+      setLocationFilter(allLocationsFilter);
+    }
+  }, [locationOptions, selectedLocation]);
+
+  useEffect(() => {
+    if (
+      selectedDisasterType
+      && !disasterTypeOptions.some((disasterType) => (
+        searchableText(disasterType) === searchableText(selectedDisasterType)
+      ))
+    ) {
+      setDisasterTypeFilter(allDisasterTypesFilter);
+    }
+  }, [disasterTypeOptions, selectedDisasterType]);
+
   const showSchoolDisabled = selectedAlertTab === 'SCHOOL_EMERGENCY' && !schoolAlertsEnabled;
-  const prioritizedAlerts = [...tabAlerts].sort(compareAlertsBySeverity);
+  const prioritizedAlerts = useMemo(
+    () => [...filteredTabAlerts].sort(compareAlertsBySeverity),
+    [filteredTabAlerts],
+  );
   const alertGroups = prioritizedAlerts.reduce(
     (groups, alert) => {
       if (getResidentAlertDisplayTheme(alert, residentArea) === 'danger') {
@@ -693,6 +1038,10 @@ function ResidentDashboard({
   );
   const { otherAreaAlerts, residentAreaAlerts } = alertGroups;
   const showTabEmptyState = showRiskIndicators && tabAlerts.length === 0 && !showSchoolDisabled;
+  const showFilteredEmptyState = showRiskIndicators
+    && tabAlerts.length > 0
+    && filteredTabAlerts.length === 0
+    && !showSchoolDisabled;
 
   return (
     <>
@@ -710,6 +1059,18 @@ function ResidentDashboard({
             <Text style={styles.preferencesButtonText}>Preferences</Text>
           </Pressable>
         </View>
+        <ResidentAlertFilters
+          disasterTypeFilter={disasterTypeFilter}
+          disasterTypeOptions={disasterTypeOptions}
+          locationFilter={locationFilter}
+          locationOptions={locationOptions}
+          onDisasterTypeFilterChange={setDisasterTypeFilter}
+          onLocationFilterChange={setLocationFilter}
+          onSearchQueryChange={setSearchQuery}
+          residentArea={residentAreaName}
+          searchQuery={searchQuery}
+          selectedLanguage={selectedLanguage}
+        />
         <ResidentLanguageSelector selectedLanguage={selectedLanguage} onChange={onLanguageChange} />
         <ResidentAudienceTabs
           onChange={onAlertTabChange}
@@ -750,6 +1111,13 @@ function ResidentDashboard({
         />
       ) : null}
 
+      {showFilteredEmptyState ? (
+        <TabEmptyState
+          body={copy.noFilteredAlertsBody}
+          title={copy.noFilteredAlerts}
+        />
+      ) : null}
+
       {showRiskIndicators && residentAreaAlerts.length > 0 ? (
         <View style={styles.alertList}>
           {residentAreaAlerts.map((alert) => (
@@ -763,7 +1131,7 @@ function ResidentDashboard({
         </View>
       ) : null}
 
-      {showRiskIndicators && tabAlerts.length > 0 && residentAreaAlerts.length === 0 ? (
+      {showRiskIndicators && filteredTabAlerts.length > 0 && residentAreaAlerts.length === 0 ? (
         <AllClearState
           hasOtherAreaAlerts={otherAreaAlerts.length > 0}
           language={selectedLanguage}
@@ -829,8 +1197,6 @@ function AuthorityDashboard({
         </View>
       ) : null}
 
-      <AuthorityAlertSummary alerts={alerts} />
-
       <View style={styles.authoritySectionHeader}>
         <View style={styles.authoritySectionTitleBlock}>
           <Text style={styles.sectionTitle}>Active Alerts</Text>
@@ -841,7 +1207,7 @@ function AuthorityDashboard({
             accessibilityRole="button"
             onPress={onViewHistory}
             style={({ pressed }) => [styles.historyLink, pressed && styles.pressed]}>
-            <Text style={styles.historyLinkText}>View History -&gt;</Text>
+            <Text style={styles.historyLinkText}>View History</Text>
           </Pressable>
           <View style={styles.activeCountBadge}>
             <Text style={styles.activeCountBadgeText}>{alerts.length} ACTIVE</Text>
@@ -1236,6 +1602,9 @@ const styles = StyleSheet.create({
   },
   header: {
     gap: spacing.sm,
+    overflow: 'visible',
+    position: 'relative',
+    zIndex: 10,
   },
   residentHeaderTopRow: {
     alignItems: 'flex-start',
@@ -1260,7 +1629,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   compactAlertList: {
-    gap: spacing.sm,
+    gap: 6,
   },
   residentAlertCard: {
     backgroundColor: colors.white,
@@ -1416,6 +1785,133 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   languageOptionTextSelected: {
+    color: colors.white,
+  },
+  filterPanel: {
+    backgroundColor: colors.white,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    gap: spacing.sm,
+    overflow: 'visible',
+    padding: spacing.sm,
+    position: 'relative',
+    zIndex: 20,
+    ...shadows.card,
+  },
+  filterPanelOpen: {
+    zIndex: 200,
+  },
+  searchField: {
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    minHeight: 42,
+    paddingHorizontal: spacing.sm,
+  },
+  searchInput: {
+    color: colors.text,
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 18,
+    minHeight: 40,
+    minWidth: 0,
+    paddingVertical: 0,
+  },
+  filterSelectRow: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: spacing.sm,
+    overflow: 'visible',
+    position: 'relative',
+    zIndex: 210,
+  },
+  filterSelectColumn: {
+    flex: 1,
+    minWidth: 0,
+    overflow: 'visible',
+    position: 'relative',
+    zIndex: 1,
+  },
+  filterSelectColumnOpen: {
+    zIndex: 220,
+  },
+  filterSelectButton: {
+    alignItems: 'center',
+    backgroundColor: colors.white,
+    borderColor: colors.navy,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    justifyContent: 'space-between',
+    minHeight: 38,
+    paddingHorizontal: spacing.sm,
+  },
+  filterSelectButtonOpen: {
+    backgroundColor: colors.white,
+    borderColor: colors.navy,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+  },
+  filterSelectText: {
+    color: colors.navy,
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 16,
+    minWidth: 0,
+  },
+  filterSelectChevron: {
+    color: colors.navy,
+    fontSize: 12,
+    fontWeight: '900',
+    lineHeight: 16,
+  },
+  filterOptionScroller: {
+    backgroundColor: colors.white,
+    borderBottomLeftRadius: radius.sm,
+    borderBottomRightRadius: radius.sm,
+    borderColor: colors.navy,
+    borderWidth: 1,
+    borderTopWidth: 0,
+    left: 0,
+    maxHeight: 260,
+    overflow: 'hidden',
+    position: 'absolute',
+    right: 0,
+    top: 38,
+    zIndex: 230,
+  },
+  filterOptionList: {
+    paddingVertical: 2,
+  },
+  filterOptionRow: {
+    alignItems: 'center',
+    backgroundColor: colors.white,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    justifyContent: 'space-between',
+    minHeight: 36,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+  },
+  filterOptionRowSelected: {
+    backgroundColor: colors.blue,
+  },
+  filterOptionText: {
+    color: colors.navy,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 16,
+    minWidth: 0,
+  },
+  filterOptionTextSelected: {
     color: colors.white,
   },
   preferencesButton: {
@@ -1595,50 +2091,21 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     textAlign: 'center',
   },
-  authoritySummaryGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  authoritySummaryChip: {
-    backgroundColor: colors.white,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    borderTopWidth: 3,
-    borderWidth: 1,
-    flexGrow: 1,
-    minWidth: '30%',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    ...shadows.card,
-  },
-  authoritySummaryValue: {
-    color: colors.navy,
-    fontSize: 18,
-    fontWeight: '900',
-    lineHeight: 23,
-  },
-  authoritySummaryLabel: {
-    color: colors.muted,
-    fontSize: 11,
-    fontWeight: '900',
-    lineHeight: 15,
-    textTransform: 'uppercase',
-  },
   authorityAlertCard: {
     backgroundColor: colors.white,
     borderColor: colors.border,
     borderRadius: radius.md,
-    borderLeftWidth: 5,
+    borderLeftWidth: 4,
     borderWidth: 1,
-    gap: spacing.sm,
-    padding: spacing.md,
+    gap: 3,
+    paddingHorizontal: 10,
+    paddingVertical: spacing.sm,
     ...shadows.card,
   },
   authorityAlertTopRow: {
-    alignItems: 'flex-start',
+    alignItems: 'center',
     flexDirection: 'row',
-    gap: spacing.sm,
+    gap: spacing.xs,
     justifyContent: 'space-between',
   },
   authorityAlertTitleRow: {
@@ -1646,14 +2113,15 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     gap: spacing.sm,
+    minWidth: 0,
   },
   authorityAlertIcon: {
     alignItems: 'center',
     borderRadius: radius.sm,
     borderWidth: 1,
-    height: 30,
+    height: 28,
     justifyContent: 'center',
-    width: 30,
+    width: 28,
   },
   authorityStatusBadge: {
     backgroundColor: colors.successSoft,
@@ -1661,107 +2129,51 @@ const styles = StyleSheet.create({
     borderRadius: radius.sm,
     borderWidth: 1,
     color: colors.success,
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '900',
-    lineHeight: 15,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
+    lineHeight: 13,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
     textAlign: 'center',
   },
-  authorityCardMetaRow: {
+  authorityCardMetaText: {
+    color: colors.deepBlue,
+    fontSize: 10,
+    fontWeight: '900',
+    lineHeight: 14,
+    marginLeft: 36,
+  },
+  authorityMessagePreview: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 17,
+    marginTop: 1,
+  },
+  authorityCardFooter: {
     alignItems: 'center',
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
+    gap: spacing.xs,
+    justifyContent: 'space-between',
   },
-  authoritySeverityBadge: {
-    alignSelf: 'flex-start',
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-  },
-  authoritySeverityBadgeText: {
-    fontSize: 11,
-    fontWeight: '900',
-    lineHeight: 15,
-  },
-  authorityAudienceBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: colors.lightBlue,
-    borderColor: colors.sky,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-  },
-  authorityAudienceBadgeText: {
-    color: colors.deepBlue,
-    fontSize: 11,
-    fontWeight: '900',
-    lineHeight: 15,
-  },
-  authorityCardActions: {
+  authorityIconActions: {
+    alignItems: 'center',
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
+    gap: 5,
   },
-  authorityManageButton: {
+  authorityIconButton: {
     alignItems: 'center',
     backgroundColor: colors.lightBlue,
     borderColor: colors.sky,
     borderRadius: radius.md,
     borderWidth: 1,
-    flexGrow: 1,
     justifyContent: 'center',
-    minHeight: 42,
-    minWidth: '56%',
-    paddingHorizontal: spacing.md,
+    minHeight: 34,
+    width: 34,
   },
-  authorityManageButtonText: {
-    color: colors.deepBlue,
-    fontSize: 13,
-    fontWeight: '900',
-    lineHeight: 18,
-    textAlign: 'center',
-  },
-  authorityEditButton: {
-    alignItems: 'center',
-    backgroundColor: colors.white,
-    borderColor: colors.red,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    flexGrow: 1,
-    justifyContent: 'center',
-    minHeight: 42,
-    minWidth: '34%',
-    paddingHorizontal: spacing.md,
-  },
-  authorityEditButtonText: {
-    color: colors.red,
-    fontSize: 13,
-    fontWeight: '900',
-    lineHeight: 18,
-    textAlign: 'center',
-  },
-  authorityCancelButton: {
-    alignItems: 'center',
+  authorityCancelIconButton: {
     backgroundColor: colors.redSoft,
     borderColor: colors.red,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    flexGrow: 1,
-    justifyContent: 'center',
-    minHeight: 42,
-    minWidth: '100%',
-    paddingHorizontal: spacing.md,
-  },
-  authorityCancelButtonText: {
-    color: colors.red,
-    fontSize: 13,
-    fontWeight: '900',
-    lineHeight: 18,
-    textAlign: 'center',
   },
   cardHeader: {
     alignItems: 'flex-start',
@@ -1778,9 +2190,9 @@ const styles = StyleSheet.create({
   authorityAlertTitle: {
     color: colors.navy,
     flex: 1,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '900',
-    lineHeight: 21,
+    lineHeight: 18,
   },
   statusText: {
     color: colors.deepBlue,
@@ -1791,10 +2203,11 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   areaText: {
-    color: colors.deepBlue,
-    fontSize: 13,
-    fontWeight: '900',
-    lineHeight: 18,
+    color: colors.muted,
+    fontSize: 11,
+    fontWeight: '800',
+    lineHeight: 14,
+    marginLeft: 36,
   },
   residentLocationBlock: {
     gap: 1,
@@ -1818,28 +2231,26 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     justifyContent: 'space-between',
   },
-  riskMetaGroup: {
+  relevanceRiskRow: {
     alignItems: 'center',
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.xs,
   },
   areaMatchBadge: {
+    alignItems: 'center',
     borderRadius: radius.xs,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.xs,
+    minHeight: 26,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+  },
+  areaMatchBadgeText: {
     fontSize: 9,
     fontWeight: '900',
     lineHeight: 12,
-    overflow: 'hidden',
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-  },
-  yourAreaBadge: {
-    backgroundColor: colors.red,
-    color: colors.white,
-  },
-  warningAreaBadge: {
-    backgroundColor: colors.amber,
-    color: colors.white,
   },
   riskText: {
     color: colors.text,
@@ -1923,10 +2334,12 @@ const styles = StyleSheet.create({
     lineHeight: 15,
   },
   compactMetaText: {
-    color: colors.text,
-    fontSize: 12,
+    color: colors.muted,
+    flex: 1,
+    fontSize: 11,
     fontWeight: '800',
-    lineHeight: 17,
+    lineHeight: 15,
+    minWidth: 0,
   },
   inlineError: {
     backgroundColor: colors.redSoft,

@@ -261,9 +261,12 @@ export default function NearbySheltersScreen() {
           />
         </View>
 
-        {errorMessage && shelters.length > 0 ? (
-          <StatusBanner message={errorMessage} type="error" />
-        ) : null}
+        <AuthButton
+          onPress={() => router.push('/emergency' as Href)}
+          style={styles.emergencyButton}
+          title="Emergency Call"
+          variant="primary"
+        />
 
         {showInitialLoading ? (
           <View style={styles.centerState}>
@@ -358,6 +361,10 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   createButton: {
+    marginTop: 4,
+  },
+  emergencyButton: {
+    backgroundColor: BrandColors.red,
     marginTop: 4,
   },
   searchPanel: {

@@ -46,3 +46,6 @@ example
 .env
 .env.*
 !.env.example
+
+# Locally stored incident evidence
+backend/uploads/

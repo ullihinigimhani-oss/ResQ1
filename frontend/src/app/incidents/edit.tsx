@@ -1,8 +1,8 @@
 import { StatusBar } from 'expo-status-bar';
 import { CameraView, type CameraType, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
-import { Redirect, useRouter, type Href } from 'expo-router';
-import { useRef, useState } from 'react';
+import { Redirect, useRouter, useLocalSearchParams, type Href } from 'expo-router';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -27,7 +27,8 @@ import {
 import { BottomNavigation } from '@/components/ui/app-components';
 import { BrandColors } from '@/constants/brand';
 import { useAuth } from '@/context/auth-context';
-import { createIncident, isIncidentApiError, uploadIncidentPhoto } from '@/services/incidentService';
+import { API_BASE_URL } from '@/services/authService';
+import { getIncidentById, updateIncident, deleteIncidentPhoto, uploadIncidentPhoto, isIncidentApiError } from '@/services/incidentService';
 import {
   incidentSeverityOptions,
   incidentTypeOptions,
@@ -35,8 +36,13 @@ import {
   type IncidentFieldErrors,
   type IncidentSeverity,
   type IncidentType,
+  type IncidentPhoto,
   type SelectedIncidentPhoto,
 } from '@/types/incident';
+
+function photoUrl(path: string) {
+  return path.startsWith('http') ? path : `${API_BASE_URL}${path}`;
+}
 
 const MAX_INCIDENT_PHOTOS = 5;
 const MAX_PHOTO_SIZE_BYTES = 8 * 1024 * 1024;
@@ -136,9 +142,13 @@ function validateForm(form: IncidentForm) {
   };
 }
 
-export default function ReportIncidentScreen() {
+export default function EditIncidentScreen() {
   const router = useRouter();
+  const { id } = useLocalSearchParams();
+  const incidentId = Array.isArray(id) ? id[0] : id;
   const { isLoading, token, user } = useAuth();
+  const [loadingIncident, setLoadingIncident] = useState(true);
+  const [existingPhotos, setExistingPhotos] = useState<IncidentPhoto[]>([]);
   const [form, setForm] = useState<IncidentForm>(initialForm);
   const [fieldErrors, setFieldErrors] = useState<IncidentFieldErrors>({});
   const [message, setMessage] = useState<string | null>(null);
@@ -151,12 +161,42 @@ export default function ReportIncidentScreen() {
   const [capturingPhoto, setCapturingPhoto] = useState(false);
   const cameraRef = useRef<CameraView>(null);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
+  
+  useEffect(() => {
+    if (!token || !incidentId) return;
+
+    const loadIncident = async () => {
+      try {
+        const data = await getIncidentById(incidentId as string, token);
+        if (data.status !== 'Reported') {
+          router.replace('/incidents' as Href);
+          return;
+        }
+        setForm({
+          incidentType: (data.incidentType as IncidentType) || '',
+          title: data.title,
+          description: data.description,
+          location: data.location,
+          severity: (data.severity as IncidentSeverity) || '',
+          latitudeText: data.latitude !== null ? String(data.latitude) : '',
+          longitudeText: data.longitude !== null ? String(data.longitude) : '',
+        });
+        setExistingPhotos(data.photos || []);
+      } catch (error) {
+        setMessage('Unable to load the incident report.');
+      } finally {
+        setLoadingIncident(false);
+      }
+    };
+
+    void loadIncident();
+  }, [incidentId, token, router]);
 
   if (!isLoading && !user) {
     return <Redirect href={'/auth/welcome' as Href} />;
   }
 
-  if (isLoading || !user) {
+  if (isLoading || loadingIncident || !user) {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.loadingContainer}>
@@ -191,7 +231,7 @@ export default function ReportIncidentScreen() {
       return;
     }
 
-    if (photos.length >= MAX_INCIDENT_PHOTOS) {
+    if (photos.length + existingPhotos.length >= MAX_INCIDENT_PHOTOS) {
       setMessage(`You can attach up to ${MAX_INCIDENT_PHOTOS} photos.`);
       setIsCameraVisible(false);
       return;
@@ -226,7 +266,7 @@ export default function ReportIncidentScreen() {
   };
 
   const addPickedPhotos = (assets: ImagePicker.ImagePickerAsset[]) => {
-    const remainingSlots = MAX_INCIDENT_PHOTOS - photos.length;
+    const remainingSlots = MAX_INCIDENT_PHOTOS - (photos.length + existingPhotos.length);
 
     if (remainingSlots <= 0) {
       setMessage(`You can attach up to ${MAX_INCIDENT_PHOTOS} photos.`);
@@ -259,15 +299,29 @@ export default function ReportIncidentScreen() {
   };
 
   const choosePhotos = async () => {
+    const remainingSlots = Math.max(1, MAX_INCIDENT_PHOTOS - (photos.length + existingPhotos.length));
     const result = await ImagePicker.launchImageLibraryAsync({
       allowsMultipleSelection: true,
       mediaTypes: ['images'],
       quality: 0.7,
-      selectionLimit: Math.max(1, MAX_INCIDENT_PHOTOS - photos.length),
+      selectionLimit: remainingSlots,
     });
 
     if (!result.canceled) {
       addPickedPhotos(result.assets);
+    }
+  };
+
+  const removeExistingPhoto = async (photoId: number) => {
+    if (!token) return;
+    try {
+      await deleteIncidentPhoto(incidentId as unknown as number, photoId, token);
+      setExistingPhotos((current) => current.filter((photo) => photo.id !== photoId));
+    } catch (error) {
+      if (__DEV__) {
+        console.warn('Failed to remove existing photo:', error);
+      }
+      Alert.alert('Error', 'Unable to remove photo.');
     }
   };
 
@@ -296,11 +350,11 @@ export default function ReportIncidentScreen() {
     setSubmitting(true);
 
     try {
-      const incident = await createIncident(validation.payload, token);
+      await updateIncident(incidentId as unknown as number, validation.payload, token);
       let photoUploadFailed = false;
 
       try {
-        await Promise.all(photos.map((photo) => uploadIncidentPhoto(incident.id, photo, token)));
+        await Promise.all(photos.map((photo) => uploadIncidentPhoto(incidentId as unknown as number, photo, token)));
       } catch (error) {
         photoUploadFailed = true;
         if (__DEV__) {
@@ -309,23 +363,23 @@ export default function ReportIncidentScreen() {
       }
 
       router.replace({
-        pathname: '/incidents',
-        params: { submitted: '1', photoUploadFailed: photoUploadFailed ? '1' : '0' },
+        pathname: '/incidents/[id]',
+        params: { id: incidentId, submitted: '1', photoUploadFailed: photoUploadFailed ? '1' : '0' },
       } as unknown as Href);
     } catch (error) {
       if (isIncidentApiError(error)) {
         setFieldErrors(error.fieldErrors ?? {});
         setMessage(
           error.statusCode === 0
-            ? 'Unable to submit the report. Please check your connection.'
+            ? 'Unable to update the report. Please check your connection.'
             : error.message,
         );
       } else {
         if (__DEV__) {
-          console.warn('Unexpected incident submission error:', error);
+          console.warn('Unexpected incident update error:', error);
         }
 
-        setMessage('Unable to submit the report. Please check your connection.');
+        setMessage('Unable to update the report. Please check your connection.');
       }
     } finally {
       setSubmitting(false);
@@ -346,9 +400,9 @@ export default function ReportIncidentScreen() {
 
           <View style={styles.header}>
             <Text style={styles.eyebrow}>Resident Incident Report</Text>
-            <Text style={styles.title}>Report Disaster Incident</Text>
+            <Text style={styles.title}>Edit Incident Report</Text>
             <Text style={styles.subtitle}>
-              Share accurate information to help emergency teams respond quickly.
+              Update your incident details before it is reviewed.
             </Text>
           </View>
 
@@ -476,12 +530,20 @@ export default function ReportIncidentScreen() {
                 <AuthButton title="Take Photo" variant="secondary" onPress={() => void takePhoto()} style={styles.photoActionButton} />
                 <AuthButton title="Choose Photos" variant="secondary" onPress={() => void choosePhotos()} style={styles.photoActionButton} />
               </View>
-              {photos.length > 0 ? (
+              {existingPhotos.length > 0 || photos.length > 0 ? (
                 <View style={styles.photoGrid}>
+                  {existingPhotos.map((photo, index) => (
+                    <View key={photo.id} style={styles.photoPreview}>
+                      <Image accessibilityLabel={`Existing incident evidence photo ${index + 1}`} source={{ uri: photoUrl(photo.url) }} style={styles.photoImage} />
+                      <Pressable accessibilityLabel={`Remove existing photo ${index + 1}`} accessibilityRole="button" onPress={() => void removeExistingPhoto(photo.id)} style={styles.removePhotoButton}>
+                        <Text style={styles.removePhotoText}>×</Text>
+                      </Pressable>
+                    </View>
+                  ))}
                   {photos.map((photo, index) => (
                     <View key={photo.uri} style={styles.photoPreview}>
-                      <Image accessibilityLabel={`Incident evidence photo ${index + 1}`} source={{ uri: photo.uri }} style={styles.photoImage} />
-                      <Pressable accessibilityLabel={`Remove photo ${index + 1}`} accessibilityRole="button" onPress={() => removePhoto(photo.uri)} style={styles.removePhotoButton}>
+                      <Image accessibilityLabel={`New incident evidence photo ${index + 1}`} source={{ uri: photo.uri }} style={styles.photoImage} />
+                      <Pressable accessibilityLabel={`Remove new photo ${index + 1}`} accessibilityRole="button" onPress={() => removePhoto(photo.uri)} style={styles.removePhotoButton}>
                         <Text style={styles.removePhotoText}>×</Text>
                       </Pressable>
                     </View>
@@ -494,7 +556,7 @@ export default function ReportIncidentScreen() {
           <AuthButton
             disabled={submitting}
             loading={submitting}
-            title="Submit Incident Report"
+            title="Save Changes"
             onPress={handleSubmit}
           />
         </ScrollView>

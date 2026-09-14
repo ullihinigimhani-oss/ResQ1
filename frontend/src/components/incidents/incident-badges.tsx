@@ -53,6 +53,16 @@ const statusStyles: Record<IncidentStatus, { backgroundColor: string; borderColo
     borderColor: BrandColors.success,
     color: BrandColors.success,
   },
+  Verified: {
+    backgroundColor: BrandColors.successSoft,
+    borderColor: BrandColors.success,
+    color: BrandColors.success,
+  },
+  Rejected: {
+    backgroundColor: BrandColors.redSoft,
+    borderColor: BrandColors.red,
+    color: BrandColors.red,
+  },
 };
 
 const statusDescriptions: Record<IncidentStatus, string> = {
@@ -60,6 +70,8 @@ const statusDescriptions: Record<IncidentStatus, string> = {
   'Under Review': 'Authorities are reviewing the submitted information.',
   'In Progress': 'Emergency response action is underway.',
   Resolved: 'The incident has been marked as resolved.',
+  Verified: 'This incident has been verified by an authority.',
+  Rejected: 'This incident report has been rejected.',
 };
 
 export function SeverityBadge({ severity }: { severity: IncidentSeverity }) {
