@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import { Redirect, useFocusEffect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -9,6 +9,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   type GestureResponderEvent,
   View,
 } from 'react-native';
@@ -24,6 +25,7 @@ import type { PreferredLanguage } from '@/types/auth';
 import {
   alertDisplayThemeStyles,
   getResidentAlertDisplayTheme,
+  normalizeAlertArea,
   type AlertDisplayTheme,
 } from '@/utils/alert-display';
 import { formatDateTime, isAuthorityRole } from '@/utils/format';
@@ -39,6 +41,13 @@ import {
 } from '@/utils/language';
 
 type ResidentAlertTab = Extract<AlertAudience, 'GENERAL_PUBLIC' | 'SCHOOL_EMERGENCY'>;
+const allLocationsFilter = 'ALL_LOCATIONS';
+const myAreaFilter = 'MY_AREA';
+
+type LocationFilterValue =
+  | typeof allLocationsFilter
+  | typeof myAreaFilter
+  | `LOCATION:${string}`;
 
 type DashboardStateProps = {
   alerts: Alert[];
@@ -98,6 +107,77 @@ function formatCompactDateTime(value: string) {
     minute: '2-digit',
     month: 'short',
   });
+}
+
+function locationFilterFor(location: string): LocationFilterValue {
+  return `LOCATION:${location.trim()}`;
+}
+
+function locationFromFilter(filter: LocationFilterValue) {
+  return filter.startsWith('LOCATION:') ? filter.replace(/^LOCATION:/, '') : null;
+}
+
+function searchableText(value: string | number | null | undefined) {
+  return String(value ?? '').trim().toLowerCase();
+}
+
+function uniqueAlertLocations(alerts: Alert[]) {
+  const locationByKey = new Map<string, string>();
+
+  alerts.forEach((alert) => {
+    const location = alert.affectedArea.trim();
+    const key = normalizeAlertArea(location);
+
+    if (location && key && !locationByKey.has(key)) {
+      locationByKey.set(key, location);
+    }
+  });
+
+  return [...locationByKey.values()].sort((left, right) => left.localeCompare(right));
+}
+
+function alertMatchesSearch(
+  alert: Alert,
+  searchQuery: string,
+  language: PreferredLanguage,
+) {
+  const query = searchableText(searchQuery);
+
+  if (!query) {
+    return true;
+  }
+
+  const searchableAlertText = [
+    alert.title,
+    translateAlertTitle(alert, language),
+    alert.disasterType,
+    alert.affectedArea,
+    ...alert.schools.map((school) => school.schoolName),
+  ].map(searchableText).join(' ');
+
+  return searchableAlertText.includes(query);
+}
+
+function alertMatchesLocationFilter(
+  alert: Alert,
+  locationFilter: LocationFilterValue,
+  residentArea: string | null,
+) {
+  if (locationFilter === allLocationsFilter) {
+    return true;
+  }
+
+  if (locationFilter === myAreaFilter) {
+    return getResidentAlertDisplayTheme(alert, residentArea) === 'danger';
+  }
+
+  const selectedLocation = locationFromFilter(locationFilter);
+
+  if (!selectedLocation) {
+    return true;
+  }
+
+  return normalizeAlertArea(alert.affectedArea) === normalizeAlertArea(selectedLocation);
 }
 
 const authoritySeverityTheme: Record<AlertRiskLevel, {
@@ -191,6 +271,141 @@ function ResidentLanguageSelector({
           );
         })}
       </View>
+    </View>
+  );
+}
+
+function ResidentAlertFilters({
+  locationFilter,
+  locationOptions,
+  onLocationFilterChange,
+  onSearchQueryChange,
+  residentArea,
+  searchQuery,
+  selectedLanguage,
+}: {
+  locationFilter: LocationFilterValue;
+  locationOptions: string[];
+  onLocationFilterChange: (filter: LocationFilterValue) => void;
+  onSearchQueryChange: (query: string) => void;
+  residentArea: string | null;
+  searchQuery: string;
+  selectedLanguage: PreferredLanguage;
+}) {
+  const [locationMenuOpen, setLocationMenuOpen] = useState(false);
+  const copy = residentAlertUiText[selectedLanguage];
+  const selectedLocation = locationFromFilter(locationFilter);
+  const selectedLocationLabel = locationFilter === myAreaFilter
+    ? copy.myArea
+    : selectedLocation ?? copy.allLocations;
+  const filterOptions = [
+    {
+      helper: undefined,
+      label: copy.allLocations,
+      value: allLocationsFilter,
+    },
+    {
+      helper: residentArea?.trim() || undefined,
+      label: copy.myArea,
+      value: myAreaFilter,
+    },
+    ...locationOptions.map((location) => ({
+      helper: undefined,
+      label: location,
+      value: locationFilterFor(location),
+    })),
+  ] satisfies {
+    helper?: string;
+    label: string;
+    value: LocationFilterValue;
+  }[];
+
+  const selectLocationFilter = (value: LocationFilterValue) => {
+    onLocationFilterChange(value);
+    setLocationMenuOpen(false);
+  };
+
+  return (
+    <View style={styles.filterPanel}>
+      <View style={styles.searchField}>
+        <AppIcon fallback="S" name="magnifyingglass" size={18} tintColor={colors.muted} />
+        <TextInput
+          autoCapitalize="none"
+          autoCorrect={false}
+          onChangeText={onSearchQueryChange}
+          placeholder={copy.searchPlaceholder}
+          placeholderTextColor="#8B98A9"
+          selectionColor={colors.blue}
+          style={styles.searchInput}
+          value={searchQuery}
+        />
+      </View>
+
+      <View style={styles.locationFilterGroup}>
+        <Text style={styles.filterLabel}>{copy.location}</Text>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => setLocationMenuOpen(true)}
+          style={({ pressed }) => [styles.locationSelectButton, pressed && styles.pressed]}>
+          <Text numberOfLines={1} style={styles.locationSelectText}>{selectedLocationLabel}</Text>
+          <Text style={styles.locationSelectChevron}>v</Text>
+        </Pressable>
+      </View>
+
+      <Modal
+        animationType="fade"
+        onRequestClose={() => setLocationMenuOpen(false)}
+        transparent
+        visible={locationMenuOpen}>
+        <View style={styles.locationModalBackdrop}>
+          <View style={styles.locationModalCard}>
+            <Text style={styles.locationModalTitle}>{copy.location}</Text>
+            <ScrollView
+              contentContainerStyle={styles.locationOptionList}
+              showsVerticalScrollIndicator={false}
+              style={styles.locationOptionScroller}>
+              {filterOptions.map((option) => {
+                const selected = option.value === locationFilter;
+
+                return (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityState={{ selected }}
+                    key={option.value}
+                    onPress={() => selectLocationFilter(option.value)}
+                    style={({ pressed }) => [
+                      styles.locationOptionRow,
+                      selected && styles.locationOptionRowSelected,
+                      pressed && styles.pressed,
+                    ]}>
+                    <View style={styles.locationOptionTextBlock}>
+                      <Text
+                        numberOfLines={1}
+                        style={[
+                          styles.locationOptionText,
+                          selected && styles.locationOptionTextSelected,
+                        ]}>
+                        {option.label}
+                      </Text>
+                      {option.helper ? (
+                        <Text
+                          numberOfLines={1}
+                          style={[
+                            styles.locationOptionHelper,
+                            selected && styles.locationOptionHelperSelected,
+                          ]}>
+                          {option.helper}
+                        </Text>
+                      ) : null}
+                    </View>
+                    {selected ? <Text style={styles.locationOptionCheck}>✓</Text> : null}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -656,12 +871,16 @@ function ResidentDashboard({
   selectedAlertTab,
   selectedLanguage,
 }: ResidentDashboardProps) {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [locationFilter, setLocationFilter] = useState<LocationFilterValue>(allLocationsFilter);
   const showInitialLoading = loadingAlerts && alerts.length === 0;
   const showError = Boolean(errorMessage) && alerts.length === 0 && !showInitialLoading;
   const showRiskIndicators = !showInitialLoading && !showError;
   const residentAreaName = residentArea?.trim() || null;
   const copy = residentAlertUiText[selectedLanguage];
-  const tabAlerts = alerts.filter((alert) => {
+  const locationOptions = useMemo(() => uniqueAlertLocations(alerts), [alerts]);
+  const selectedLocation = locationFromFilter(locationFilter);
+  const tabAlerts = useMemo(() => alerts.filter((alert) => {
     if (selectedAlertTab === 'GENERAL_PUBLIC') {
       return alert.alertAudience === 'GENERAL_PUBLIC' || alert.alertAudience === 'ALL';
     }
@@ -669,9 +888,29 @@ function ResidentDashboard({
     return alert.alertAudience === 'ALL' || (
       schoolAlertsEnabled && alert.alertAudience === 'SCHOOL_EMERGENCY'
     );
-  });
+  }), [alerts, schoolAlertsEnabled, selectedAlertTab]);
+  const filteredTabAlerts = useMemo(
+    () => tabAlerts.filter((alert) => (
+      alertMatchesLocationFilter(alert, locationFilter, residentArea)
+      && alertMatchesSearch(alert, searchQuery, selectedLanguage)
+    )),
+    [locationFilter, residentArea, searchQuery, selectedLanguage, tabAlerts],
+  );
+
+  useEffect(() => {
+    if (
+      selectedLocation
+      && !locationOptions.some((location) => normalizeAlertArea(location) === normalizeAlertArea(selectedLocation))
+    ) {
+      setLocationFilter(allLocationsFilter);
+    }
+  }, [locationOptions, selectedLocation]);
+
   const showSchoolDisabled = selectedAlertTab === 'SCHOOL_EMERGENCY' && !schoolAlertsEnabled;
-  const prioritizedAlerts = [...tabAlerts].sort(compareAlertsBySeverity);
+  const prioritizedAlerts = useMemo(
+    () => [...filteredTabAlerts].sort(compareAlertsBySeverity),
+    [filteredTabAlerts],
+  );
   const alertGroups = prioritizedAlerts.reduce(
     (groups, alert) => {
       if (getResidentAlertDisplayTheme(alert, residentArea) === 'danger') {
@@ -689,6 +928,10 @@ function ResidentDashboard({
   );
   const { otherAreaAlerts, residentAreaAlerts } = alertGroups;
   const showTabEmptyState = showRiskIndicators && tabAlerts.length === 0 && !showSchoolDisabled;
+  const showFilteredEmptyState = showRiskIndicators
+    && tabAlerts.length > 0
+    && filteredTabAlerts.length === 0
+    && !showSchoolDisabled;
 
   return (
     <>
@@ -706,6 +949,15 @@ function ResidentDashboard({
             <Text style={styles.preferencesButtonText}>Preferences</Text>
           </Pressable>
         </View>
+        <ResidentAlertFilters
+          locationFilter={locationFilter}
+          locationOptions={locationOptions}
+          onLocationFilterChange={setLocationFilter}
+          onSearchQueryChange={setSearchQuery}
+          residentArea={residentAreaName}
+          searchQuery={searchQuery}
+          selectedLanguage={selectedLanguage}
+        />
         <ResidentLanguageSelector selectedLanguage={selectedLanguage} onChange={onLanguageChange} />
         <ResidentAudienceTabs
           onChange={onAlertTabChange}
@@ -746,6 +998,13 @@ function ResidentDashboard({
         />
       ) : null}
 
+      {showFilteredEmptyState ? (
+        <TabEmptyState
+          body={copy.noFilteredAlertsBody}
+          title={copy.noFilteredAlerts}
+        />
+      ) : null}
+
       {showRiskIndicators && residentAreaAlerts.length > 0 ? (
         <View style={styles.alertList}>
           {residentAreaAlerts.map((alert) => (
@@ -759,7 +1018,7 @@ function ResidentDashboard({
         </View>
       ) : null}
 
-      {showRiskIndicators && tabAlerts.length > 0 && residentAreaAlerts.length === 0 ? (
+      {showRiskIndicators && filteredTabAlerts.length > 0 && residentAreaAlerts.length === 0 ? (
         <AllClearState
           hasOtherAreaAlerts={otherAreaAlerts.length > 0}
           language={selectedLanguage}
@@ -1411,6 +1670,148 @@ const styles = StyleSheet.create({
   },
   languageOptionTextSelected: {
     color: colors.white,
+  },
+  filterPanel: {
+    backgroundColor: colors.white,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    gap: spacing.sm,
+    padding: spacing.sm,
+    ...shadows.card,
+  },
+  searchField: {
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    minHeight: 42,
+    paddingHorizontal: spacing.sm,
+  },
+  searchInput: {
+    color: colors.text,
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 18,
+    minHeight: 40,
+    minWidth: 0,
+    paddingVertical: 0,
+  },
+  locationFilterGroup: {
+    gap: spacing.xs,
+  },
+  filterLabel: {
+    color: colors.muted,
+    fontSize: 11,
+    fontWeight: '900',
+    lineHeight: 15,
+    textTransform: 'uppercase',
+  },
+  locationSelectButton: {
+    alignItems: 'center',
+    backgroundColor: colors.lightBlue,
+    borderColor: colors.sky,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    justifyContent: 'space-between',
+    minHeight: 38,
+    paddingHorizontal: spacing.md,
+  },
+  locationSelectText: {
+    color: colors.deepBlue,
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '900',
+    lineHeight: 18,
+    minWidth: 0,
+  },
+  locationSelectChevron: {
+    color: colors.deepBlue,
+    fontSize: 12,
+    fontWeight: '900',
+    lineHeight: 16,
+  },
+  locationModalBackdrop: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(7, 26, 53, 0.5)',
+    flex: 1,
+    justifyContent: 'center',
+    padding: spacing.xl,
+  },
+  locationModalCard: {
+    backgroundColor: colors.white,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    gap: spacing.md,
+    maxWidth: 420,
+    padding: spacing.lg,
+    width: '100%',
+    ...shadows.card,
+  },
+  locationModalTitle: {
+    color: colors.navy,
+    fontSize: 18,
+    fontWeight: '900',
+    lineHeight: 24,
+  },
+  locationOptionScroller: {
+    maxHeight: 360,
+  },
+  locationOptionList: {
+    gap: spacing.sm,
+  },
+  locationOptionRow: {
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    justifyContent: 'space-between',
+    minHeight: 44,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  locationOptionRowSelected: {
+    backgroundColor: colors.navy,
+    borderColor: colors.navy,
+  },
+  locationOptionTextBlock: {
+    flex: 1,
+    gap: 2,
+    minWidth: 0,
+  },
+  locationOptionText: {
+    color: colors.navy,
+    fontSize: 14,
+    fontWeight: '900',
+    lineHeight: 19,
+  },
+  locationOptionTextSelected: {
+    color: colors.white,
+  },
+  locationOptionHelper: {
+    color: colors.muted,
+    fontSize: 11,
+    fontWeight: '700',
+    lineHeight: 15,
+  },
+  locationOptionHelperSelected: {
+    color: colors.sky,
+  },
+  locationOptionCheck: {
+    color: colors.white,
+    fontSize: 13,
+    fontWeight: '900',
+    lineHeight: 18,
   },
   preferencesButton: {
     alignItems: 'center',

@@ -26,14 +26,19 @@ export function toPreferredLanguage(
 
 type ResidentAlertUiKey =
   | 'allClear'
+  | 'allLocations'
   | 'checkConnection'
   | 'emergencyAlerts'
   | 'generalPublic'
   | 'issued'
   | 'language'
+  | 'location'
   | 'loadingAlerts'
+  | 'myArea'
   | 'noActiveAlerts'
   | 'noActiveEmergencyAlerts'
+  | 'noFilteredAlerts'
+  | 'noFilteredAlertsBody'
   | 'noGeneralPublicAlerts'
   | 'noGeneralPublicAlertsBody'
   | 'noResidentAreaAlert'
@@ -48,6 +53,7 @@ type ResidentAlertUiKey =
   | 'schoolEmergency'
   | 'schoolEmergencyContext'
   | 'schoolsTargeted'
+  | 'searchPlaceholder'
   | 'subtitle'
   | 'unableLoadAlerts'
   | 'viewAlert'
@@ -230,14 +236,19 @@ type CommunityNotificationUiKey =
 export const residentAlertUiText: Record<PreferredLanguage, Record<ResidentAlertUiKey, string>> = {
   English: {
     allClear: 'All Clear',
+    allLocations: 'All Locations',
     checkConnection: 'Check your connection and try again.',
     emergencyAlerts: 'Emergency Alerts',
     generalPublic: 'General Public',
     issued: 'Issued',
     language: 'Language',
+    location: 'Location',
     loadingAlerts: 'Checking verified alerts...',
+    myArea: 'My Area',
     noActiveAlerts: 'No Active Alerts',
     noActiveEmergencyAlerts: 'There are currently no active emergency alerts.',
+    noFilteredAlerts: 'No alerts found for the selected filters.',
+    noFilteredAlertsBody: 'Try another search or choose All Locations.',
     noGeneralPublicAlerts: 'No General Public Alerts',
     noGeneralPublicAlertsBody: 'There are currently no active general public alerts.',
     noResidentAreaAlert: 'No active emergency alert is currently affecting your registered area.',
@@ -252,6 +263,7 @@ export const residentAlertUiText: Record<PreferredLanguage, Record<ResidentAlert
     schoolEmergency: 'School Emergency',
     schoolEmergencyContext: 'SCHOOL EMERGENCY',
     schoolsTargeted: 'Schools Targeted',
+    searchPlaceholder: 'Search by alert type or area...',
     subtitle: 'Verified emergency warnings for your area',
     unableLoadAlerts: 'Unable to load emergency alerts.',
     viewAlert: 'View Alert',
@@ -261,14 +273,19 @@ export const residentAlertUiText: Record<PreferredLanguage, Record<ResidentAlert
   },
   Sinhala: {
     allClear: 'සියල්ල ආරක්ෂිතයි',
+    allLocations: 'සියලු ප්‍රදේශ',
     checkConnection: 'ඔබගේ සම්බන්ධතාව පරීක්ෂා කර නැවත උත්සාහ කරන්න.',
     emergencyAlerts: 'හදිසි අනතුරු ඇඟවීම්',
     generalPublic: 'සාමාන්‍ය ජනතාව',
     issued: 'නිකුත් කළේ',
     language: 'භාෂාව',
+    location: 'ස්ථානය',
     loadingAlerts: 'තහවුරු කළ අනතුරු ඇඟවීම් පරීක්ෂා කරමින්...',
+    myArea: 'මගේ ප්‍රදේශය',
     noActiveAlerts: 'සක්‍රීය අනතුරු ඇඟවීම් නැත',
     noActiveEmergencyAlerts: 'දැනට සක්‍රීය හදිසි අනතුරු ඇඟවීම් නොමැත.',
+    noFilteredAlerts: 'තෝරාගත් පෙරහන් සඳහා අනතුරු ඇඟවීම් හමු නොවීය.',
+    noFilteredAlertsBody: 'වෙනත් සෙවීමක් උත්සාහ කරන්න හෝ සියලු ප්‍රදේශ තෝරන්න.',
     noGeneralPublicAlerts: 'සාමාන්‍ය ජනතාව සඳහා අනතුරු ඇඟවීම් නැත',
     noGeneralPublicAlertsBody: 'දැනට සාමාන්‍ය ජනතාව සඳහා සක්‍රීය අනතුරු ඇඟවීම් නොමැත.',
     noResidentAreaAlert: 'ඔබගේ ලියාපදිංචි ප්‍රදේශයට දැනට සක්‍රීය හදිසි අනතුරු ඇඟවීමක් බලපාන්නේ නැත.',
@@ -283,6 +300,7 @@ export const residentAlertUiText: Record<PreferredLanguage, Record<ResidentAlert
     schoolEmergency: 'පාසල් හදිසි',
     schoolEmergencyContext: 'පාසල් හදිසි',
     schoolsTargeted: 'ඉලක්ක කළ පාසල්',
+    searchPlaceholder: 'අනතුරු ඇඟවීමේ වර්ගය හෝ ප්‍රදේශය සොයන්න...',
     subtitle: 'ඔබගේ ප්‍රදේශය සඳහා තහවුරු කළ හදිසි අනතුරු ඇඟවීම්',
     unableLoadAlerts: 'හදිසි අනතුරු ඇඟවීම් පූරණය කළ නොහැක.',
     viewAlert: 'අනතුරු ඇඟවීම බලන්න',
@@ -292,14 +310,19 @@ export const residentAlertUiText: Record<PreferredLanguage, Record<ResidentAlert
   },
   Tamil: {
     allClear: 'அனைத்தும் தெளிவு',
+    allLocations: 'அனைத்து இடங்கள்',
     checkConnection: 'உங்கள் இணைப்பைச் சரிபார்த்து மீண்டும் முயற்சிக்கவும்.',
     emergencyAlerts: 'அவசர எச்சரிக்கைகள்',
     generalPublic: 'பொது மக்கள்',
     issued: 'வெளியிடப்பட்டது',
     language: 'மொழி',
+    location: 'இடம்',
     loadingAlerts: 'உறுதிப்படுத்தப்பட்ட எச்சரிக்கைகள் சரிபார்க்கப்படுகின்றன...',
+    myArea: 'என் பகுதி',
     noActiveAlerts: 'செயலில் உள்ள எச்சரிக்கைகள் இல்லை',
     noActiveEmergencyAlerts: 'தற்போது செயலில் உள்ள அவசர எச்சரிக்கைகள் இல்லை.',
+    noFilteredAlerts: 'தேர்ந்தெடுக்கப்பட்ட வடிப்பான்களுக்கு எச்சரிக்கைகள் கிடைக்கவில்லை.',
+    noFilteredAlertsBody: 'வேறு தேடலை முயற்சிக்கவும் அல்லது அனைத்து இடங்களையும் தேர்ந்தெடுக்கவும்.',
     noGeneralPublicAlerts: 'பொது மக்கள் எச்சரிக்கைகள் இல்லை',
     noGeneralPublicAlertsBody: 'தற்போது செயலில் உள்ள பொது மக்கள் எச்சரிக்கைகள் இல்லை.',
     noResidentAreaAlert: 'உங்கள் பதிவு செய்யப்பட்ட பகுதியை தற்போது எந்த செயலில் உள்ள அவசர எச்சரிக்கையும் பாதிக்கவில்லை.',
@@ -314,6 +337,7 @@ export const residentAlertUiText: Record<PreferredLanguage, Record<ResidentAlert
     schoolEmergency: 'பள்ளி அவசரம்',
     schoolEmergencyContext: 'பள்ளி அவசரம்',
     schoolsTargeted: 'இலக்கு பள்ளிகள்',
+    searchPlaceholder: 'எச்சரிக்கை வகை அல்லது பகுதியால் தேடவும்...',
     subtitle: 'உங்கள் பகுதிக்கான உறுதிப்படுத்தப்பட்ட அவசர எச்சரிக்கைகள்',
     unableLoadAlerts: 'அவசர எச்சரிக்கைகளை ஏற்ற முடியவில்லை.',
     viewAlert: 'எச்சரிக்கையை பார்க்க',
