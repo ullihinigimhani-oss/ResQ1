@@ -172,23 +172,6 @@ export default function DashboardScreen() {
   const initialLoading = loadingSummary && !hasLoadedSummary;
   const refreshing = loadingSummary && hasLoadedSummary;
   const showSummaryWarning = Boolean(summaryWarning) && !refreshing;
-  const handleRiskAction = useCallback(() => {
-    if (initialLoading || initialSummaryError) {
-      return;
-    }
-
-    router.push(currentAlert ? {
-      pathname: '/alerts/risk-level',
-      params: {
-        affectedArea: currentAlert.affectedArea,
-        alertId: String(currentAlert.id),
-        createdAt: currentAlert.createdAt,
-        riskLevel: currentAlert.riskLevel,
-        title: currentAlert.title,
-      },
-    } as unknown as Href : '/alerts' as Href);
-  }, [currentAlert, initialLoading, initialSummaryError, router]);
-
   if (!isLoading && !user) {
     return <Redirect href={'/auth/welcome' as Href} />;
   }
@@ -258,8 +241,8 @@ export default function DashboardScreen() {
               <StatusBadge label={userArea(user)} tone="blue" />
             </View>
             <PrimaryButton
-              title={currentAlert ? 'View Risk Details' : 'Open Alert Center'}
-              onPress={handleRiskAction}
+              title="Open Alert Center"
+              onPress={() => router.push('/alerts' as Href)}
               tone={currentAlert && riskTone(currentAlert.riskLevel) === 'red' ? 'red' : 'navy'}
             />
           </>
