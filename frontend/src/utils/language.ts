@@ -115,28 +115,77 @@ type FloodRiskTrendUiKey =
   | 'yAxisRiskLevel';
 
 export type RiskAssessmentUiKey =
+  | 'actionAvoidAffectedArea'
+  | 'actionAvoidCoastalAreas'
+  | 'actionAvoidFloodedRoads'
+  | 'actionAvoidHillsideAreas'
+  | 'actionAvoidSmoke'
+  | 'actionAvoidTreesPowerLines'
+  | 'actionCheckDamageBeforeEntering'
+  | 'actionConserveWater'
+  | 'actionDropCoverHold'
+  | 'actionFollowCoastalUpdates'
+  | 'actionKeepEmergencyAccessClear'
+  | 'actionLimitHeatExposure'
+  | 'actionMonitorEvacuationInstructions'
+  | 'actionMoveAwayFromSlopes'
+  | 'actionMoveHigherGround'
+  | 'actionMoveInlandHigherGround'
+  | 'actionPrepareEmergencyKit'
+  | 'actionRemainIndoors'
+  | 'actionSecureLooseObjects'
   | 'alertArea'
+  | 'aftershockPotential'
+  | 'areaExposure'
   | 'basedOnSelectedAlert'
   | 'checkConnection'
+  | 'coastalRisk'
   | 'coreEnvironmentalFactors'
   | 'currentAssessment'
   | 'currentRiskLevel'
+  | 'derivedFromAlertData'
+  | 'drynessIndex'
+  | 'elevatedConcern'
+  | 'emergencyType'
   | 'environmentalSummary'
   | 'estimated'
+  | 'evacuationAccess'
   | 'factorConcernCritical'
   | 'factorConcernHigh'
   | 'factorConcernLow'
   | 'factorConcernModerate'
+  | 'fireSpreadPotential'
   | 'followAuthorityInstructions'
+  | 'groundShaking'
+  | 'hazardIntensity'
+  | 'heatStress'
   | 'loadingAssessment'
+  | 'monitorClosely'
+  | 'normalStable'
   | 'notAvailable'
   | 'rainfallIndex'
+  | 'rainfallIntensity'
+  | 'rainfallWeatherSeverity'
   | 'recommendedActions'
+  | 'responseReadiness'
   | 'riskAssessment'
   | 'riverWaterLevels'
+  | 'risingLevels'
+  | 'seaLevel'
+  | 'severeConcern'
+  | 'slopeGroundStability'
+  | 'smokeExposure'
   | 'soilSaturation'
   | 'stayInformed'
-  | 'unableLoadAssessment';
+  | 'structuralImpact'
+  | 'saturatedGround'
+  | 'unableLoadAssessment'
+  | 'unsafeLevels'
+  | 'unstableGround'
+  | 'waterAvailability'
+  | 'waveActivity'
+  | 'windGustLevel'
+  | 'windSpeed';
 
 type CommunityNotificationUiKey =
   | 'active'
@@ -582,76 +631,223 @@ export const alertDetailUiText: Record<PreferredLanguage, Record<AlertDetailUiKe
 
 export const riskAssessmentUiText: Record<PreferredLanguage, Record<RiskAssessmentUiKey, string>> = {
   English: {
+    actionAvoidAffectedArea: 'Avoid the affected area until authorities confirm it is safe.',
+    actionAvoidCoastalAreas: 'Avoid beaches, lagoons, and exposed coastal roads.',
+    actionAvoidFloodedRoads: 'Avoid walking or driving through flooded roads.',
+    actionAvoidHillsideAreas: 'Avoid hill-side roads and areas below unstable slopes.',
+    actionAvoidSmoke: 'Avoid smoke exposure and keep vulnerable residents indoors.',
+    actionAvoidTreesPowerLines: 'Stay away from trees, power lines, and damaged structures.',
+    actionCheckDamageBeforeEntering: 'Check for structural damage before entering buildings.',
+    actionConserveWater: 'Use available water carefully and follow local supply updates.',
+    actionDropCoverHold: 'Drop, cover, and hold during shaking.',
+    actionFollowCoastalUpdates: 'Follow official coastal and evacuation updates.',
+    actionKeepEmergencyAccessClear: 'Keep routes clear for emergency response teams.',
+    actionLimitHeatExposure: 'Limit outdoor activity during high heat periods.',
+    actionMonitorEvacuationInstructions: 'Monitor official evacuation instructions.',
+    actionMoveAwayFromSlopes: 'Move away from unstable slopes and retaining walls.',
+    actionMoveHigherGround: 'Move to higher ground if water levels rise.',
+    actionMoveInlandHigherGround: 'Move inland or to higher ground immediately if instructed.',
+    actionPrepareEmergencyKit: 'Keep emergency supplies and communication devices ready.',
+    actionRemainIndoors: 'Remain indoors while severe winds are active.',
+    actionSecureLooseObjects: 'Secure loose outdoor items where it is safe to do so.',
     alertArea: 'Alert area',
+    aftershockPotential: 'Aftershock Potential',
+    areaExposure: 'Area Exposure',
     basedOnSelectedAlert: 'Based on the selected emergency alert.',
     checkConnection: 'Check your connection and try again.',
+    coastalRisk: 'Coastal Risk',
     coreEnvironmentalFactors: 'Core Environmental Factors',
     currentAssessment: 'Current Assessment',
     currentRiskLevel: 'Current risk level',
+    derivedFromAlertData: 'Derived from selected alert type and current risk level.',
+    drynessIndex: 'Dryness Index',
+    elevatedConcern: 'Elevated concern',
+    emergencyType: 'Emergency Type',
     environmentalSummary: 'Environmental signals are summarized from the alert risk level and official warning details currently available.',
     estimated: 'Estimated',
+    evacuationAccess: 'Evacuation Access',
     factorConcernCritical: 'Severe concern',
     factorConcernHigh: 'High concern',
     factorConcernLow: 'Low concern',
     factorConcernModerate: 'Moderate concern',
+    fireSpreadPotential: 'Fire Spread Potential',
     followAuthorityInstructions: 'Follow official safety instructions from emergency authorities.',
+    groundShaking: 'Ground Shaking',
+    hazardIntensity: 'Hazard Intensity',
+    heatStress: 'Heat Stress',
     loadingAssessment: 'Loading risk assessment...',
+    monitorClosely: 'Monitor closely',
+    normalStable: 'Normal / stable',
     notAvailable: 'Not available',
     rainfallIndex: 'Rainfall Index',
+    rainfallIntensity: 'Rainfall Intensity',
+    rainfallWeatherSeverity: 'Rainfall / Weather Severity',
     recommendedActions: 'Recommended Actions',
+    responseReadiness: 'Response Readiness',
     riskAssessment: 'Risk Assessment',
     riverWaterLevels: 'River Water Levels',
+    risingLevels: 'Rising levels',
+    seaLevel: 'Sea Level',
+    severeConcern: 'Severe concern',
+    slopeGroundStability: 'Slope / Ground Stability',
+    smokeExposure: 'Smoke Exposure',
     soilSaturation: 'Soil Saturation',
     stayInformed: 'Keep monitoring official ResQ1 alerts for updates.',
+    structuralImpact: 'Structural Impact',
+    saturatedGround: 'Saturated ground',
     unableLoadAssessment: 'Unable to load risk assessment.',
+    unsafeLevels: 'Unsafe levels',
+    unstableGround: 'Unstable ground',
+    waterAvailability: 'Water Availability',
+    waveActivity: 'Wave Activity',
+    windGustLevel: 'Wind Gust Level',
+    windSpeed: 'Wind Speed',
   },
   Sinhala: {
+    actionAvoidAffectedArea: 'බලධාරීන් ආරක්ෂිත බව තහවුරු කරන තුරු බලපෑ ප්‍රදේශය මඟ හරින්න.',
+    actionAvoidCoastalAreas: 'වෙරළ, කලපු සහ විවෘත වෙරළ මාර්ග මඟ හරින්න.',
+    actionAvoidFloodedRoads: 'ගංවතුරෙන් වැසුණු මාර්ගවල ඇවිදීම හෝ රිය පැදවීමෙන් වළකින්න.',
+    actionAvoidHillsideAreas: 'කඳුකර මාර්ග සහ අස්ථාවර බෑවුම් පහළ ප්‍රදේශ මඟ හරින්න.',
+    actionAvoidSmoke: 'දුමට නිරාවරණය වීමෙන් වළකින්න සහ අවදානම් සහිත පදිංචිකරුවන් ඇතුළත තබන්න.',
+    actionAvoidTreesPowerLines: 'ගස්, විදුලි රැහැන් සහ හානි වූ ව්‍යුහවලින් ඈත් වන්න.',
+    actionCheckDamageBeforeEntering: 'ගොඩනැගිලිවලට ඇතුළු වීමට පෙර ව්‍යුහාත්මක හානි පරීක්ෂා කරන්න.',
+    actionConserveWater: 'ලබා ගත හැකි ජලය සැලකිලිමත්ව භාවිතා කර ප්‍රාදේශීය සැපයුම් යාවත්කාලීන අනුගමනය කරන්න.',
+    actionDropCoverHold: 'කම්පනය වන විට පහත් වන්න, ආවරණය ගන්න, සහ අල්ලා සිටින්න.',
+    actionFollowCoastalUpdates: 'නිල වෙරළ සහ ඉවත් කිරීමේ යාවත්කාලීන අනුගමනය කරන්න.',
+    actionKeepEmergencyAccessClear: 'හදිසි ප්‍රතිචාර කණ්ඩායම් සඳහා මාර්ග විවෘතව තබන්න.',
+    actionLimitHeatExposure: 'අධික උෂ්ණ කාලවලදී එළිමහන් ක්‍රියාකාරකම් සීමා කරන්න.',
+    actionMonitorEvacuationInstructions: 'නිල ඉවත් කිරීමේ උපදෙස් නිරීක්ෂණය කරන්න.',
+    actionMoveAwayFromSlopes: 'අස්ථාවර බෑවුම් සහ ආධාරක බිත්තිවලින් ඈත් වන්න.',
+    actionMoveHigherGround: 'ජල මට්ටම් ඉහළ යන්නේ නම් උස් භූමියකට ගමන් කරන්න.',
+    actionMoveInlandHigherGround: 'උපදෙස් ලැබුවහොත් වහාම අභ්‍යන්තරයට හෝ උස් භූමියකට යන්න.',
+    actionPrepareEmergencyKit: 'හදිසි සැපයුම් සහ සන්නිවේදන උපාංග සූදානම්ව තබන්න.',
+    actionRemainIndoors: 'තද සුළං ක්‍රියාත්මක වන විට ගෘහ අභ්‍යන්තරයේ රැඳී සිටින්න.',
+    actionSecureLooseObjects: 'ආරක්ෂිත නම් එළිමහන් ලිහිල් ද්‍රව්‍ය ආරක්ෂිත කරන්න.',
     alertArea: 'අනතුරු ඇඟවීමේ ප්‍රදේශය',
+    aftershockPotential: 'පසු කම්පන හැකියාව',
+    areaExposure: 'ප්‍රදේශ නිරාවරණය',
     basedOnSelectedAlert: 'තෝරාගත් හදිසි අනතුරු ඇඟවීම මත පදනම් වේ.',
     checkConnection: 'ඔබගේ සම්බන්ධතාව පරීක්ෂා කර නැවත උත්සාහ කරන්න.',
+    coastalRisk: 'වෙරළ අවදානම',
     coreEnvironmentalFactors: 'ප්‍රධාන පාරිසරික සාධක',
     currentAssessment: 'වත්මන් තක්සේරුව',
     currentRiskLevel: 'වත්මන් අවදානම් මට්ටම',
+    derivedFromAlertData: 'තෝරාගත් අනතුරු ඇඟවීමේ වර්ගය සහ වත්මන් අවදානම් මට්ටමෙන් ව්‍යුත්පන්න කර ඇත.',
+    drynessIndex: 'වියළි බවේ දර්ශකය',
+    elevatedConcern: 'ඉහළ යන අවධානය',
+    emergencyType: 'හදිසි තත්ත්ව වර්ගය',
     environmentalSummary: 'දැනට ලබා ගත හැකි අනතුරු ඇඟවීමේ අවදානම් මට්ටම සහ නිල අනතුරු ඇඟවීමේ විස්තර අනුව පාරිසරික සංඥා සාරාංශ කර ඇත.',
     estimated: 'ඇස්තමේන්තු කළ',
+    evacuationAccess: 'ඉවත් කිරීමේ ප්‍රවේශය',
     factorConcernCritical: 'අතිශය බරපතල අවධානය',
     factorConcernHigh: 'ඉහළ අවධානය',
     factorConcernLow: 'අඩු අවධානය',
     factorConcernModerate: 'මධ්‍යම අවධානය',
+    fireSpreadPotential: 'ගිනි පැතිරීමේ හැකියාව',
     followAuthorityInstructions: 'හදිසි බලධාරීන්ගේ නිල ආරක්ෂක උපදෙස් අනුගමනය කරන්න.',
+    groundShaking: 'භූමිකම්පන කම්පනය',
+    hazardIntensity: 'අනතුරු තීව්‍රතාව',
+    heatStress: 'උෂ්ණ පීඩනය',
     loadingAssessment: 'අවදානම් තක්සේරුව පූරණය වෙමින්...',
+    monitorClosely: 'සමීපව නිරීක්ෂණය කරන්න',
+    normalStable: 'සාමාන්‍ය / ස්ථාවර',
     notAvailable: 'ලබා ගත නොහැක',
     rainfallIndex: 'වර්ෂාපතන දර්ශකය',
+    rainfallIntensity: 'වර්ෂාපතන තීව්‍රතාව',
+    rainfallWeatherSeverity: 'වර්ෂාපතන / කාලගුණ බරපතලකම',
     recommendedActions: 'නිර්දේශිත ක්‍රියාමාර්ග',
+    responseReadiness: 'ප්‍රතිචාර සූදානම',
     riskAssessment: 'අවදානම් තක්සේරුව',
     riverWaterLevels: 'ගංගා ජල මට්ටම්',
+    risingLevels: 'ඉහළ යන මට්ටම්',
+    seaLevel: 'මුහුදු මට්ටම',
+    severeConcern: 'බරපතල අවධානය',
+    slopeGroundStability: 'බෑවුම් / භූමි ස්ථාවරත්වය',
+    smokeExposure: 'දුම් නිරාවරණය',
     soilSaturation: 'පස තෙතමනය',
     stayInformed: 'යාවත්කාලීන සඳහා නිල ResQ1 අනතුරු ඇඟවීම් දිගටම නිරීක්ෂණය කරන්න.',
+    structuralImpact: 'ව්‍යුහාත්මක බලපෑම',
+    saturatedGround: 'තෙත් වූ පස',
     unableLoadAssessment: 'අවදානම් තක්සේරුව පූරණය කළ නොහැක.',
+    unsafeLevels: 'අනාරක්ෂිත මට්ටම්',
+    unstableGround: 'අස්ථාවර භූමිය',
+    waterAvailability: 'ජල ලබාගැනීම',
+    waveActivity: 'තරංග ක්‍රියාකාරිත්වය',
+    windGustLevel: 'සුළං පහර මට්ටම',
+    windSpeed: 'සුළං වේගය',
   },
   Tamil: {
+    actionAvoidAffectedArea: 'அதிகாரிகள் பாதுகாப்பானது என்று உறுதிப்படுத்தும் வரை பாதிக்கப்பட்ட பகுதியைத் தவிர்க்கவும்.',
+    actionAvoidCoastalAreas: 'கடற்கரை, நீர்நிலைகள், வெளிப்படையான கடலோர சாலைகளைத் தவிர்க்கவும்.',
+    actionAvoidFloodedRoads: 'வெள்ளம் சூழ்ந்த சாலைகளில் நடப்பதையோ வாகனம் ஓட்டுவதையோ தவிர்க்கவும்.',
+    actionAvoidHillsideAreas: 'மலைச்சரிவு சாலைகள் மற்றும் நிலையானதல்லாத சரிவுகளுக்குக் கீழுள்ள பகுதிகளைத் தவிர்க்கவும்.',
+    actionAvoidSmoke: 'புகை வெளிப்பாட்டைத் தவிர்த்து, பாதிக்கப்படக்கூடிய குடியிருப்பாளர்களை உள்ளே வைத்திருங்கள்.',
+    actionAvoidTreesPowerLines: 'மரங்கள், மின்கம்பிகள் மற்றும் சேதமடைந்த கட்டமைப்புகளிலிருந்து விலகி இருங்கள்.',
+    actionCheckDamageBeforeEntering: 'கட்டிடங்களில் நுழைவதற்கு முன் கட்டமைப்பு சேதத்தைச் சரிபார்க்கவும்.',
+    actionConserveWater: 'கிடைக்கும் நீரை கவனமாகப் பயன்படுத்தி உள்ளூர் விநியோக புதுப்பிப்புகளைப் பின்பற்றவும்.',
+    actionDropCoverHold: 'அதிர்வு நேரத்தில் கீழே குனிந்து, மறைவிடம் எடுத்து, பிடித்துக்கொள்ளுங்கள்.',
+    actionFollowCoastalUpdates: 'அதிகாரப்பூர்வ கடலோர மற்றும் வெளியேற்ற புதுப்பிப்புகளைப் பின்பற்றவும்.',
+    actionKeepEmergencyAccessClear: 'அவசர பதில் குழுக்களுக்கு வழிகளைத் திறந்துவைத்திருக்கவும்.',
+    actionLimitHeatExposure: 'அதிக வெப்ப நேரங்களில் வெளிப்புற செயற்பாடுகளை வரையறுக்கவும்.',
+    actionMonitorEvacuationInstructions: 'அதிகாரப்பூர்வ வெளியேற்ற வழிமுறைகளை கண்காணிக்கவும்.',
+    actionMoveAwayFromSlopes: 'நிலையானதல்லாத சரிவுகள் மற்றும் தாங்குச் சுவர்களிலிருந்து விலகிச் செல்லவும்.',
+    actionMoveHigherGround: 'நீர்மட்டம் உயர்ந்தால் உயரமான நிலப்பகுதிக்குச் செல்லவும்.',
+    actionMoveInlandHigherGround: 'அறிவுறுத்தப்பட்டால் உடனே உள் நிலப்பகுதி அல்லது உயரமான நிலத்திற்குச் செல்லவும்.',
+    actionPrepareEmergencyKit: 'அவசர பொருட்கள் மற்றும் தொடர்பு சாதனங்களை தயாராக வைத்திருக்கவும்.',
+    actionRemainIndoors: 'கடுமையான காற்று இருக்கும் போது உள்ளே இருங்கள்.',
+    actionSecureLooseObjects: 'பாதுகாப்பாக இருந்தால் வெளிப்புற தளர்வான பொருட்களை உறுதிப்படுத்தவும்.',
     alertArea: 'எச்சரிக்கை பகுதி',
+    aftershockPotential: 'பின்னதிர்வு சாத்தியம்',
+    areaExposure: 'பகுதி வெளிப்பாடு',
     basedOnSelectedAlert: 'தேர்ந்தெடுக்கப்பட்ட அவசர எச்சரிக்கையின் அடிப்படையில்.',
     checkConnection: 'உங்கள் இணைப்பைச் சரிபார்த்து மீண்டும் முயற்சிக்கவும்.',
+    coastalRisk: 'கடலோர அபாயம்',
     coreEnvironmentalFactors: 'முக்கிய சுற்றுச்சூழல் காரணிகள்',
     currentAssessment: 'தற்போதைய மதிப்பீடு',
     currentRiskLevel: 'தற்போதைய அபாய நிலை',
+    derivedFromAlertData: 'தேர்ந்தெடுக்கப்பட்ட எச்சரிக்கை வகை மற்றும் தற்போதைய அபாய நிலையிலிருந்து பெறப்பட்டது.',
+    drynessIndex: 'வறட்சி குறியீடு',
+    elevatedConcern: 'உயர்ந்த கவலை',
+    emergencyType: 'அவசர நிலை வகை',
     environmentalSummary: 'தற்போது கிடைக்கும் எச்சரிக்கை அபாய நிலை மற்றும் அதிகாரப்பூர்வ எச்சரிக்கை விவரங்களிலிருந்து சுற்றுச்சூழல் அறிகுறிகள் சுருக்கப்பட்டுள்ளன.',
     estimated: 'மதிப்பிடப்பட்டது',
+    evacuationAccess: 'வெளியேற்ற அணுகல்',
     factorConcernCritical: 'மிகக் கடுமையான கவலை',
     factorConcernHigh: 'அதிக கவலை',
     factorConcernLow: 'குறைந்த கவலை',
     factorConcernModerate: 'மிதமான கவலை',
+    fireSpreadPotential: 'தீ பரவல் சாத்தியம்',
     followAuthorityInstructions: 'அவசர அதிகாரிகளின் அதிகாரப்பூர்வ பாதுகாப்பு வழிமுறைகளைப் பின்பற்றவும்.',
+    groundShaking: 'நில அதிர்வு',
+    hazardIntensity: 'அபாய தீவிரம்',
+    heatStress: 'வெப்ப அழுத்தம்',
     loadingAssessment: 'அபாய மதிப்பீடு ஏற்றப்படுகிறது...',
+    monitorClosely: 'நெருக்கமாக கண்காணிக்கவும்',
+    normalStable: 'சாதாரணம் / நிலையானது',
     notAvailable: 'கிடைக்கவில்லை',
     rainfallIndex: 'மழைப்பொழிவு குறியீடு',
+    rainfallIntensity: 'மழைப்பொழிவு தீவிரம்',
+    rainfallWeatherSeverity: 'மழை / வானிலை கடுமை',
     recommendedActions: 'பரிந்துரைக்கப்பட்ட நடவடிக்கைகள்',
+    responseReadiness: 'பதில் தயார்நிலை',
     riskAssessment: 'அபாய மதிப்பீடு',
     riverWaterLevels: 'நதி நீர்மட்டங்கள்',
+    risingLevels: 'உயரும் நிலைகள்',
+    seaLevel: 'கடல் மட்டம்',
+    severeConcern: 'கடுமையான கவலை',
+    slopeGroundStability: 'சரிவு / நில நிலைத்தன்மை',
+    smokeExposure: 'புகை வெளிப்பாடு',
     soilSaturation: 'மண் ஈரப்பதம்',
     stayInformed: 'புதுப்பிப்புகளுக்காக அதிகாரப்பூர்வ ResQ1 எச்சரிக்கைகளை தொடர்ந்து கண்காணிக்கவும்.',
+    structuralImpact: 'கட்டமைப்பு தாக்கம்',
+    saturatedGround: 'ஈரமான மண்',
     unableLoadAssessment: 'அபாய மதிப்பீட்டை ஏற்ற முடியவில்லை.',
+    unsafeLevels: 'பாதுகாப்பற்ற நிலைகள்',
+    unstableGround: 'நிலையானதல்லாத நிலம்',
+    waterAvailability: 'நீர் கிடைப்பது',
+    waveActivity: 'அலை செயல்பாடு',
+    windGustLevel: 'காற்றடிப்பு நிலை',
+    windSpeed: 'காற்றின் வேகம்',
   },
 };
 

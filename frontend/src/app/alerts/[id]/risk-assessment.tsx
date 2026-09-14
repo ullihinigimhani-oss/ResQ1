@@ -35,9 +35,35 @@ import {
   translateAlertMessage,
   translateAlertStatus,
   translateAlertTitle,
+  translateDisasterType,
   translateRiskLevel,
   translateSafetyInstruction,
 } from '@/utils/language';
+
+type RiskAssessmentCopy = typeof riskAssessmentUiText.English;
+type RiskAssessmentCopyKey = keyof RiskAssessmentCopy;
+type AssessmentCategory = 'drought' | 'earthquake' | 'fire' | 'flood' | 'generic' | 'landslide' | 'storm' | 'tsunami' | 'weather';
+type FactorValueScale = Record<AlertRiskLevel, RiskAssessmentCopyKey>;
+
+type AssessmentFactorDefinition = {
+  fallback: string;
+  labelKey: RiskAssessmentCopyKey;
+  name: string;
+  valueScale: FactorValueScale;
+};
+
+type AssessmentProfile = {
+  actionKeys: RiskAssessmentCopyKey[];
+  factors: AssessmentFactorDefinition[];
+};
+
+type AssessmentFactor = {
+  fallback: string;
+  label: string;
+  name: string;
+  note: string;
+  value: string;
+};
 
 function firstParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
@@ -80,34 +106,215 @@ function splitSafetyInstructions(value: string) {
     .filter(Boolean);
 }
 
-function fallbackActionKeys(riskLevel: AlertRiskLevel): ('followAuthorityInstructions' | 'stayInformed')[] {
-  if (riskLevel === 'Critical' || riskLevel === 'High') {
-    return ['followAuthorityInstructions', 'stayInformed'];
-  }
+const standardValueScale = {
+  Critical: 'severeConcern',
+  High: 'elevatedConcern',
+  Low: 'normalStable',
+  Moderate: 'monitorClosely',
+} as const satisfies FactorValueScale;
 
-  return ['stayInformed', 'followAuthorityInstructions'];
+const waterValueScale = {
+  Critical: 'severeConcern',
+  High: 'unsafeLevels',
+  Low: 'normalStable',
+  Moderate: 'risingLevels',
+} as const satisfies FactorValueScale;
+
+const soilValueScale = {
+  Critical: 'unstableGround',
+  High: 'saturatedGround',
+  Low: 'normalStable',
+  Moderate: 'monitorClosely',
+} as const satisfies FactorValueScale;
+
+const stabilityValueScale = {
+  Critical: 'severeConcern',
+  High: 'unstableGround',
+  Low: 'normalStable',
+  Moderate: 'monitorClosely',
+} as const satisfies FactorValueScale;
+
+function factor(
+  labelKey: RiskAssessmentCopyKey,
+  name: string,
+  fallback: string,
+  valueScale: FactorValueScale = standardValueScale,
+): AssessmentFactorDefinition {
+  return {
+    fallback,
+    labelKey,
+    name,
+    valueScale,
+  };
 }
 
-function assessmentConcernKey(riskLevel: AlertRiskLevel) {
-  switch (riskLevel) {
-    case 'Critical':
-      return 'factorConcernCritical';
-    case 'High':
-      return 'factorConcernHigh';
-    case 'Moderate':
-      return 'factorConcernModerate';
-    case 'Low':
-    default:
-      return 'factorConcernLow';
+const assessmentProfiles: Record<AssessmentCategory, AssessmentProfile> = {
+  drought: {
+    actionKeys: ['actionConserveWater', 'actionLimitHeatExposure', 'stayInformed'],
+    factors: [
+      factor('drynessIndex', 'sun.max.fill', 'D', standardValueScale),
+      factor('waterAvailability', 'drop.fill', 'W', waterValueScale),
+      factor('heatStress', 'gauge.fill', 'H', standardValueScale),
+    ],
+  },
+  earthquake: {
+    actionKeys: ['actionDropCoverHold', 'actionCheckDamageBeforeEntering', 'actionPrepareEmergencyKit'],
+    factors: [
+      factor('groundShaking', 'waveform.path.ecg', 'G', standardValueScale),
+      factor('structuralImpact', 'house.fill', 'S', stabilityValueScale),
+      factor('aftershockPotential', 'bell.fill', 'A', standardValueScale),
+    ],
+  },
+  fire: {
+    actionKeys: ['actionAvoidSmoke', 'actionKeepEmergencyAccessClear', 'actionMonitorEvacuationInstructions'],
+    factors: [
+      factor('fireSpreadPotential', 'flame.fill', 'F', standardValueScale),
+      factor('smokeExposure', 'cloud.fill', 'S', standardValueScale),
+      factor('evacuationAccess', 'house.and.flag.fill', 'E', stabilityValueScale),
+    ],
+  },
+  flood: {
+    actionKeys: ['actionMoveHigherGround', 'actionAvoidFloodedRoads', 'actionMonitorEvacuationInstructions'],
+    factors: [
+      factor('rainfallIndex', 'cloud.rain.fill', 'R', standardValueScale),
+      factor('riverWaterLevels', 'drop.fill', 'W', waterValueScale),
+      factor('soilSaturation', 'slider.horizontal.3', 'S', soilValueScale),
+    ],
+  },
+  generic: {
+    actionKeys: ['actionAvoidAffectedArea', 'actionPrepareEmergencyKit', 'followAuthorityInstructions'],
+    factors: [
+      factor('hazardIntensity', 'gauge.fill', 'H', standardValueScale),
+      factor('areaExposure', 'house.fill', 'A', standardValueScale),
+      factor('responseReadiness', 'bell.fill', 'R', standardValueScale),
+    ],
+  },
+  landslide: {
+    actionKeys: ['actionMoveAwayFromSlopes', 'actionAvoidHillsideAreas', 'actionMonitorEvacuationInstructions'],
+    factors: [
+      factor('soilSaturation', 'slider.horizontal.3', 'S', soilValueScale),
+      factor('rainfallIntensity', 'cloud.rain.fill', 'R', standardValueScale),
+      factor('slopeGroundStability', 'gauge.fill', 'G', stabilityValueScale),
+    ],
+  },
+  storm: {
+    actionKeys: ['actionRemainIndoors', 'actionAvoidTreesPowerLines', 'actionSecureLooseObjects'],
+    factors: [
+      factor('windSpeed', 'wind', 'W', standardValueScale),
+      factor('windGustLevel', 'gauge.fill', 'G', standardValueScale),
+      factor('rainfallWeatherSeverity', 'cloud.rain.fill', 'R', standardValueScale),
+    ],
+  },
+  tsunami: {
+    actionKeys: ['actionMoveInlandHigherGround', 'actionAvoidCoastalAreas', 'actionFollowCoastalUpdates'],
+    factors: [
+      factor('seaLevel', 'drop.fill', 'S', waterValueScale),
+      factor('waveActivity', 'waveform.path.ecg', 'W', standardValueScale),
+      factor('coastalRisk', 'house.and.flag.fill', 'C', standardValueScale),
+    ],
+  },
+  weather: {
+    actionKeys: ['actionRemainIndoors', 'actionAvoidTreesPowerLines', 'actionMonitorEvacuationInstructions'],
+    factors: [
+      factor('rainfallIntensity', 'cloud.rain.fill', 'R', standardValueScale),
+      factor('rainfallWeatherSeverity', 'gauge.fill', 'W', standardValueScale),
+      factor('areaExposure', 'house.fill', 'A', standardValueScale),
+    ],
+  },
+};
+
+function alertAssessmentCategory(alert: Alert): AssessmentCategory {
+  const alertTypeText = `${alert.disasterType} ${alert.title}`.trim().toLowerCase();
+
+  if (alertTypeText.includes('tsunami')) {
+    return 'tsunami';
   }
+
+  if (alertTypeText.includes('landslide')) {
+    return 'landslide';
+  }
+
+  if (alertTypeText.includes('flood')) {
+    return 'flood';
+  }
+
+  if (
+    alertTypeText.includes('strong wind')
+    || alertTypeText.includes('storm')
+    || alertTypeText.includes('cyclone')
+    || alertTypeText.includes('wind')
+  ) {
+    return 'storm';
+  }
+
+  if (alertTypeText.includes('heavy rain') || alertTypeText.includes('rain') || alertTypeText.includes('weather')) {
+    return 'weather';
+  }
+
+  if (alertTypeText.includes('fire')) {
+    return 'fire';
+  }
+
+  if (alertTypeText.includes('earthquake')) {
+    return 'earthquake';
+  }
+
+  if (alertTypeText.includes('drought')) {
+    return 'drought';
+  }
+
+  return 'generic';
 }
 
-function factorNote(
-  riskLevel: AlertRiskLevel,
-  copy: typeof riskAssessmentUiText.English,
+function uniqueValues(values: string[]) {
+  const seen = new Set<string>();
+
+  return values.filter((value) => {
+    const key = value.trim().toLowerCase();
+
+    if (!key || seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+  });
+}
+
+function buildAssessment(
+  alert: Alert,
+  copy: RiskAssessmentCopy,
   language: PreferredLanguage,
 ) {
-  return `${copy.estimated} - ${translateRiskLevel(riskLevel, language)}`;
+  const riskLevel = normalizeRiskLevel(alert.riskLevel);
+  const translatedRisk = translateRiskLevel(riskLevel, language);
+  const disasterTypeLabel = translateDisasterType(alert.disasterType, language);
+  const category = alertAssessmentCategory(alert);
+  const profile = assessmentProfiles[category];
+  const factorNote = `${copy.estimated} - ${copy.derivedFromAlertData}`;
+  const extraActionKey: RiskAssessmentCopyKey = riskLevel === 'Critical' || riskLevel === 'High'
+    ? 'followAuthorityInstructions'
+    : 'stayInformed';
+  const profileActions = uniqueValues([...profile.actionKeys, extraActionKey].map((key) => copy[key]));
+  const backendInstructions = splitSafetyInstructions(alert.safetyInstructions)
+    .map((instruction) => translateSafetyInstruction(instruction, language));
+  const recommendedActions = uniqueValues([...profileActions, ...backendInstructions]).slice(0, 6);
+  const factors: AssessmentFactor[] = profile.factors.map((assessmentFactor) => ({
+    fallback: assessmentFactor.fallback,
+    label: copy[assessmentFactor.labelKey],
+    name: assessmentFactor.name,
+    note: factorNote,
+    value: copy[assessmentFactor.valueScale[riskLevel]],
+  }));
+
+  return {
+    category,
+    disasterTypeLabel,
+    factors,
+    recommendedActions,
+    riskLevel,
+    translatedRisk,
+  };
 }
 
 function DetailBackButton({
@@ -235,22 +442,7 @@ export default function AlertRiskAssessmentScreen() {
       return null;
     }
 
-    const riskLevel = normalizeRiskLevel(alert.riskLevel);
-    const translatedRisk = translateRiskLevel(riskLevel, displayLanguage);
-    const concern = detailCopy[assessmentConcernKey(riskLevel)];
-    const safetyInstructions = splitSafetyInstructions(alert.safetyInstructions)
-      .map((instruction) => translateSafetyInstruction(instruction, displayLanguage));
-    const recommendedActions = safetyInstructions.length > 0
-      ? safetyInstructions
-      : fallbackActionKeys(riskLevel).map((key) => detailCopy[key]);
-
-    return {
-      concern,
-      note: factorNote(riskLevel, detailCopy, displayLanguage),
-      recommendedActions,
-      riskLevel,
-      translatedRisk,
-    };
+    return buildAssessment(alert, detailCopy, displayLanguage);
   }, [alert, detailCopy, displayLanguage]);
 
   if (!isLoading && !user) {
@@ -366,6 +558,10 @@ export default function AlertRiskAssessmentScreen() {
                     <Text style={styles.metaValue}>{alert.affectedArea}</Text>
                   </View>
                   <View style={styles.metaBlock}>
+                    <Text style={styles.metaLabel}>{detailCopy.emergencyType}</Text>
+                    <Text style={styles.metaValue}>{assessment.disasterTypeLabel}</Text>
+                  </View>
+                  <View style={styles.metaBlock}>
                     <Text style={styles.metaLabel}>{detailCopy.currentRiskLevel}</Text>
                     <Text style={[styles.metaValue, { color: theme.titleColor }]}>
                       {assessment.translatedRisk}
@@ -386,30 +582,17 @@ export default function AlertRiskAssessmentScreen() {
                 <Text style={styles.sectionCopy}>{detailCopy.environmentalSummary}</Text>
               </View>
               <View style={styles.factorList}>
-                <FactorRow
-                  fallback="R"
-                  label={detailCopy.rainfallIndex}
-                  name="cloud.rain.fill"
-                  note={assessment.note}
-                  toneColor={theme.accent}
-                  value={assessment.concern}
-                />
-                <FactorRow
-                  fallback="W"
-                  label={detailCopy.riverWaterLevels}
-                  name="drop.fill"
-                  note={assessment.note}
-                  toneColor={theme.accent}
-                  value={assessment.concern}
-                />
-                <FactorRow
-                  fallback="S"
-                  label={detailCopy.soilSaturation}
-                  name="slider.horizontal.3"
-                  note={assessment.note}
-                  toneColor={theme.accent}
-                  value={assessment.concern}
-                />
+                {assessment.factors.map((assessmentFactor) => (
+                  <FactorRow
+                    fallback={assessmentFactor.fallback}
+                    key={assessmentFactor.label}
+                    label={assessmentFactor.label}
+                    name={assessmentFactor.name}
+                    note={assessmentFactor.note}
+                    toneColor={theme.accent}
+                    value={assessmentFactor.value}
+                  />
+                ))}
               </View>
             </View>
 
