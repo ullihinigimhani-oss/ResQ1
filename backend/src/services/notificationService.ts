@@ -158,19 +158,19 @@ function shouldNotifyRecipient(alert: Alert, recipient: PushRecipientRow) {
   const critical = isCriticalAlert(alert);
   const areaMatched = isResidentAreaMatch(alert.affectedArea, recipient.location);
 
-  if (alert.alertAudience === 'SCHOOL_EMERGENCY' && !(recipient.school_alerts ?? true)) {
+  if (!areaMatched) {
     return false;
   }
 
   if (critical) {
-    return areaMatched;
+    return true;
   }
 
-  if (!(recipient.general_notifications ?? true) || !(recipient.push_notifications ?? true)) {
+  if (alert.alertAudience === 'SCHOOL_EMERGENCY' && !(recipient.school_alerts ?? true)) {
     return false;
   }
 
-  if (!areaMatched) {
+  if (!(recipient.general_notifications ?? true) || !(recipient.push_notifications ?? true)) {
     return false;
   }
 
