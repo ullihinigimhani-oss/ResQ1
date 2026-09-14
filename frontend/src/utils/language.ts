@@ -26,6 +26,7 @@ export function toPreferredLanguage(
 
 type ResidentAlertUiKey =
   | 'allClear'
+  | 'allDisasterTypes'
   | 'allLocations'
   | 'checkConnection'
   | 'emergencyAlerts'
@@ -236,6 +237,7 @@ type CommunityNotificationUiKey =
 export const residentAlertUiText: Record<PreferredLanguage, Record<ResidentAlertUiKey, string>> = {
   English: {
     allClear: 'All Clear',
+    allDisasterTypes: 'All Disaster Types',
     allLocations: 'All Locations',
     checkConnection: 'Check your connection and try again.',
     emergencyAlerts: 'Emergency Alerts',
@@ -273,6 +275,7 @@ export const residentAlertUiText: Record<PreferredLanguage, Record<ResidentAlert
   },
   Sinhala: {
     allClear: 'සියල්ල ආරක්ෂිතයි',
+    allDisasterTypes: 'සියලු අනතුරු වර්ග',
     allLocations: 'සියලු ප්‍රදේශ',
     checkConnection: 'ඔබගේ සම්බන්ධතාව පරීක්ෂා කර නැවත උත්සාහ කරන්න.',
     emergencyAlerts: 'හදිසි අනතුරු ඇඟවීම්',
@@ -310,6 +313,7 @@ export const residentAlertUiText: Record<PreferredLanguage, Record<ResidentAlert
   },
   Tamil: {
     allClear: 'அனைத்தும் தெளிவு',
+    allDisasterTypes: 'அனைத்து பேரிடர் வகைகள்',
     allLocations: 'அனைத்து இடங்கள்',
     checkConnection: 'உங்கள் இணைப்பைச் சரிபார்த்து மீண்டும் முயற்சிக்கவும்.',
     emergencyAlerts: 'அவசர எச்சரிக்கைகள்',

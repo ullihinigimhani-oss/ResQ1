@@ -35,14 +35,21 @@ import {
   preferredLanguages,
   residentAlertUiText,
   toPreferredLanguage,
+  translateAlertMessage,
   translateAlertStatus,
   translateAlertTitle,
+  translateDisasterType,
   translateRiskLevel,
 } from '@/utils/language';
 
 type ResidentAlertTab = Extract<AlertAudience, 'GENERAL_PUBLIC' | 'SCHOOL_EMERGENCY'>;
+const allDisasterTypesFilter = 'ALL_DISASTER_TYPES';
 const allLocationsFilter = 'ALL_LOCATIONS';
 const myAreaFilter = 'MY_AREA';
+
+type DisasterTypeFilterValue =
+  | typeof allDisasterTypesFilter
+  | `DISASTER:${string}`;
 
 type LocationFilterValue =
   | typeof allLocationsFilter
@@ -109,6 +116,14 @@ function formatCompactDateTime(value: string) {
   });
 }
 
+function disasterTypeFilterFor(disasterType: string): DisasterTypeFilterValue {
+  return `DISASTER:${disasterType.trim()}`;
+}
+
+function disasterTypeFromFilter(filter: DisasterTypeFilterValue) {
+  return filter.startsWith('DISASTER:') ? filter.replace(/^DISASTER:/, '') : null;
+}
+
 function locationFilterFor(location: string): LocationFilterValue {
   return `LOCATION:${location.trim()}`;
 }
@@ -119,6 +134,21 @@ function locationFromFilter(filter: LocationFilterValue) {
 
 function searchableText(value: string | number | null | undefined) {
   return String(value ?? '').trim().toLowerCase();
+}
+
+function uniqueAlertDisasterTypes(alerts: Alert[]) {
+  const disasterTypeByKey = new Map<string, string>();
+
+  alerts.forEach((alert) => {
+    const disasterType = String(alert.disasterType ?? '').trim();
+    const key = searchableText(disasterType);
+
+    if (disasterType && key && !disasterTypeByKey.has(key)) {
+      disasterTypeByKey.set(key, disasterType);
+    }
+  });
+
+  return [...disasterTypeByKey.values()].sort((left, right) => left.localeCompare(right));
 }
 
 function uniqueAlertLocations(alerts: Alert[]) {
@@ -151,11 +181,32 @@ function alertMatchesSearch(
     alert.title,
     translateAlertTitle(alert, language),
     alert.disasterType,
+    translateDisasterType(alert.disasterType, language),
     alert.affectedArea,
+    alert.message,
+    translateAlertMessage(alert, language),
+    alert.safetyInstructions,
     ...alert.schools.map((school) => school.schoolName),
   ].map(searchableText).join(' ');
 
   return searchableAlertText.includes(query);
+}
+
+function alertMatchesDisasterTypeFilter(
+  alert: Alert,
+  disasterTypeFilter: DisasterTypeFilterValue,
+) {
+  if (disasterTypeFilter === allDisasterTypesFilter) {
+    return true;
+  }
+
+  const selectedDisasterType = disasterTypeFromFilter(disasterTypeFilter);
+
+  if (!selectedDisasterType) {
+    return true;
+  }
+
+  return searchableText(alert.disasterType) === searchableText(selectedDisasterType);
 }
 
 function alertMatchesLocationFilter(
@@ -275,30 +326,120 @@ function ResidentLanguageSelector({
   );
 }
 
+type CompactFilterOption<T extends string> = {
+  helper?: string;
+  label: string;
+  value: T;
+};
+
+function CompactFilterDropdown<T extends string>({
+  open,
+  options,
+  onSelect,
+  onToggle,
+  selectedLabel,
+  selectedValue,
+}: {
+  open: boolean;
+  options: CompactFilterOption<T>[];
+  onSelect: (value: T) => void;
+  onToggle: () => void;
+  selectedLabel: string;
+  selectedValue: T;
+}) {
+  return (
+    <View style={[styles.filterSelectColumn, open && styles.filterSelectColumnOpen]}>
+      <Pressable
+        accessibilityRole="button"
+        onPress={onToggle}
+        style={({ pressed }) => [styles.filterSelectButton, open && styles.filterSelectButtonOpen, pressed && styles.pressed]}>
+        <Text numberOfLines={1} style={styles.filterSelectText}>
+          {selectedLabel}
+        </Text>
+        <Text style={styles.filterSelectChevron}>v</Text>
+      </Pressable>
+
+      {open ? (
+        <ScrollView
+          contentContainerStyle={styles.filterOptionList}
+          nestedScrollEnabled
+          showsVerticalScrollIndicator={false}
+          style={styles.filterOptionScroller}>
+          {options.map((option) => {
+            const selected = option.value === selectedValue;
+
+            return (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                key={option.value}
+                onPress={() => onSelect(option.value)}
+                style={({ pressed }) => [
+                  styles.filterOptionRow,
+                  selected && styles.filterOptionRowSelected,
+                  pressed && styles.pressed,
+                ]}>
+                <Text
+                  numberOfLines={1}
+                  style={[styles.filterOptionText, selected && styles.filterOptionTextSelected]}>
+                  {option.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      ) : null}
+    </View>
+  );
+}
+
 function ResidentAlertFilters({
+  disasterTypeFilter,
+  disasterTypeOptions,
   locationFilter,
   locationOptions,
+  onDisasterTypeFilterChange,
   onLocationFilterChange,
   onSearchQueryChange,
   residentArea,
   searchQuery,
   selectedLanguage,
 }: {
+  disasterTypeFilter: DisasterTypeFilterValue;
+  disasterTypeOptions: string[];
   locationFilter: LocationFilterValue;
   locationOptions: string[];
+  onDisasterTypeFilterChange: (filter: DisasterTypeFilterValue) => void;
   onLocationFilterChange: (filter: LocationFilterValue) => void;
   onSearchQueryChange: (query: string) => void;
   residentArea: string | null;
   searchQuery: string;
   selectedLanguage: PreferredLanguage;
 }) {
-  const [locationMenuOpen, setLocationMenuOpen] = useState(false);
+  const [openFilterMenu, setOpenFilterMenu] = useState<'disaster' | 'location' | null>(null);
   const copy = residentAlertUiText[selectedLanguage];
+  const selectedDisasterType = disasterTypeFromFilter(disasterTypeFilter);
+  const selectedDisasterTypeLabel = selectedDisasterType
+    ? translateDisasterType(selectedDisasterType, selectedLanguage)
+    : copy.allDisasterTypes;
   const selectedLocation = locationFromFilter(locationFilter);
   const selectedLocationLabel = locationFilter === myAreaFilter
     ? copy.myArea
     : selectedLocation ?? copy.allLocations;
-  const filterOptions = [
+  const disasterFilterOptions = [
+    {
+      label: copy.allDisasterTypes,
+      value: allDisasterTypesFilter,
+    },
+    ...disasterTypeOptions.map((disasterType) => ({
+      helper: disasterType === translateDisasterType(disasterType, selectedLanguage)
+        ? undefined
+        : disasterType,
+      label: translateDisasterType(disasterType, selectedLanguage),
+      value: disasterTypeFilterFor(disasterType),
+    })),
+  ] satisfies CompactFilterOption<DisasterTypeFilterValue>[];
+  const locationFilterOptions = [
     {
       helper: undefined,
       label: copy.allLocations,
@@ -314,19 +455,20 @@ function ResidentAlertFilters({
       label: location,
       value: locationFilterFor(location),
     })),
-  ] satisfies {
-    helper?: string;
-    label: string;
-    value: LocationFilterValue;
-  }[];
+  ] satisfies CompactFilterOption<LocationFilterValue>[];
+
+  const selectDisasterTypeFilter = (value: DisasterTypeFilterValue) => {
+    onDisasterTypeFilterChange(value);
+    setOpenFilterMenu(null);
+  };
 
   const selectLocationFilter = (value: LocationFilterValue) => {
     onLocationFilterChange(value);
-    setLocationMenuOpen(false);
+    setOpenFilterMenu(null);
   };
 
   return (
-    <View style={styles.filterPanel}>
+    <View style={[styles.filterPanel, openFilterMenu && styles.filterPanelOpen]}>
       <View style={styles.searchField}>
         <AppIcon fallback="S" name="magnifyingglass" size={18} tintColor={colors.muted} />
         <TextInput
@@ -341,71 +483,24 @@ function ResidentAlertFilters({
         />
       </View>
 
-      <View style={styles.locationFilterGroup}>
-        <Text style={styles.filterLabel}>{copy.location}</Text>
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => setLocationMenuOpen(true)}
-          style={({ pressed }) => [styles.locationSelectButton, pressed && styles.pressed]}>
-          <Text numberOfLines={1} style={styles.locationSelectText}>{selectedLocationLabel}</Text>
-          <Text style={styles.locationSelectChevron}>v</Text>
-        </Pressable>
+      <View style={styles.filterSelectRow}>
+        <CompactFilterDropdown
+          open={openFilterMenu === 'disaster'}
+          options={disasterFilterOptions}
+          selectedLabel={selectedDisasterTypeLabel}
+          selectedValue={disasterTypeFilter}
+          onSelect={selectDisasterTypeFilter}
+          onToggle={() => setOpenFilterMenu((current) => current === 'disaster' ? null : 'disaster')}
+        />
+        <CompactFilterDropdown
+          open={openFilterMenu === 'location'}
+          options={locationFilterOptions}
+          selectedLabel={selectedLocationLabel}
+          selectedValue={locationFilter}
+          onSelect={selectLocationFilter}
+          onToggle={() => setOpenFilterMenu((current) => current === 'location' ? null : 'location')}
+        />
       </View>
-
-      <Modal
-        animationType="fade"
-        onRequestClose={() => setLocationMenuOpen(false)}
-        transparent
-        visible={locationMenuOpen}>
-        <View style={styles.locationModalBackdrop}>
-          <View style={styles.locationModalCard}>
-            <Text style={styles.locationModalTitle}>{copy.location}</Text>
-            <ScrollView
-              contentContainerStyle={styles.locationOptionList}
-              showsVerticalScrollIndicator={false}
-              style={styles.locationOptionScroller}>
-              {filterOptions.map((option) => {
-                const selected = option.value === locationFilter;
-
-                return (
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityState={{ selected }}
-                    key={option.value}
-                    onPress={() => selectLocationFilter(option.value)}
-                    style={({ pressed }) => [
-                      styles.locationOptionRow,
-                      selected && styles.locationOptionRowSelected,
-                      pressed && styles.pressed,
-                    ]}>
-                    <View style={styles.locationOptionTextBlock}>
-                      <Text
-                        numberOfLines={1}
-                        style={[
-                          styles.locationOptionText,
-                          selected && styles.locationOptionTextSelected,
-                        ]}>
-                        {option.label}
-                      </Text>
-                      {option.helper ? (
-                        <Text
-                          numberOfLines={1}
-                          style={[
-                            styles.locationOptionHelper,
-                            selected && styles.locationOptionHelperSelected,
-                          ]}>
-                          {option.helper}
-                        </Text>
-                      ) : null}
-                    </View>
-                    {selected ? <Text style={styles.locationOptionCheck}>✓</Text> : null}
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }
@@ -872,12 +967,15 @@ function ResidentDashboard({
   selectedLanguage,
 }: ResidentDashboardProps) {
   const [searchQuery, setSearchQuery] = useState('');
+  const [disasterTypeFilter, setDisasterTypeFilter] = useState<DisasterTypeFilterValue>(allDisasterTypesFilter);
   const [locationFilter, setLocationFilter] = useState<LocationFilterValue>(allLocationsFilter);
   const showInitialLoading = loadingAlerts && alerts.length === 0;
   const showError = Boolean(errorMessage) && alerts.length === 0 && !showInitialLoading;
   const showRiskIndicators = !showInitialLoading && !showError;
   const residentAreaName = residentArea?.trim() || null;
   const copy = residentAlertUiText[selectedLanguage];
+  const disasterTypeOptions = useMemo(() => uniqueAlertDisasterTypes(alerts), [alerts]);
+  const selectedDisasterType = disasterTypeFromFilter(disasterTypeFilter);
   const locationOptions = useMemo(() => uniqueAlertLocations(alerts), [alerts]);
   const selectedLocation = locationFromFilter(locationFilter);
   const tabAlerts = useMemo(() => alerts.filter((alert) => {
@@ -891,10 +989,11 @@ function ResidentDashboard({
   }), [alerts, schoolAlertsEnabled, selectedAlertTab]);
   const filteredTabAlerts = useMemo(
     () => tabAlerts.filter((alert) => (
-      alertMatchesLocationFilter(alert, locationFilter, residentArea)
+      alertMatchesDisasterTypeFilter(alert, disasterTypeFilter)
+      && alertMatchesLocationFilter(alert, locationFilter, residentArea)
       && alertMatchesSearch(alert, searchQuery, selectedLanguage)
     )),
-    [locationFilter, residentArea, searchQuery, selectedLanguage, tabAlerts],
+    [disasterTypeFilter, locationFilter, residentArea, searchQuery, selectedLanguage, tabAlerts],
   );
 
   useEffect(() => {
@@ -905,6 +1004,17 @@ function ResidentDashboard({
       setLocationFilter(allLocationsFilter);
     }
   }, [locationOptions, selectedLocation]);
+
+  useEffect(() => {
+    if (
+      selectedDisasterType
+      && !disasterTypeOptions.some((disasterType) => (
+        searchableText(disasterType) === searchableText(selectedDisasterType)
+      ))
+    ) {
+      setDisasterTypeFilter(allDisasterTypesFilter);
+    }
+  }, [disasterTypeOptions, selectedDisasterType]);
 
   const showSchoolDisabled = selectedAlertTab === 'SCHOOL_EMERGENCY' && !schoolAlertsEnabled;
   const prioritizedAlerts = useMemo(
@@ -950,8 +1060,11 @@ function ResidentDashboard({
           </Pressable>
         </View>
         <ResidentAlertFilters
+          disasterTypeFilter={disasterTypeFilter}
+          disasterTypeOptions={disasterTypeOptions}
           locationFilter={locationFilter}
           locationOptions={locationOptions}
+          onDisasterTypeFilterChange={setDisasterTypeFilter}
           onLocationFilterChange={setLocationFilter}
           onSearchQueryChange={setSearchQuery}
           residentArea={residentAreaName}
@@ -1489,6 +1602,9 @@ const styles = StyleSheet.create({
   },
   header: {
     gap: spacing.sm,
+    overflow: 'visible',
+    position: 'relative',
+    zIndex: 10,
   },
   residentHeaderTopRow: {
     alignItems: 'flex-start',
@@ -1677,8 +1793,14 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     borderWidth: 1,
     gap: spacing.sm,
+    overflow: 'visible',
     padding: spacing.sm,
+    position: 'relative',
+    zIndex: 20,
     ...shadows.card,
+  },
+  filterPanelOpen: {
+    zIndex: 200,
   },
   searchField: {
     alignItems: 'center',
@@ -1701,117 +1823,96 @@ const styles = StyleSheet.create({
     minWidth: 0,
     paddingVertical: 0,
   },
-  locationFilterGroup: {
-    gap: spacing.xs,
+  filterSelectRow: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: spacing.sm,
+    overflow: 'visible',
+    position: 'relative',
+    zIndex: 210,
   },
-  filterLabel: {
-    color: colors.muted,
-    fontSize: 11,
-    fontWeight: '900',
-    lineHeight: 15,
-    textTransform: 'uppercase',
+  filterSelectColumn: {
+    flex: 1,
+    minWidth: 0,
+    overflow: 'visible',
+    position: 'relative',
+    zIndex: 1,
   },
-  locationSelectButton: {
+  filterSelectColumnOpen: {
+    zIndex: 220,
+  },
+  filterSelectButton: {
     alignItems: 'center',
-    backgroundColor: colors.lightBlue,
-    borderColor: colors.sky,
+    backgroundColor: colors.white,
+    borderColor: colors.navy,
     borderRadius: radius.sm,
     borderWidth: 1,
     flexDirection: 'row',
     gap: spacing.sm,
     justifyContent: 'space-between',
     minHeight: 38,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.sm,
   },
-  locationSelectText: {
-    color: colors.deepBlue,
+  filterSelectButtonOpen: {
+    backgroundColor: colors.white,
+    borderColor: colors.navy,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+  },
+  filterSelectText: {
+    color: colors.navy,
     flex: 1,
-    fontSize: 13,
-    fontWeight: '900',
-    lineHeight: 18,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 16,
     minWidth: 0,
   },
-  locationSelectChevron: {
-    color: colors.deepBlue,
+  filterSelectChevron: {
+    color: colors.navy,
     fontSize: 12,
     fontWeight: '900',
     lineHeight: 16,
   },
-  locationModalBackdrop: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(7, 26, 53, 0.5)',
-    flex: 1,
-    justifyContent: 'center',
-    padding: spacing.xl,
-  },
-  locationModalCard: {
+  filterOptionScroller: {
     backgroundColor: colors.white,
-    borderColor: colors.border,
-    borderRadius: radius.md,
+    borderBottomLeftRadius: radius.sm,
+    borderBottomRightRadius: radius.sm,
+    borderColor: colors.navy,
     borderWidth: 1,
-    gap: spacing.md,
-    maxWidth: 420,
-    padding: spacing.lg,
-    width: '100%',
-    ...shadows.card,
+    borderTopWidth: 0,
+    left: 0,
+    maxHeight: 260,
+    overflow: 'hidden',
+    position: 'absolute',
+    right: 0,
+    top: 38,
+    zIndex: 230,
   },
-  locationModalTitle: {
-    color: colors.navy,
-    fontSize: 18,
-    fontWeight: '900',
-    lineHeight: 24,
+  filterOptionList: {
+    paddingVertical: 2,
   },
-  locationOptionScroller: {
-    maxHeight: 360,
-  },
-  locationOptionList: {
-    gap: spacing.sm,
-  },
-  locationOptionRow: {
+  filterOptionRow: {
     alignItems: 'center',
-    backgroundColor: colors.background,
-    borderColor: colors.border,
-    borderRadius: radius.sm,
-    borderWidth: 1,
+    backgroundColor: colors.white,
     flexDirection: 'row',
     gap: spacing.sm,
     justifyContent: 'space-between',
-    minHeight: 44,
+    minHeight: 36,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.xs,
   },
-  locationOptionRowSelected: {
-    backgroundColor: colors.navy,
-    borderColor: colors.navy,
+  filterOptionRowSelected: {
+    backgroundColor: colors.blue,
   },
-  locationOptionTextBlock: {
-    flex: 1,
-    gap: 2,
+  filterOptionText: {
+    color: colors.navy,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 16,
     minWidth: 0,
   },
-  locationOptionText: {
-    color: colors.navy,
-    fontSize: 14,
-    fontWeight: '900',
-    lineHeight: 19,
-  },
-  locationOptionTextSelected: {
+  filterOptionTextSelected: {
     color: colors.white,
-  },
-  locationOptionHelper: {
-    color: colors.muted,
-    fontSize: 11,
-    fontWeight: '700',
-    lineHeight: 15,
-  },
-  locationOptionHelperSelected: {
-    color: colors.sky,
-  },
-  locationOptionCheck: {
-    color: colors.white,
-    fontSize: 13,
-    fontWeight: '900',
-    lineHeight: 18,
   },
   preferencesButton: {
     alignItems: 'center',
