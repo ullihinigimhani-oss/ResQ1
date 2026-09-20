@@ -1,5 +1,5 @@
 export const alertRiskLevels = ['Low', 'Moderate', 'High', 'Critical'] as const;
-export const alertStatuses = ['Active', 'Expired', 'Resolved'] as const;
+export const alertStatuses = ['Active', 'Expired', 'Resolved', 'Cancelled'] as const;
 export const alertDisasterTypes = [
   'Flood',
   'Landslide',
@@ -106,12 +106,15 @@ export interface AlertAuditRow {
   id: number;
   alert_id: number;
   action: AlertAuditAction | string;
+  alert_created_at: Date | string;
+  alert_status: AlertStatus | string | null;
   previous_status: AlertStatus | string | null;
   new_status: AlertStatus | string | null;
   previous_risk_level: AlertRiskLevel | string | null;
   new_risk_level: AlertRiskLevel | string | null;
   changed_by: number | null;
   created_at: Date | string;
+  expires_at: Date | string | null;
   title: string;
   disaster_type: AlertDisasterType | string;
   affected_area: string;
@@ -124,6 +127,9 @@ export interface AlertAuditEvent {
   title: string;
   disasterType: AlertDisasterType | string;
   affectedArea: string;
+  alertCreatedAt: string;
+  currentStatus: AlertStatus | string | null;
+  expiresAt: string | null;
   previousStatus: AlertStatus | string | null;
   newStatus: AlertStatus | string | null;
   previousRiskLevel: AlertRiskLevel | string | null;

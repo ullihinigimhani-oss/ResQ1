@@ -312,6 +312,9 @@ function toAuditEvent(row: AlertAuditRow): AlertAuditEvent {
     title: row.title,
     disasterType: row.disaster_type,
     affectedArea: row.affected_area,
+    alertCreatedAt: formatTimestamp(row.alert_created_at),
+    currentStatus: effectiveAlertStatus(row.alert_status, row.expires_at),
+    expiresAt: optionalTimestamp(row.expires_at),
     previousStatus: row.previous_status,
     newStatus: row.new_status,
     previousRiskLevel: row.previous_risk_level,
@@ -838,6 +841,10 @@ function auditActionForUpdate(
     return 'RESOLVED';
   }
 
+  if (previousStatus !== newStatus && newStatus === 'Cancelled') {
+    return 'CANCELLED';
+  }
+
   return 'UPDATED';
 }
 
@@ -1016,7 +1023,7 @@ async function validateUpdateAlertInput(input: UpdateAlertInput): Promise<Valida
   if (!statusText) {
     fieldErrors.status = 'Please select an alert status.';
   } else if (!status) {
-    fieldErrors.status = 'Choose Active, Expired, or Resolved.';
+    fieldErrors.status = 'Choose Active, Expired, Resolved, or Cancelled.';
   }
 
   if (!alert || !status) {
@@ -1115,24 +1122,70 @@ export async function getAlertHistory() {
   await ensureAlertAuditTable();
 
   const rows = await sql`
-    SELECT
-      alert_audit_events.id,
-      alert_audit_events.alert_id,
-      alert_audit_events.action,
-      alert_audit_events.previous_status,
-      alert_audit_events.new_status,
-      alert_audit_events.previous_risk_level,
-      alert_audit_events.new_risk_level,
-      alert_audit_events.changed_by,
-      alert_audit_events.created_at,
-      alerts.title,
-      alerts.disaster_type,
-      alerts.affected_area
-    FROM alert_audit_events
-    INNER JOIN alerts ON alerts.id = alert_audit_events.alert_id
+    WITH audit_history AS (
+      SELECT
+        alert_audit_events.id,
+        alert_audit_events.alert_id,
+        alert_audit_events.action,
+        alerts.created_at AS alert_created_at,
+        CASE
+          WHEN (
+            SELECT latest_event.action
+            FROM alert_audit_events AS latest_event
+            WHERE latest_event.alert_id = alerts.id
+            ORDER BY latest_event.created_at DESC, latest_event.id DESC
+            LIMIT 1
+          ) = 'CANCELLED'
+          THEN 'Cancelled'
+          ELSE alerts.status
+        END AS alert_status,
+        alert_audit_events.previous_status,
+        alert_audit_events.new_status,
+        alert_audit_events.previous_risk_level,
+        alert_audit_events.new_risk_level,
+        alert_audit_events.changed_by,
+        alert_audit_events.created_at,
+        alerts.expires_at,
+        alerts.title,
+        alerts.disaster_type,
+        alerts.affected_area
+      FROM alert_audit_events
+      INNER JOIN alerts ON alerts.id = alert_audit_events.alert_id
+    ),
+    expired_history AS (
+      SELECT
+        -alerts.id AS id,
+        alerts.id AS alert_id,
+        'EXPIRED' AS action,
+        alerts.created_at AS alert_created_at,
+        'Expired' AS alert_status,
+        'Active' AS previous_status,
+        'Expired' AS new_status,
+        alerts.risk_level AS previous_risk_level,
+        alerts.risk_level AS new_risk_level,
+        alerts.created_by AS changed_by,
+        alerts.expires_at AS created_at,
+        alerts.expires_at,
+        alerts.title,
+        alerts.disaster_type,
+        alerts.affected_area
+      FROM alerts
+      WHERE alerts.status = ${ACTIVE_ALERT_STATUS}
+        AND alerts.expires_at IS NOT NULL
+        AND alerts.expires_at <= CURRENT_TIMESTAMP
+        AND NOT EXISTS (
+          SELECT 1
+          FROM alert_audit_events
+          WHERE alert_audit_events.alert_id = alerts.id
+            AND alert_audit_events.action = 'EXPIRED'
+        )
+    )
+    SELECT * FROM audit_history
+    UNION ALL
+    SELECT * FROM expired_history
     ORDER BY
-      alert_audit_events.created_at DESC,
-      alert_audit_events.id DESC
+      created_at DESC,
+      id DESC
   `;
 
   return (rows as AlertAuditRow[]).map(toAuditEvent);
@@ -1177,6 +1230,7 @@ export async function getAlertRiskHistory(alertId: string) {
 
 export async function getAlertById(alertId: string) {
   await ensureAlertSchoolSchema();
+  await ensureAlertAuditTable();
 
   const numericId = numericAlertId(alertId);
 
@@ -1190,7 +1244,17 @@ export async function getAlertById(alertId: string) {
       risk_level,
       message,
       safety_instructions,
-      status,
+      CASE
+        WHEN (
+          SELECT latest_event.action
+          FROM alert_audit_events AS latest_event
+          WHERE latest_event.alert_id = alerts.id
+          ORDER BY latest_event.created_at DESC, latest_event.id DESC
+          LIMIT 1
+        ) = 'CANCELLED'
+        THEN 'Cancelled'
+        ELSE alerts.status
+      END AS status,
       expires_at,
       created_by,
       created_at,

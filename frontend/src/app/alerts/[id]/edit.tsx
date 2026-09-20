@@ -695,7 +695,7 @@ export default function EditAlertScreen() {
                   </View>
                 </FormSection>
 
-                <FormSection helper="Use Resolved only when this warning should leave the active alert list." title="Alert Status">
+                <FormSection helper="Use Resolved or Cancelled when this warning should leave the active alert list." title="Alert Status">
                   <View style={styles.fieldGroup}>
                     <Text style={styles.label}>Status</Text>
                     <View style={[styles.optionGrid, fieldErrors.status && styles.selectorError]}>

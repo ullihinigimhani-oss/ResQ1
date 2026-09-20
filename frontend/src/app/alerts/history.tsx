@@ -35,7 +35,7 @@ function displayValue(value: string | null | undefined, fallback = 'Not availabl
 }
 
 function actionTone(action: string) {
-  if (action === 'CANCELLED' || action === 'RESOLVED') {
+  if (action === 'CANCELLED') {
     return {
       backgroundColor: colors.redSoft,
       borderColor: colors.red,
@@ -56,6 +56,14 @@ function actionTone(action: string) {
       backgroundColor: colors.surfaceMuted,
       borderColor: colors.border,
       color: colors.muted,
+    };
+  }
+
+  if (action === 'RESOLVED') {
+    return {
+      backgroundColor: colors.successSoft,
+      borderColor: colors.success,
+      color: colors.success,
     };
   }
 
@@ -99,6 +107,14 @@ function statusTone(status: string | null) {
     };
   }
 
+  if (status === 'Resolved') {
+    return {
+      backgroundColor: colors.successSoft,
+      borderColor: colors.success,
+      color: colors.success,
+    };
+  }
+
   if (status === 'Expired') {
     return {
       backgroundColor: colors.surfaceMuted,
@@ -112,6 +128,26 @@ function statusTone(status: string | null) {
     borderColor: colors.red,
     color: colors.red,
   };
+}
+
+function finalStatus(event: AlertAuditEvent) {
+  const action = displayValue(event.action, '').toUpperCase();
+
+  if (action === 'CANCELLED') {
+    return 'Cancelled';
+  }
+
+  if (action === 'EXPIRED') {
+    return 'Expired';
+  }
+
+  const currentStatus = event.currentStatus?.trim();
+
+  if (currentStatus && currentStatus !== 'Active') {
+    return currentStatus;
+  }
+
+  return displayValue(event.newStatus ?? currentStatus, 'Unknown');
 }
 
 function severityTone(riskLevel: string | null) {
@@ -165,10 +201,28 @@ function riskLabel(event: AlertAuditEvent) {
 
 function statusChangeLabel(event: AlertAuditEvent) {
   const previousStatus = event.previousStatus;
-  const newStatus = event.newStatus;
+  const newStatus = finalStatus(event);
 
   if (previousStatus && newStatus && previousStatus !== newStatus) {
     return `${previousStatus.toUpperCase()} -> ${newStatus.toUpperCase()}`;
+  }
+
+  return null;
+}
+
+function statusTimingLabel(event: AlertAuditEvent, status: string) {
+  const action = displayValue(event.action, '').toUpperCase();
+
+  if (status === 'Expired' && event.expiresAt) {
+    return `Expired: ${formatAuditDateTime(event.expiresAt)}`;
+  }
+
+  if (status === 'Cancelled' && action === 'CANCELLED') {
+    return `Cancelled: ${formatAuditDateTime(event.createdAt)}`;
+  }
+
+  if (event.expiresAt) {
+    return `Expires: ${formatAuditDateTime(event.expiresAt)}`;
   }
 
   return null;
@@ -191,8 +245,9 @@ function AlertHistoryRow({
   onOpen: (alertId: number) => void;
 }) {
   const action = displayValue(event.action, 'UPDATED').toUpperCase();
-  const resultingStatus = displayValue(event.newStatus, 'Unknown');
+  const resultingStatus = finalStatus(event);
   const statusChange = statusChangeLabel(event);
+  const timingLabel = statusTimingLabel(event, resultingStatus);
 
   return (
     <Pressable
@@ -211,13 +266,17 @@ function AlertHistoryRow({
 
         <Text numberOfLines={1} style={styles.alertTitle}>{event.title}</Text>
         <Text numberOfLines={1} style={styles.areaText}>{event.affectedArea}</Text>
+        <Text numberOfLines={1} style={styles.historyMetaText}>
+          Issued: {formatAuditDateTime(event.alertCreatedAt)}
+        </Text>
 
         <View style={styles.badgeRow}>
           <AuditBadge label={action} tone={actionTone(action)} />
-          <AuditBadge label={resultingStatus} tone={statusTone(event.newStatus)} />
+          <AuditBadge label={resultingStatus} tone={statusTone(resultingStatus)} />
           <AuditBadge label={riskLabel(event)} tone={severityTone(event.newRiskLevel)} />
         </View>
 
+        {timingLabel ? <Text style={styles.historyOutcomeText}>{timingLabel}</Text> : null}
         {statusChange ? <Text style={styles.changeText}>Status: {statusChange}</Text> : null}
       </View>
     </Pressable>
@@ -282,7 +341,7 @@ export default function AlertHistoryScreen() {
       <ScreenContainer>
         <AppHeader
           title="Alert History"
-          subtitle="Track published, updated, and cancelled emergency alerts"
+          subtitle="Previous emergency warnings and updates"
           onBack={() => router.replace('/alerts' as Href)}
         />
         <EmptyState
@@ -302,7 +361,7 @@ export default function AlertHistoryScreen() {
     <ScreenContainer>
       <AppHeader
         title="Alert History"
-        subtitle="Track published, updated, and cancelled emergency alerts"
+        subtitle="Previous emergency warnings and updates"
         onBack={() => router.replace('/alerts' as Href)}
       />
 
@@ -383,6 +442,18 @@ const styles = StyleSheet.create({
   },
   areaText: {
     color: colors.deepBlue,
+    fontSize: 12,
+    fontWeight: '800',
+    lineHeight: 17,
+  },
+  historyMetaText: {
+    color: colors.muted,
+    fontSize: 11,
+    fontWeight: '800',
+    lineHeight: 15,
+  },
+  historyOutcomeText: {
+    color: colors.text,
     fontSize: 12,
     fontWeight: '800',
     lineHeight: 17,
