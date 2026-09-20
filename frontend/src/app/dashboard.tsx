@@ -13,6 +13,7 @@ import {
   SecondaryButton,
   StatusBadge,
 } from '@/components/ui/app-components';
+import { ResidentHome } from '@/components/dashboard/resident-home';
 import { colors, radius, spacing, typography } from '@/constants/design';
 import { useAuth } from '@/context/auth-context';
 import {
@@ -187,6 +188,21 @@ export default function DashboardScreen() {
   const residentFirstName = firstName(user.fullName);
   const canPublishAlerts = isAuthorityRole(user.role);
   const alertCountLabel = `${alerts.length} active ${plural(alerts.length, 'alert', 'alerts')}`;
+
+  if (!canPublishAlerts) {
+    return (
+      <ResidentHome
+        alerts={alerts}
+        communityNotifications={communityNotifications}
+        initialError={initialSummaryError}
+        loading={initialLoading}
+        onRetry={loadSummary}
+        refreshing={refreshing}
+        summaryWarning={showSummaryWarning ? summaryWarning : null}
+        user={user}
+      />
+    );
+  }
 
   return (
     <ScreenContainer>
