@@ -299,10 +299,10 @@ function UpdatePreview({ update }: { update: LatestUpdate | null }) {
   );
 }
 
-function PreparednessSection() {
+function PreparednessSection({ wideLayout }: { wideLayout: boolean }) {
   return (
-    <View style={styles.visualSection}>
-      <View style={styles.sectionHeadingCopy}>
+    <View style={[styles.visualSection, wideLayout && styles.visualSectionWide]}>
+      <View style={styles.visualHeading}>
         <Text style={styles.sectionEyebrow}>Everyday readiness</Text>
         <Text style={styles.sectionTitle}>Be Prepared</Text>
       </View>
@@ -332,10 +332,10 @@ function PreparednessSection() {
   );
 }
 
-function CommunitySection() {
+function CommunitySection({ wideLayout }: { wideLayout: boolean }) {
   return (
-    <View style={styles.visualSection}>
-      <View style={styles.sectionHeadingCopy}>
+    <View style={[styles.visualSection, wideLayout && styles.visualSectionWide]}>
+      <View style={styles.visualHeading}>
         <Text style={styles.sectionEyebrow}>Community resilience</Text>
         <Text style={styles.sectionTitle}>Safer Together</Text>
       </View>
@@ -438,8 +438,8 @@ export function ResidentHome({
         {!loading && !initialError ? <UpdatePreview update={latestUpdate} /> : null}
 
         <View style={[styles.visualGrid, wideLayout && styles.visualGridWide]}>
-          <PreparednessSection />
-          <CommunitySection />
+          <PreparednessSection wideLayout={wideLayout} />
+          <CommunitySection wideLayout={wideLayout} />
         </View>
 
         <EmergencyHelp />
@@ -752,9 +752,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   visualSection: {
-    flex: 1,
     gap: spacing.md,
     minWidth: 0,
+    width: '100%',
+  },
+  visualSectionWide: {
+    flex: 1,
+    width: 'auto',
+  },
+  visualHeading: {
+    flexGrow: 0,
+    flexShrink: 0,
+    gap: 2,
+    minHeight: 44,
   },
   supportingImageFrame: {
     aspectRatio: 1.5,
