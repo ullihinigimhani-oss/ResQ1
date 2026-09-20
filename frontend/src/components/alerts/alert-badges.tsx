@@ -48,6 +48,11 @@ const statusTones: Record<AlertStatus, BadgeTone> = {
     borderColor: BrandColors.blue,
     color: BrandColors.deepBlue,
   },
+  Cancelled: {
+    backgroundColor: BrandColors.redSoft,
+    borderColor: BrandColors.red,
+    color: BrandColors.red,
+  },
 };
 
 const fallbackTone: BadgeTone = {

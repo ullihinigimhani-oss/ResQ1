@@ -884,6 +884,7 @@ function AuthorityAlertCard({
     schoolSummary,
   ].filter(Boolean).join(' • ');
   const messagePreview = alert.message.trim();
+  const expiryText = alert.expiresAt ? formatCompactDateTime(alert.expiresAt) : null;
 
   return (
     <Pressable
@@ -922,7 +923,16 @@ function AuthorityAlertCard({
       </Text>
 
       <View style={styles.authorityCardFooter}>
-        <Text numberOfLines={1} style={styles.compactMetaText}>{formatCompactDateTime(alert.createdAt)}</Text>
+        <View style={styles.authorityCardTimeBlock}>
+          <Text numberOfLines={1} style={styles.compactMetaText}>
+            Issued: {formatCompactDateTime(alert.createdAt)}
+          </Text>
+          {expiryText ? (
+            <Text numberOfLines={1} style={styles.compactMetaText}>
+              Expires: {expiryText}
+            </Text>
+          ) : null}
+        </View>
         <View style={styles.authorityIconActions}>
           <Pressable
             accessibilityLabel="Edit alert"
@@ -1212,15 +1222,15 @@ function AuthorityDashboard({
           <Text style={styles.authoritySectionSubtitle}>Official warnings currently published</Text>
         </View>
         <View style={styles.authoritySectionActions}>
+          <View style={styles.activeCountBadge}>
+            <Text style={styles.activeCountBadgeText}>{alerts.length} ACTIVE</Text>
+          </View>
           <Pressable
             accessibilityRole="button"
             onPress={onViewHistory}
             style={({ pressed }) => [styles.historyLink, pressed && styles.pressed]}>
-            <Text style={styles.historyLinkText}>View History</Text>
+            <Text style={styles.historyLinkText}>View Alert History</Text>
           </Pressable>
-          <View style={styles.activeCountBadge}>
-            <Text style={styles.activeCountBadgeText}>{alerts.length} ACTIVE</Text>
-          </View>
         </View>
       </View>
 
@@ -1494,7 +1504,7 @@ export default function AlertsScreen() {
         affectedArea: cancelTarget.affectedArea,
         alertAudience: cancelTarget.alertAudience,
         riskLevel: cancelTarget.riskLevel,
-        status: 'Resolved',
+        status: 'Cancelled',
         auditAction: 'CANCELLED',
         message: cancelTarget.message,
         safetyInstructions: cancelTarget.safetyInstructions,
@@ -2160,10 +2170,15 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   authorityCardFooter: {
-    alignItems: 'center',
+    alignItems: 'flex-end',
     flexDirection: 'row',
     gap: spacing.xs,
     justifyContent: 'space-between',
+  },
+  authorityCardTimeBlock: {
+    flex: 1,
+    gap: 2,
+    minWidth: 0,
   },
   authorityIconActions: {
     alignItems: 'center',
@@ -2301,6 +2316,7 @@ const styles = StyleSheet.create({
   authoritySectionHeader: {
     alignItems: 'flex-start',
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: spacing.md,
     justifyContent: 'space-between',
   },
@@ -2315,14 +2331,22 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   authoritySectionActions: {
-    alignItems: 'flex-end',
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: spacing.xs,
+    justifyContent: 'flex-end',
   },
   historyLink: {
     alignItems: 'center',
-    minHeight: 28,
+    backgroundColor: colors.lightBlue,
+    borderColor: colors.sky,
+    borderRadius: radius.sm,
+    borderWidth: 1,
     justifyContent: 'center',
-    paddingHorizontal: spacing.xs,
+    minHeight: 30,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
   },
   historyLinkText: {
     color: colors.deepBlue,
