@@ -12,55 +12,55 @@ type TrackerStageState = 'completed' | 'current' | 'pending';
 const severityStyles: Record<IncidentSeverity, { backgroundColor: string; borderColor: string; color: string }> = {
   Low: {
     backgroundColor: BrandColors.lightBlue,
-    borderColor: BrandColors.blue,
+    borderColor: BrandColors.blueBorder,
     color: BrandColors.deepBlue,
   },
   Medium: {
     backgroundColor: BrandColors.warningSoft,
-    borderColor: '#D69E2E',
-    color: '#7A4B00',
+    borderColor: BrandColors.warningBorderStrong,
+    color: BrandColors.warningText,
   },
   High: {
     backgroundColor: BrandColors.redSoft,
-    borderColor: BrandColors.red,
+    borderColor: BrandColors.redBorder,
     color: BrandColors.red,
   },
   Critical: {
-    backgroundColor: BrandColors.red,
-    borderColor: BrandColors.red,
-    color: BrandColors.white,
+    backgroundColor: BrandColors.criticalBackground,
+    borderColor: BrandColors.criticalBorder,
+    color: BrandColors.criticalText,
   },
 };
 
 const statusStyles: Record<IncidentStatus, { backgroundColor: string; borderColor: string; color: string }> = {
   Reported: {
     backgroundColor: BrandColors.lightBlue,
-    borderColor: BrandColors.blue,
+    borderColor: BrandColors.blueBorder,
     color: BrandColors.deepBlue,
   },
   'Under Review': {
     backgroundColor: BrandColors.warningSoft,
-    borderColor: '#D69E2E',
-    color: '#7A4B00',
+    borderColor: BrandColors.warningBorderStrong,
+    color: BrandColors.warningText,
   },
   'In Progress': {
-    backgroundColor: '#E8F1FF',
-    borderColor: BrandColors.deepBlue,
+    backgroundColor: BrandColors.incidentSoft,
+    borderColor: BrandColors.accentAction,
     color: BrandColors.deepBlue,
   },
   Resolved: {
     backgroundColor: BrandColors.successSoft,
-    borderColor: BrandColors.success,
+    borderColor: BrandColors.successBorder,
     color: BrandColors.success,
   },
   Verified: {
     backgroundColor: BrandColors.successSoft,
-    borderColor: BrandColors.success,
+    borderColor: BrandColors.successBorder,
     color: BrandColors.success,
   },
   Rejected: {
     backgroundColor: BrandColors.redSoft,
-    borderColor: BrandColors.red,
+    borderColor: BrandColors.redBorder,
     color: BrandColors.red,
   },
 };
@@ -199,8 +199,8 @@ const styles = StyleSheet.create({
     width: 18,
   },
   timelineDotCompleted: {
-    backgroundColor: BrandColors.deepBlue,
-    borderColor: BrandColors.deepBlue,
+    backgroundColor: BrandColors.accentAction,
+    borderColor: BrandColors.accentAction,
   },
   timelineDotCurrent: {
     backgroundColor: BrandColors.white,
@@ -223,7 +223,7 @@ const styles = StyleSheet.create({
     width: 2,
   },
   timelineLineActive: {
-    backgroundColor: BrandColors.deepBlue,
+    backgroundColor: BrandColors.accentAction,
   },
   timelineTextBlock: {
     flex: 1,
@@ -255,7 +255,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   timelineCopyPending: {
-    color: '#7A8798',
+    color: BrandColors.muted,
   },
   stageBadge: {
     borderRadius: 8,

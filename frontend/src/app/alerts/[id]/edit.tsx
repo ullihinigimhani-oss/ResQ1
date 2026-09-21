@@ -399,7 +399,7 @@ export default function EditAlertScreen() {
   if (!isAuthorityRole(user.role)) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <StatusBar style="dark" />
+        <StatusBar style="auto" />
         <View style={styles.restrictedContent}>
           <BackButton onPress={() => router.replace('/alerts' as Href)} />
           <View style={styles.restrictedPanel}>
@@ -548,7 +548,7 @@ export default function EditAlertScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="dark" />
+      <StatusBar style="auto" />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.keyboardView}>
@@ -999,15 +999,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   optionButtonSelected: {
-    backgroundColor: BrandColors.deepBlue,
-    borderColor: BrandColors.deepBlue,
+    backgroundColor: BrandColors.accentAction,
+    borderColor: BrandColors.accentAction,
   },
   criticalOption: {
     backgroundColor: BrandColors.redSoft,
     borderColor: BrandColors.red,
   },
   criticalOptionSelected: {
-    backgroundColor: BrandColors.red,
+    backgroundColor: BrandColors.criticalBackground,
   },
   optionButtonText: {
     color: BrandColors.deepBlue,
@@ -1017,7 +1017,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   optionButtonTextSelected: {
-    color: BrandColors.white,
+    color: BrandColors.onPrimary,
   },
   errorText: {
     color: BrandColors.red,
@@ -1029,21 +1029,21 @@ const styles = StyleSheet.create({
     paddingTop: 13,
   },
   savePanel: {
-    backgroundColor: BrandColors.navy,
-    borderColor: BrandColors.deepBlue,
+    backgroundColor: BrandColors.primaryAction,
+    borderColor: BrandColors.accentAction,
     borderRadius: 8,
     borderWidth: 1,
     gap: 12,
     padding: 16,
   },
   saveTitle: {
-    color: BrandColors.white,
+    color: BrandColors.onPrimary,
     fontSize: 18,
     fontWeight: '900',
     lineHeight: 24,
   },
   saveCopy: {
-    color: BrandColors.sky,
+    color: BrandColors.onPrimaryMuted,
     fontSize: 14,
     fontWeight: '700',
     lineHeight: 20,
@@ -1083,7 +1083,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   saveButton: {
-    backgroundColor: BrandColors.red,
+    backgroundColor: BrandColors.redAction,
   },
   centerState: {
     alignItems: 'center',

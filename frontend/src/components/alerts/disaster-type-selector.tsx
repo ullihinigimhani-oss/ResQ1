@@ -162,7 +162,7 @@ const styles = StyleSheet.create({
     borderColor: BrandColors.red,
   },
   selectButtonOpen: {
-    borderColor: BrandColors.deepBlue,
+    borderColor: BrandColors.accentAction,
   },
   selectText: {
     color: BrandColors.text,

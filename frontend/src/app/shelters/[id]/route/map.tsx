@@ -77,7 +77,7 @@ export default function RouteMapScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="dark" />
+      <StatusBar style="auto" />
       <View style={styles.container}>
         <MapView
           provider={PROVIDER_DEFAULT}
@@ -231,7 +231,7 @@ const styles = StyleSheet.create({
   },
   topBar: {
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backgroundColor: BrandColors.mapOverlay,
     flexDirection: 'row',
     gap: 12,
     padding: 12,
@@ -261,7 +261,7 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   bottomBar: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backgroundColor: BrandColors.mapOverlay,
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     gap: 12,
@@ -290,8 +290,8 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   routeButtonSelected: {
-    backgroundColor: BrandColors.navy,
-    borderColor: BrandColors.navy,
+    backgroundColor: BrandColors.primaryAction,
+    borderColor: BrandColors.primaryAction,
   },
   routeButtonText: {
     color: BrandColors.text,
@@ -300,7 +300,7 @@ const styles = StyleSheet.create({
     lineHeight: 17,
   },
   routeButtonTextSelected: {
-    color: BrandColors.white,
+    color: BrandColors.onPrimary,
   },
   legend: {
     flexDirection: 'row',

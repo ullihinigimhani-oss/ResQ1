@@ -200,9 +200,9 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
   },
   needChipSelected: {
-    backgroundColor: colors.navy,
-    borderColor: colors.navy,
-    color: colors.white,
+    backgroundColor: colors.primaryAction,
+    borderColor: colors.primaryAction,
+    color: colors.onPrimary,
   },
   submitBlock: {
     gap: spacing.sm,

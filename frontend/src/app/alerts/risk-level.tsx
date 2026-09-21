@@ -285,7 +285,7 @@ const styles = StyleSheet.create({
   },
   scaleItemActive: {
     backgroundColor: colors.lightBlue,
-    borderColor: colors.deepBlue,
+    borderColor: colors.accentAction,
   },
   scaleLabel: {
     color: colors.navy,

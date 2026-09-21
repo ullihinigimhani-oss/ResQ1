@@ -492,8 +492,8 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   choiceChipSelected: {
-    backgroundColor: colors.navy,
-    borderColor: colors.navy,
+    backgroundColor: colors.primaryAction,
+    borderColor: colors.primaryAction,
   },
   choiceChipText: {
     color: colors.muted,
@@ -501,7 +501,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   choiceChipSelectedText: {
-    color: '#ffffff',
+    color: colors.onPrimary,
   },
   gridRow: {
     flexDirection: 'row',
@@ -566,12 +566,12 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   checkboxRowChecked: {
-    backgroundColor: '#fffbe6',
-    borderColor: '#f59e0b',
+    backgroundColor: colors.cautionSoft,
+    borderColor: colors.warningAccent,
   },
   checkboxBox: {
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
     borderColor: colors.border,
     borderRadius: 4,
     borderWidth: 1.5,
@@ -580,11 +580,11 @@ const styles = StyleSheet.create({
     width: 22,
   },
   checkboxBoxChecked: {
-    backgroundColor: '#f59e0b',
-    borderColor: '#f59e0b',
+    backgroundColor: colors.warningAccent,
+    borderColor: colors.warningAccent,
   },
   checkmark: {
-    color: '#ffffff',
+    color: colors.onPrimary,
     fontSize: 14,
     fontWeight: '900',
   },
@@ -598,7 +598,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   errorText: {
-    color: '#dc2626',
+    color: colors.dangerText,
     fontSize: 13,
     fontWeight: '600',
     marginTop: 4,

@@ -149,7 +149,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.success,
   },
   mapLine: {
-    backgroundColor: colors.deepBlue,
+    backgroundColor: colors.accentAction,
     flex: 1,
     height: 4,
   },

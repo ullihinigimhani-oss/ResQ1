@@ -270,7 +270,7 @@ export default function HouseholdScreen() {
                 onPress={handleDeleteConfirm}
                 style={({ pressed }) => [styles.confirmModalBtn, pressed && styles.pressed]}>
                 {deleting ? (
-                  <ActivityIndicator color="#ffffff" size="small" />
+                  <ActivityIndicator color={colors.onPrimary} size="small" />
                 ) : (
                   <Text style={styles.confirmModalBtnText}>Remove</Text>
                 )}
@@ -296,13 +296,13 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   addSmallBtn: {
-    backgroundColor: colors.navy,
+    backgroundColor: colors.primaryAction,
     borderRadius: radius.sm,
     paddingHorizontal: 12,
     paddingVertical: 6,
   },
   addSmallBtnText: {
-    color: '#ffffff',
+    color: colors.onPrimary,
     fontSize: 12,
     fontWeight: '800',
   },
@@ -350,8 +350,8 @@ const styles = StyleSheet.create({
   },
   chip: {
     alignItems: 'center',
-    backgroundColor: '#fffbe6',
-    borderColor: '#f59e0b',
+    backgroundColor: colors.cautionSoft,
+    borderColor: colors.warningAccent,
     borderRadius: 14,
     borderWidth: 1,
     flexDirection: 'row',
@@ -363,7 +363,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
   },
   chipText: {
-    color: '#b45309',
+    color: colors.amberEmphasis,
     fontSize: 11,
     fontWeight: '800',
   },
@@ -400,7 +400,7 @@ const styles = StyleSheet.create({
   },
   viewBtn: {
     backgroundColor: colors.white,
-    borderColor: colors.navy,
+    borderColor: colors.primaryAction,
     borderWidth: 1,
   },
   viewBtnText: {
@@ -410,21 +410,21 @@ const styles = StyleSheet.create({
   },
   editBtn: {
     backgroundColor: colors.white,
-    borderColor: '#d97706',
+    borderColor: colors.warningAction,
     borderWidth: 1,
   },
   editBtnText: {
-    color: '#d97706',
+    color: colors.warningAction,
     fontSize: 13,
     fontWeight: '800',
   },
   deleteBtn: {
-    backgroundColor: '#fef2f2',
-    borderColor: '#ef4444',
+    backgroundColor: colors.dangerSoft,
+    borderColor: colors.dangerBorder,
     borderWidth: 1,
   },
   deleteBtnText: {
-    color: '#dc2626',
+    color: colors.dangerText,
     fontSize: 13,
     fontWeight: '800',
   },
@@ -452,20 +452,20 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.lg,
   },
   errorText: {
-    color: '#dc2626',
+    color: colors.dangerText,
     fontSize: 14,
     fontWeight: '700',
     textAlign: 'center',
   },
   modalOverlay: {
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: colors.modalBackdrop,
     flex: 1,
     justifyContent: 'center',
     padding: spacing.lg,
   },
   modalContent: {
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
     borderRadius: radius.md,
     gap: spacing.md,
     maxWidth: 400,
@@ -508,14 +508,14 @@ const styles = StyleSheet.create({
   },
   confirmModalBtn: {
     alignItems: 'center',
-    backgroundColor: '#dc2626',
+    backgroundColor: colors.dangerAction,
     borderRadius: radius.sm,
     flex: 1,
     justifyContent: 'center',
     paddingVertical: 12,
   },
   confirmModalBtnText: {
-    color: '#ffffff',
+    color: colors.onPrimary,
     fontSize: 14,
     fontWeight: '800',
   },

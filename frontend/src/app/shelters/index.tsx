@@ -217,7 +217,7 @@ export default function NearbySheltersScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="dark" />
+      <StatusBar style="auto" />
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={
@@ -252,7 +252,7 @@ export default function NearbySheltersScreen() {
             accessibilityLabel="Search shelters"
             autoCapitalize="words"
             placeholder="Search shelters"
-            placeholderTextColor="#8B98A9"
+            placeholderTextColor={BrandColors.placeholder}
             returnKeyType="search"
             selectionColor={BrandColors.blue}
             style={styles.searchInput}
@@ -364,7 +364,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   emergencyButton: {
-    backgroundColor: BrandColors.red,
+    backgroundColor: BrandColors.redAction,
     marginTop: 4,
   },
   searchPanel: {
@@ -376,7 +376,7 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   searchInput: {
-    backgroundColor: BrandColors.background,
+    backgroundColor: BrandColors.controlSurfaceSubtle,
     borderColor: BrandColors.border,
     borderRadius: 8,
     borderWidth: 1,
@@ -402,8 +402,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   filterChipSelected: {
-    backgroundColor: BrandColors.navy,
-    borderColor: BrandColors.navy,
+    backgroundColor: BrandColors.primaryAction,
+    borderColor: BrandColors.primaryAction,
   },
   filterText: {
     color: BrandColors.deepBlue,
@@ -412,7 +412,7 @@ const styles = StyleSheet.create({
     lineHeight: 17,
   },
   filterTextSelected: {
-    color: BrandColors.white,
+    color: BrandColors.onPrimary,
   },
   list: {
     gap: 14,
@@ -457,13 +457,13 @@ const styles = StyleSheet.create({
   },
   areaMatchBadge: {
     alignSelf: 'flex-start',
-    backgroundColor: BrandColors.navy,
+    backgroundColor: BrandColors.primaryAction,
     borderRadius: 8,
     paddingHorizontal: 9,
     paddingVertical: 5,
   },
   areaMatchText: {
-    color: BrandColors.white,
+    color: BrandColors.onPrimary,
     fontSize: 11,
     fontWeight: '900',
     lineHeight: 15,
@@ -501,7 +501,7 @@ const styles = StyleSheet.create({
   },
   cardButton: {
     alignItems: 'center',
-    backgroundColor: BrandColors.navy,
+    backgroundColor: BrandColors.primaryAction,
     borderRadius: 8,
     flex: 1,
     justifyContent: 'center',
@@ -509,14 +509,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   cardButtonText: {
-    color: BrandColors.white,
+    color: BrandColors.onPrimary,
     fontSize: 13,
     fontWeight: '900',
     lineHeight: 17,
   },
   callButton: {
     alignItems: 'center',
-    backgroundColor: BrandColors.success,
+    backgroundColor: BrandColors.successBorder,
     borderRadius: 20,
     height: 40,
     justifyContent: 'center',

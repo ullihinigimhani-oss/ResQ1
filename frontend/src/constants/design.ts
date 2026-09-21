@@ -4,16 +4,23 @@ import { BrandColors } from '@/constants/brand';
 
 export const colors = {
   ...BrandColors,
-  amber: '#B7791F',
-  amberSoft: '#FFF7DF',
-  orange: '#EA580C',
-  orangeSoft: '#FFF1E6',
+  amber: BrandColors.warning,
+  amberSoft: Platform.OS === 'web' ? 'var(--resq1-amber-soft, #FFF7DF)' : '#FFF7DF',
+  amberText: BrandColors.warningText,
+  amberStrong: BrandColors.warningStrong,
+  amberEmphasis: BrandColors.warningEmphasis,
+  orange: BrandColors.orange,
+  orangeSoft: BrandColors.orangeSoft,
+  orangeText: BrandColors.orangeText,
+  dangerText: BrandColors.dangerText,
+  cautionSoft: BrandColors.cautionSoft,
+  dangerSoft: BrandColors.dangerSoft,
   green: BrandColors.success,
   greenSoft: BrandColors.successSoft,
-  slate: '#24344D',
-  surface: BrandColors.white,
+  slate: Platform.OS === 'web' ? 'var(--resq1-slate, #24344D)' : '#24344D',
+  surface: BrandColors.surface,
   surfaceBlue: BrandColors.lightBlue,
-  surfaceMuted: '#EEF4FA',
+  surfaceMuted: BrandColors.surfaceMuted,
   line: BrandColors.border,
   textMuted: BrandColors.muted,
   textStrong: BrandColors.text,
@@ -66,7 +73,7 @@ export const typography = {
 export const shadows = {
   card: Platform.select({
     web: {
-      boxShadow: '0px 10px 24px rgba(7, 26, 53, 0.08)',
+      boxShadow: `0px 10px 24px ${BrandColors.cardShadow}`,
     },
     default: {
       elevation: 2,

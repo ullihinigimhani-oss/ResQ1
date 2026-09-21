@@ -484,7 +484,7 @@ export default function AlertRiskAssessmentScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="dark" />
+      <StatusBar style="auto" />
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={
@@ -536,7 +536,7 @@ export default function AlertRiskAssessmentScreen() {
               <View style={[styles.summaryHero, { backgroundColor: theme.backgroundColor }]}>
                 <View style={styles.summaryTopRow}>
                   <View style={[styles.summaryIcon, { backgroundColor: theme.accent }]}>
-                    <AppIcon fallback="R" name="gauge.fill" size={26} tintColor={BrandColors.white} />
+                    <AppIcon fallback="R" name="gauge.fill" size={26} tintColor={BrandColors.onPrimary} />
                   </View>
                   <View style={styles.summaryTitleBlock}>
                     <Text style={styles.summaryEyebrow}>{detailCopy.currentAssessment}</Text>

@@ -104,7 +104,7 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="dark" />
+      <StatusBar style="auto" />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.keyboardView}>
@@ -250,11 +250,11 @@ const styles = StyleSheet.create({
     width: 22,
   },
   checkboxChecked: {
-    backgroundColor: BrandColors.deepBlue,
-    borderColor: BrandColors.deepBlue,
+    backgroundColor: BrandColors.accentAction,
+    borderColor: BrandColors.accentAction,
   },
   checkboxMark: {
-    color: BrandColors.white,
+    color: BrandColors.onPrimary,
     fontSize: 13,
     fontWeight: '900',
     lineHeight: 16,

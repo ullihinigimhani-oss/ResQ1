@@ -18,6 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppIcon, BottomNavigation, EmptyState, LoadingState, PrimaryButton } from '@/components/ui/app-components';
 import { colors, radius, shadows, spacing, typography } from '@/constants/design';
 import { useAuth } from '@/context/auth-context';
+import { useAppTheme } from '@/context/theme-context';
 import { getActiveAlerts, getAlertPreferences, isAlertApiError, updateAlert } from '@/services/alertService';
 import type { Alert, AlertAudience, AlertRiskLevel } from '@/types/alert';
 import type { AlertPreferences } from '@/types/alertPreference';
@@ -251,13 +252,13 @@ const authoritySeverityTheme: Record<AlertRiskLevel, {
     accent: colors.orange,
     badgeBackground: colors.orangeSoft,
     badgeBorder: colors.orange,
-    badgeText: '#9A3412',
+    badgeText: colors.orangeText,
   },
   Moderate: {
     accent: colors.amber,
     badgeBackground: colors.amberSoft,
     badgeBorder: colors.amber,
-    badgeText: '#7A4B00',
+    badgeText: colors.amberText,
   },
   Low: {
     accent: colors.success,
@@ -285,9 +286,17 @@ function ResidentStatusBadge({
   language: PreferredLanguage;
   status: string;
 }) {
+  const { theme } = useAppTheme();
+  const activeInDarkMode = theme === 'dark' && status.trim().toLowerCase() === 'active';
+
   return (
-    <View style={styles.residentStatusBadge}>
-      <Text style={styles.residentStatusBadgeText}>{translateAlertStatus(status, language)}</Text>
+    <View style={[styles.residentStatusBadge, activeInDarkMode && styles.residentStatusBadgeActiveDark]}>
+      <Text style={[
+        styles.residentStatusBadgeText,
+        activeInDarkMode && styles.residentStatusBadgeTextActiveDark,
+      ]}>
+        {translateAlertStatus(status, language)}
+      </Text>
     </View>
   );
 }
@@ -299,10 +308,13 @@ function ResidentLanguageSelector({
   onChange: (language: PreferredLanguage) => void;
   selectedLanguage: PreferredLanguage;
 }) {
+  const { theme } = useAppTheme();
+  const darkMode = theme === 'dark';
+  const [hoveredLanguage, setHoveredLanguage] = useState<PreferredLanguage | null>(null);
   const copy = residentAlertUiText[selectedLanguage];
 
   return (
-    <View style={styles.languageSelector}>
+    <View style={[styles.languageSelector, darkMode && styles.selectorGroupDark]}>
       <Text style={styles.languageLabel}>{copy.language}</Text>
       <View style={styles.languageOptions}>
         {preferredLanguages.map((language) => {
@@ -313,13 +325,23 @@ function ResidentLanguageSelector({
               accessibilityRole="button"
               accessibilityState={{ selected }}
               key={language}
+              onHoverIn={() => setHoveredLanguage(language)}
+              onHoverOut={() => setHoveredLanguage(null)}
               onPress={() => onChange(language)}
               style={({ pressed }) => [
                 styles.languageOption,
+                darkMode && styles.selectorOptionDark,
+                darkMode && hoveredLanguage === language && !selected && styles.selectorOptionHoverDark,
                 selected && styles.languageOptionSelected,
-                pressed && styles.pressed,
+                darkMode && selected && styles.selectorOptionSelectedDark,
+                pressed && (darkMode ? styles.selectorOptionPressedDark : styles.pressed),
               ]}>
-              <Text style={[styles.languageOptionText, selected && styles.languageOptionTextSelected]}>
+              <Text style={[
+                styles.languageOptionText,
+                darkMode && styles.selectorOptionTextDark,
+                selected && styles.languageOptionTextSelected,
+                darkMode && selected && styles.selectorOptionTextSelectedDark,
+              ]}>
                 {preferredLanguageLabels[language]}
               </Text>
             </Pressable>
@@ -480,7 +502,7 @@ function ResidentAlertFilters({
           autoCorrect={false}
           onChangeText={onSearchQueryChange}
           placeholder={copy.searchPlaceholder}
-          placeholderTextColor="#8B98A9"
+          placeholderTextColor={colors.placeholder}
           selectionColor={colors.blue}
           style={styles.searchInput}
           value={searchQuery}
@@ -542,6 +564,9 @@ function ResidentAudienceTabs({
   selectedLanguage: PreferredLanguage;
   selectedTab: ResidentAlertTab;
 }) {
+  const { theme } = useAppTheme();
+  const darkMode = theme === 'dark';
+  const [hoveredTab, setHoveredTab] = useState<ResidentAlertTab | null>(null);
   const copy = residentAlertUiText[selectedLanguage];
   const tabs: { label: string; value: ResidentAlertTab }[] = [
     { label: copy.generalPublic, value: 'GENERAL_PUBLIC' },
@@ -549,7 +574,7 @@ function ResidentAudienceTabs({
   ];
 
   return (
-    <View style={styles.residentTabRow}>
+    <View style={[styles.residentTabRow, darkMode && styles.selectorGroupDark]}>
       {tabs.map((tab) => {
         const selected = selectedTab === tab.value;
 
@@ -558,13 +583,23 @@ function ResidentAudienceTabs({
             accessibilityRole="button"
             accessibilityState={{ selected }}
             key={tab.value}
+            onHoverIn={() => setHoveredTab(tab.value)}
+            onHoverOut={() => setHoveredTab(null)}
             onPress={() => onChange(tab.value)}
             style={({ pressed }) => [
               styles.residentTab,
+              darkMode && styles.selectorOptionDark,
+              darkMode && hoveredTab === tab.value && !selected && styles.selectorOptionHoverDark,
               selected && styles.residentTabSelected,
-              pressed && styles.pressed,
+              darkMode && selected && styles.selectorOptionSelectedDark,
+              pressed && (darkMode ? styles.selectorOptionPressedDark : styles.pressed),
             ]}>
-            <Text style={[styles.residentTabText, selected && styles.residentTabTextSelected]}>
+            <Text style={[
+              styles.residentTabText,
+              darkMode && styles.selectorOptionTextDark,
+              selected && styles.residentTabTextSelected,
+              darkMode && selected && styles.selectorOptionTextSelectedDark,
+            ]}>
               {tab.label}
             </Text>
           </Pressable>
@@ -593,18 +628,30 @@ function ResidentLocationSummary({
   alert: Alert;
   language: PreferredLanguage;
 }) {
+  const { theme } = useAppTheme();
+  const darkMode = theme === 'dark';
   const schoolSummary = schoolSummaryText(alert, language);
 
   if (!schoolSummary) {
-    return <Text numberOfLines={1} style={styles.residentAreaText}>{alert.affectedArea}</Text>;
+    return (
+      <Text
+        numberOfLines={1}
+        style={[styles.residentAreaText, darkMode && styles.residentSecondaryTextDark]}>
+        {alert.affectedArea}
+      </Text>
+    );
   }
 
   return (
     <View style={styles.residentLocationBlock}>
-      <Text numberOfLines={1} style={styles.residentSchoolSummaryText}>
+      <Text
+        numberOfLines={1}
+        style={[styles.residentSchoolSummaryText, darkMode && styles.residentSecondaryTextDark]}>
         {'\u{1F3EB}'} {schoolSummary}
       </Text>
-      <Text numberOfLines={1} style={styles.residentAreaText}>
+      <Text
+        numberOfLines={1}
+        style={[styles.residentAreaText, darkMode && styles.residentSecondaryTextDark]}>
         {'\u{1F4CD}'} {alert.affectedArea}
       </Text>
     </View>
@@ -680,6 +727,8 @@ function ResidentRiskAlertCard({
   onViewAlert: (alertId: number, language: PreferredLanguage, alertDisplayTheme: AlertDisplayTheme) => void;
   selectedLanguage: PreferredLanguage;
 }) {
+  const { theme: appTheme } = useAppTheme();
+  const darkMode = appTheme === 'dark';
   const displayTheme: AlertDisplayTheme = 'danger';
   const theme = alertDisplayThemeStyles[displayTheme];
   const copy = residentAlertUiText[selectedLanguage];
@@ -689,7 +738,12 @@ function ResidentRiskAlertCard({
       style={[
         styles.residentAlertCard,
         styles.highRiskCard,
-        { backgroundColor: theme.backgroundColor, borderColor: theme.borderColor },
+        darkMode && styles.residentAlertCardDark,
+        {
+          backgroundColor: darkMode ? colors.surface : theme.backgroundColor,
+          borderColor: darkMode ? colors.border : theme.borderColor,
+          ...(darkMode ? { borderLeftColor: theme.accent } : null),
+        },
       ]}>
       {alert.alertAudience === 'SCHOOL_EMERGENCY' ? (
         <Text style={[styles.schoolContextBadge, { color: theme.titleColor }]}>
@@ -697,11 +751,24 @@ function ResidentRiskAlertCard({
         </Text>
       ) : null}
       <View style={styles.residentCardTopRow}>
-        <View style={[styles.residentAlertIcon, { backgroundColor: theme.accent }]}>
-          <AppIcon fallback="!" name="exclamationmark.triangle.fill" size={26} tintColor={colors.white} />
+        <View style={[
+          styles.residentAlertIcon,
+          {
+            backgroundColor: darkMode ? colors.redSoft : theme.accent,
+            ...(darkMode ? { borderColor: theme.accent, borderWidth: 1 } : null),
+          },
+        ]}>
+          <AppIcon
+            fallback="!"
+            name="exclamationmark.triangle.fill"
+            size={26}
+            tintColor={darkMode ? theme.accent : colors.onPrimary}
+          />
         </View>
         <View style={styles.residentTitleBlock}>
-          <Text numberOfLines={1} style={[styles.alertTitle, { color: theme.titleColor }]}>
+          <Text
+            numberOfLines={1}
+            style={[styles.alertTitle, { color: darkMode ? colors.navy : theme.titleColor }]}>
             {translateAlertTitle(alert, selectedLanguage)}
           </Text>
           <ResidentLocationSummary alert={alert} language={selectedLanguage} />
@@ -739,6 +806,8 @@ function ResidentWarningAlertCard({
   onViewAlert: (alertId: number, language: PreferredLanguage, alertDisplayTheme: AlertDisplayTheme) => void;
   selectedLanguage: PreferredLanguage;
 }) {
+  const { theme: appTheme } = useAppTheme();
+  const darkMode = appTheme === 'dark';
   const displayTheme: AlertDisplayTheme = 'warning';
   const theme = alertDisplayThemeStyles[displayTheme];
   const copy = residentAlertUiText[selectedLanguage];
@@ -748,7 +817,12 @@ function ResidentWarningAlertCard({
       style={[
         styles.residentAlertCard,
         styles.warningCard,
-        { backgroundColor: theme.backgroundColor, borderColor: theme.borderColor },
+        darkMode && styles.residentAlertCardDark,
+        {
+          backgroundColor: darkMode ? colors.surface : theme.backgroundColor,
+          borderColor: darkMode ? colors.border : theme.borderColor,
+          ...(darkMode ? { borderLeftColor: theme.accent } : null),
+        },
       ]}>
       {alert.alertAudience === 'SCHOOL_EMERGENCY' ? (
         <Text style={[styles.schoolContextBadge, { color: theme.titleColor }]}>
@@ -756,11 +830,24 @@ function ResidentWarningAlertCard({
         </Text>
       ) : null}
       <View style={styles.residentCardTopRow}>
-        <View style={[styles.residentAlertIcon, { backgroundColor: theme.accent }]}>
-          <AppIcon fallback="!" name="exclamationmark.triangle.fill" size={26} tintColor={colors.white} />
+        <View style={[
+          styles.residentAlertIcon,
+          {
+            backgroundColor: darkMode ? colors.warningSoft : theme.accent,
+            ...(darkMode ? { borderColor: theme.accent, borderWidth: 1 } : null),
+          },
+        ]}>
+          <AppIcon
+            fallback="!"
+            name="exclamationmark.triangle.fill"
+            size={26}
+            tintColor={darkMode ? theme.accent : colors.onPrimary}
+          />
         </View>
         <View style={styles.residentTitleBlock}>
-          <Text numberOfLines={1} style={[styles.alertTitle, { color: theme.titleColor }]}>
+          <Text
+            numberOfLines={1}
+            style={[styles.alertTitle, { color: darkMode ? colors.navy : theme.titleColor }]}>
             {translateAlertTitle(alert, selectedLanguage)}
           </Text>
           <ResidentLocationSummary alert={alert} language={selectedLanguage} />
@@ -798,11 +885,12 @@ function AllClearState({
   language: PreferredLanguage;
   residentArea: string | null;
 }) {
+  const { theme } = useAppTheme();
   const areaName = residentArea?.trim();
   const copy = residentAlertUiText[language];
 
   return (
-    <View style={styles.allClearCard}>
+    <View style={[styles.allClearCard, theme === 'dark' && styles.allClearCardDark]}>
       <Text style={styles.allClearLabel}>{copy.allClear}</Text>
       <Text style={styles.allClearTitle}>
         {hasOtherAreaAlerts ? copy.yourAreaClear : copy.noActiveAlerts}
@@ -1566,7 +1654,7 @@ export default function AlertsScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="dark" />
+      <StatusBar style="auto" />
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={
@@ -1660,6 +1748,9 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     ...shadows.card,
   },
+  residentAlertCardDark: {
+    borderLeftWidth: 3,
+  },
   residentLoadingState: {
     alignItems: 'center',
     backgroundColor: colors.white,
@@ -1719,6 +1810,13 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     lineHeight: 15,
   },
+  residentStatusBadgeActiveDark: {
+    backgroundColor: colors.successSoft,
+    borderColor: colors.successBorder,
+  },
+  residentStatusBadgeTextActiveDark: {
+    color: colors.success,
+  },
   residentTabRow: {
     backgroundColor: colors.white,
     borderColor: colors.border,
@@ -1740,8 +1838,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xs,
   },
   residentTabSelected: {
-    backgroundColor: colors.navy,
-    borderColor: colors.navy,
+    backgroundColor: colors.primaryAction,
+    borderColor: colors.primaryAction,
   },
   residentTabText: {
     color: colors.deepBlue,
@@ -1751,7 +1849,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   residentTabTextSelected: {
-    color: colors.white,
+    color: colors.onPrimary,
   },
   schoolContextBadge: {
     alignSelf: 'flex-start',
@@ -1793,8 +1891,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
   },
   languageOptionSelected: {
-    backgroundColor: colors.navy,
-    borderColor: colors.navy,
+    backgroundColor: colors.primaryAction,
+    borderColor: colors.primaryAction,
   },
   languageOptionText: {
     color: colors.deepBlue,
@@ -1804,7 +1902,32 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   languageOptionTextSelected: {
-    color: colors.white,
+    color: colors.onPrimary,
+  },
+  selectorGroupDark: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+  },
+  selectorOptionDark: {
+    backgroundColor: colors.surfaceMuted,
+    borderColor: '#3A4A60',
+  },
+  selectorOptionHoverDark: {
+    backgroundColor: '#2B3B52',
+    borderColor: '#465A74',
+  },
+  selectorOptionSelectedDark: {
+    backgroundColor: '#2563A6',
+    borderColor: colors.blueBorder,
+  },
+  selectorOptionPressedDark: {
+    opacity: 0.82,
+  },
+  selectorOptionTextDark: {
+    color: colors.muted,
+  },
+  selectorOptionTextSelectedDark: {
+    color: colors.onPrimary,
   },
   filterPanel: {
     backgroundColor: colors.white,
@@ -1823,7 +1946,7 @@ const styles = StyleSheet.create({
   },
   searchField: {
     alignItems: 'center',
-    backgroundColor: colors.background,
+    backgroundColor: colors.controlSurfaceSubtle,
     borderColor: colors.border,
     borderRadius: radius.sm,
     borderWidth: 1,
@@ -1863,7 +1986,7 @@ const styles = StyleSheet.create({
   filterSelectButton: {
     alignItems: 'center',
     backgroundColor: colors.white,
-    borderColor: colors.navy,
+    borderColor: colors.primaryAction,
     borderRadius: radius.sm,
     borderWidth: 1,
     flexDirection: 'row',
@@ -1874,7 +1997,7 @@ const styles = StyleSheet.create({
   },
   filterSelectButtonOpen: {
     backgroundColor: colors.white,
-    borderColor: colors.navy,
+    borderColor: colors.primaryAction,
     borderBottomLeftRadius: 0,
     borderBottomRightRadius: 0,
   },
@@ -1896,7 +2019,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     borderBottomLeftRadius: radius.sm,
     borderBottomRightRadius: radius.sm,
-    borderColor: colors.navy,
+    borderColor: colors.primaryAction,
     borderWidth: 1,
     borderTopWidth: 0,
     left: 0,
@@ -1931,7 +2054,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   filterOptionTextSelected: {
-    color: colors.white,
+    color: colors.onPrimary,
   },
   preferencesButton: {
     alignItems: 'center',
@@ -1959,6 +2082,10 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     padding: spacing.md,
     ...shadows.card,
+  },
+  allClearCardDark: {
+    backgroundColor: '#153B36',
+    borderColor: colors.successBorder,
   },
   allClearLabel: {
     color: colors.success,
@@ -2038,23 +2165,23 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   authorityModeBadge: {
-    backgroundColor: colors.navy,
-    borderColor: colors.deepBlue,
+    backgroundColor: colors.primaryAction,
+    borderColor: colors.accentAction,
     borderRadius: radius.sm,
     borderWidth: 1,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
   },
   authorityModeBadgeText: {
-    color: colors.white,
+    color: colors.onPrimary,
     fontSize: 11,
     fontWeight: '900',
     lineHeight: 15,
   },
   authorityEmergencyActionCard: {
     backgroundColor: colors.redSoft,
-    borderColor: colors.red,
-    borderLeftColor: colors.red,
+    borderColor: colors.redBorder,
+    borderLeftColor: colors.redBorder,
     borderLeftWidth: 5,
     borderRadius: radius.md,
     borderWidth: 1,
@@ -2070,7 +2197,7 @@ const styles = StyleSheet.create({
   authorityActionIcon: {
     alignItems: 'center',
     backgroundColor: colors.white,
-    borderColor: colors.red,
+    borderColor: colors.redBorder,
     borderRadius: radius.md,
     borderWidth: 1,
     height: 42,
@@ -2096,7 +2223,7 @@ const styles = StyleSheet.create({
   authorityCreateButton: {
     alignItems: 'center',
     alignSelf: 'flex-start',
-    backgroundColor: colors.red,
+    backgroundColor: colors.redAction,
     borderRadius: radius.md,
     justifyContent: 'center',
     minHeight: 42,
@@ -2104,7 +2231,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
   },
   authorityCreateButtonText: {
-    color: colors.white,
+    color: colors.onPrimary,
     fontSize: 14,
     fontWeight: '900',
     lineHeight: 19,
@@ -2144,7 +2271,7 @@ const styles = StyleSheet.create({
   },
   authorityStatusBadge: {
     backgroundColor: colors.successSoft,
-    borderColor: colors.success,
+    borderColor: colors.successBorder,
     borderRadius: radius.sm,
     borderWidth: 1,
     color: colors.success,
@@ -2247,6 +2374,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
     lineHeight: 16,
+  },
+  residentSecondaryTextDark: {
+    color: colors.muted,
   },
   compactInfoRow: {
     alignItems: 'center',
@@ -2355,13 +2485,13 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   activeCountBadge: {
-    backgroundColor: colors.navy,
+    backgroundColor: colors.primaryAction,
     borderRadius: radius.sm,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
   },
   activeCountBadgeText: {
-    color: colors.white,
+    color: colors.onPrimary,
     fontSize: 11,
     fontWeight: '900',
     lineHeight: 15,
@@ -2376,7 +2506,7 @@ const styles = StyleSheet.create({
   },
   inlineError: {
     backgroundColor: colors.redSoft,
-    borderColor: colors.red,
+    borderColor: colors.redBorder,
     borderRadius: radius.md,
     borderWidth: 1,
     gap: spacing.sm,
@@ -2390,7 +2520,7 @@ const styles = StyleSheet.create({
   },
   inlineSuccess: {
     backgroundColor: colors.successSoft,
-    borderColor: colors.success,
+    borderColor: colors.successBorder,
     borderRadius: radius.md,
     borderWidth: 1,
     padding: spacing.md,
@@ -2403,16 +2533,16 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     alignItems: 'center',
-    backgroundColor: 'rgba(7, 26, 53, 0.58)',
+    backgroundColor: colors.backdrop,
     flex: 1,
     justifyContent: 'center',
     padding: spacing.xl,
   },
   cancelDialog: {
     backgroundColor: colors.white,
-    borderColor: colors.red,
+    borderColor: colors.redBorder,
     borderRadius: radius.md,
-    borderTopColor: colors.red,
+    borderTopColor: colors.redBorder,
     borderTopWidth: 5,
     borderWidth: 1,
     gap: spacing.md,
@@ -2442,7 +2572,7 @@ const styles = StyleSheet.create({
   },
   cancelDialogContext: {
     backgroundColor: colors.redSoft,
-    borderColor: colors.red,
+    borderColor: colors.redBorder,
     borderRadius: radius.md,
     borderWidth: 1,
     gap: spacing.xs,
@@ -2475,7 +2605,7 @@ const styles = StyleSheet.create({
   keepAlertButton: {
     alignItems: 'center',
     backgroundColor: colors.white,
-    borderColor: colors.navy,
+    borderColor: colors.primaryAction,
     borderRadius: radius.md,
     borderWidth: 1,
     flexGrow: 1,
@@ -2493,8 +2623,8 @@ const styles = StyleSheet.create({
   },
   confirmCancelButton: {
     alignItems: 'center',
-    backgroundColor: colors.red,
-    borderColor: colors.red,
+    backgroundColor: colors.redAction,
+    borderColor: colors.redBorder,
     borderRadius: radius.md,
     borderWidth: 1,
     flexGrow: 1,
@@ -2504,7 +2634,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   confirmCancelButtonText: {
-    color: colors.white,
+    color: colors.onPrimary,
     fontSize: 14,
     fontWeight: '900',
     lineHeight: 19,

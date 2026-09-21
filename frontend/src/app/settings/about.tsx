@@ -36,7 +36,7 @@ export default function AboutScreen() {
         onBack={() => router.replace('/settings' as Href)}
       />
       <SectionCard title="Mission" tone="navy">
-        <Text style={{ color: colors.sky, ...typography.body }}>
+        <Text style={{ color: colors.onPrimaryMuted, ...typography.body }}>
           ResQ1 connects residents, local authorities, safe shelters, and emergency routes through a verified civic response experience.
         </Text>
       </SectionCard>

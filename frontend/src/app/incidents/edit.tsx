@@ -388,7 +388,7 @@ export default function EditIncidentScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="dark" />
+      <StatusBar style="auto" />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.keyboardView}>
@@ -734,15 +734,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   severityOptionSelected: {
-    backgroundColor: BrandColors.deepBlue,
-    borderColor: BrandColors.deepBlue,
+    backgroundColor: BrandColors.accentAction,
+    borderColor: BrandColors.accentAction,
   },
   criticalOption: {
     backgroundColor: BrandColors.redSoft,
     borderColor: BrandColors.red,
   },
   criticalOptionSelected: {
-    backgroundColor: BrandColors.red,
+    backgroundColor: BrandColors.criticalBackground,
   },
   severityText: {
     color: BrandColors.deepBlue,
@@ -751,10 +751,10 @@ const styles = StyleSheet.create({
     lineHeight: 19,
   },
   severityTextSelected: {
-    color: BrandColors.white,
+    color: BrandColors.onPrimary,
   },
   criticalTextSelected: {
-    color: BrandColors.white,
+    color: BrandColors.onPrimary,
   },
   errorText: {
     color: BrandColors.red,
@@ -780,7 +780,7 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    backgroundColor: BrandColors.dropdownBackdrop,
     justifyContent: 'center',
     padding: 24,
   },
@@ -875,8 +875,8 @@ const styles = StyleSheet.create({
   },
   removePhotoButton: {
     alignItems: 'center',
-    backgroundColor: BrandColors.red,
-    borderColor: BrandColors.white,
+    backgroundColor: BrandColors.redAction,
+    borderColor: BrandColors.onPrimary,
     borderRadius: 12,
     borderWidth: 2,
     height: 24,
@@ -887,7 +887,7 @@ const styles = StyleSheet.create({
     width: 24,
   },
   removePhotoText: {
-    color: BrandColors.white,
+    color: BrandColors.onPrimary,
     fontSize: 20,
     lineHeight: 20,
   },
@@ -942,6 +942,6 @@ const styles = StyleSheet.create({
     width: 54,
     height: 54,
     borderRadius: 27,
-    backgroundColor: '#fff',
+    backgroundColor: BrandColors.surface,
   },
 });

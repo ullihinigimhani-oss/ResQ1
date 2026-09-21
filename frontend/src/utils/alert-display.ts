@@ -28,8 +28,8 @@ export const alertDisplayThemeStyles: Record<AlertDisplayTheme, {
     borderColor: colors.amber,
     pillBackground: colors.warningSoft,
     pillBorder: colors.amber,
-    pillText: '#8A4B00',
-    titleColor: '#8A4B00',
+    pillText: colors.amberStrong,
+    titleColor: colors.amberStrong,
   },
 };
 

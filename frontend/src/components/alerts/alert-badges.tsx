@@ -12,30 +12,30 @@ type BadgeTone = {
 export const riskTones: Record<AlertRiskLevel, BadgeTone> = {
   Low: {
     backgroundColor: BrandColors.lightBlue,
-    borderColor: BrandColors.blue,
+    borderColor: BrandColors.blueBorder,
     color: BrandColors.deepBlue,
   },
   Moderate: {
     backgroundColor: BrandColors.warningSoft,
-    borderColor: '#D69E2E',
-    color: '#7A4B00',
+    borderColor: BrandColors.warningBorderStrong,
+    color: BrandColors.warningText,
   },
   High: {
-    backgroundColor: '#FFF1E6',
-    borderColor: '#EA580C',
-    color: '#9A3412',
+    backgroundColor: BrandColors.orangeSoft,
+    borderColor: BrandColors.orange,
+    color: BrandColors.orangeText,
   },
   Critical: {
-    backgroundColor: BrandColors.red,
-    borderColor: BrandColors.red,
-    color: BrandColors.white,
+    backgroundColor: BrandColors.criticalBackground,
+    borderColor: BrandColors.criticalBorder,
+    color: BrandColors.criticalText,
   },
 };
 
 const statusTones: Record<AlertStatus, BadgeTone> = {
   Active: {
     backgroundColor: BrandColors.successSoft,
-    borderColor: BrandColors.success,
+    borderColor: BrandColors.successBorder,
     color: BrandColors.success,
   },
   Expired: {
@@ -45,12 +45,12 @@ const statusTones: Record<AlertStatus, BadgeTone> = {
   },
   Resolved: {
     backgroundColor: BrandColors.lightBlue,
-    borderColor: BrandColors.blue,
+    borderColor: BrandColors.blueBorder,
     color: BrandColors.deepBlue,
   },
   Cancelled: {
     backgroundColor: BrandColors.redSoft,
-    borderColor: BrandColors.red,
+    borderColor: BrandColors.redBorder,
     color: BrandColors.red,
   },
 };
@@ -111,10 +111,10 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   locationBadge: {
-    backgroundColor: BrandColors.navy,
-    borderColor: BrandColors.navy,
+    backgroundColor: BrandColors.primaryAction,
+    borderColor: BrandColors.primaryAction,
   },
   locationBadgeText: {
-    color: BrandColors.white,
+    color: BrandColors.onPrimary,
   },
 });

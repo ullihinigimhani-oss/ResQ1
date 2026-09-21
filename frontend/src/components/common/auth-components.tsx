@@ -51,7 +51,7 @@ export function AuthTextField({
       <Text style={styles.label}>{label}</Text>
       <View style={[styles.inputShell, error && styles.inputShellError]}>
         <TextInput
-          placeholderTextColor="#8B98A9"
+          placeholderTextColor={BrandColors.placeholder}
           selectionColor={BrandColors.blue}
           style={[styles.input, rightAccessory ? styles.inputWithAccessory : null, style]}
           {...textInputProps}
@@ -112,7 +112,7 @@ export function AuthButton({
         style,
       ]}>
       {loading ? (
-        <ActivityIndicator color={isSecondary ? BrandColors.navy : BrandColors.white} />
+        <ActivityIndicator color={isSecondary ? BrandColors.navy : BrandColors.onPrimary} />
       ) : (
         <Text
           style={[
@@ -224,7 +224,7 @@ const styles = StyleSheet.create({
     borderColor: BrandColors.border,
     borderRadius: 8,
     borderWidth: 1,
-    backgroundColor: BrandColors.white,
+    backgroundColor: BrandColors.controlSurface,
     flexDirection: 'row',
     alignItems: 'center',
   },
@@ -263,12 +263,12 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: BrandColors.navy,
+    backgroundColor: BrandColors.primaryAction,
     paddingHorizontal: 18,
   },
   secondaryButton: {
     backgroundColor: BrandColors.white,
-    borderColor: BrandColors.navy,
+    borderColor: BrandColors.primaryAction,
     borderWidth: 1,
   },
   dangerButton: {
@@ -280,7 +280,7 @@ const styles = StyleSheet.create({
     opacity: 0.65,
   },
   buttonText: {
-    color: BrandColors.white,
+    color: BrandColors.onPrimary,
     fontSize: 16,
     fontWeight: '800',
   },
@@ -317,7 +317,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
   },
   languageOptionSelected: {
-    backgroundColor: BrandColors.deepBlue,
+    backgroundColor: BrandColors.accentAction,
   },
   languageOptionText: {
     color: BrandColors.muted,
@@ -326,7 +326,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   languageOptionSelectedText: {
-    color: BrandColors.white,
+    color: BrandColors.onPrimary,
   },
   statusBanner: {
     borderRadius: 8,
