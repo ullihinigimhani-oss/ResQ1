@@ -92,6 +92,9 @@ CREATE TABLE IF NOT EXISTS alert_subscriptions (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE INDEX IF NOT EXISTS idx_alert_subscriptions_user_id
+    ON alert_subscriptions(user_id);
+
 CREATE TABLE IF NOT EXISTS alert_push_tokens (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,

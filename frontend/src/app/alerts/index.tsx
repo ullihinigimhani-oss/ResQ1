@@ -857,6 +857,12 @@ function ResidentWarningAlertCard({
 
       <View style={styles.relevanceRiskRow}>
         <AreaRelevanceBadge displayTheme={displayTheme} label={copy.warning} />
+        {alert.isSubscribedArea ? (
+          <View style={styles.subscribedAreaBadge}>
+            <AppIcon fallback="A" name="location.fill" size={12} tintColor={colors.deepBlue} />
+            <Text style={styles.subscribedAreaBadgeText}>{copy.subscribedArea}</Text>
+          </View>
+        ) : null}
         <Text style={[styles.riskText, { color: theme.titleColor }]}>
           {copy.risk}: {translateRiskLevel(alert.riskLevel, selectedLanguage)}
         </Text>
@@ -2402,6 +2408,24 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   areaMatchBadgeText: {
+    fontSize: 9,
+    fontWeight: '900',
+    lineHeight: 12,
+  },
+  subscribedAreaBadge: {
+    alignItems: 'center',
+    backgroundColor: colors.lightBlue,
+    borderColor: colors.sky,
+    borderRadius: radius.xs,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 3,
+    minHeight: 26,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+  },
+  subscribedAreaBadgeText: {
+    color: colors.deepBlue,
     fontSize: 9,
     fontWeight: '900',
     lineHeight: 12,
