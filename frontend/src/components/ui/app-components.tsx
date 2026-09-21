@@ -114,6 +114,14 @@ export function AppIcon({
     return <ClockIcon size={size} tintColor={tintColor} />;
   }
 
+  if (iconName.includes('arrow.down')) {
+    return <DownloadIcon size={size} tintColor={tintColor} />;
+  }
+
+  if (iconName.includes('bookmark')) {
+    return <BookmarkIcon size={size} tintColor={tintColor} />;
+  }
+
   if (iconName.includes('gear')) {
     return <GearIcon size={size} tintColor={tintColor} />;
   }
@@ -258,6 +266,27 @@ function ClockIcon({ size, tintColor }: { size: number; tintColor: string }) {
       <View style={[styles.clockCircle, { borderColor: tintColor }]} />
       <View style={[styles.clockHandHour, { backgroundColor: tintColor }]} />
       <View style={[styles.clockHandMinute, { backgroundColor: tintColor }]} />
+    </IconCanvas>
+  );
+}
+
+function DownloadIcon({ size, tintColor }: { size: number; tintColor: string }) {
+  return (
+    <IconCanvas size={size}>
+      <View style={[styles.downloadCircle, { borderColor: tintColor }]} />
+      <View style={[styles.downloadShaft, { backgroundColor: tintColor }]} />
+      <View style={[styles.downloadArrowLeft, { backgroundColor: tintColor }]} />
+      <View style={[styles.downloadArrowRight, { backgroundColor: tintColor }]} />
+    </IconCanvas>
+  );
+}
+
+function BookmarkIcon({ size, tintColor }: { size: number; tintColor: string }) {
+  return (
+    <IconCanvas size={size}>
+      <View style={[styles.bookmarkBody, { borderColor: tintColor }]} />
+      <View style={[styles.bookmarkPointLeft, { backgroundColor: tintColor }]} />
+      <View style={[styles.bookmarkPointRight, { backgroundColor: tintColor }]} />
     </IconCanvas>
   );
 }
@@ -836,7 +865,7 @@ const residentTabs = [
   {
     label: 'Profile',
     route: '/profile' as Href,
-    match: ['/profile', '/settings', '/household'],
+    match: ['/profile', '/settings', '/household', '/offline-safety'],
     icon: 'person.fill' as SymbolName,
     fallback: 'P',
   },
@@ -1166,6 +1195,65 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: '50%',
     width: '24%',
+  },
+  downloadCircle: {
+    borderRadius: 999,
+    borderWidth: 2,
+    height: '82%',
+    position: 'absolute',
+    width: '82%',
+  },
+  downloadShaft: {
+    borderRadius: 2,
+    height: '38%',
+    position: 'absolute',
+    top: '20%',
+    width: 2,
+  },
+  downloadArrowLeft: {
+    borderRadius: 2,
+    height: 2,
+    left: '29%',
+    position: 'absolute',
+    top: '54%',
+    transform: [{ rotate: '45deg' }],
+    width: '24%',
+  },
+  downloadArrowRight: {
+    borderRadius: 2,
+    height: 2,
+    position: 'absolute',
+    right: '29%',
+    top: '54%',
+    transform: [{ rotate: '-45deg' }],
+    width: '24%',
+  },
+  bookmarkBody: {
+    borderBottomWidth: 0,
+    borderRadius: 3,
+    borderWidth: 2,
+    height: '70%',
+    position: 'absolute',
+    top: '12%',
+    width: '54%',
+  },
+  bookmarkPointLeft: {
+    borderRadius: 2,
+    bottom: '16%',
+    height: 2,
+    left: '26%',
+    position: 'absolute',
+    transform: [{ rotate: '38deg' }],
+    width: '30%',
+  },
+  bookmarkPointRight: {
+    borderRadius: 2,
+    bottom: '16%',
+    height: 2,
+    position: 'absolute',
+    right: '26%',
+    transform: [{ rotate: '-38deg' }],
+    width: '30%',
   },
   gearToothVertical: {
     borderRadius: 2,
