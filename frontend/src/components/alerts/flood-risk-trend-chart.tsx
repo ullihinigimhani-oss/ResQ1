@@ -27,12 +27,12 @@ const riskTone: Record<AlertRiskLevel, { accent: string; backgroundColor: string
   Moderate: {
     accent: '#D69E2E',
     backgroundColor: BrandColors.warningSoft,
-    textColor: '#7A4B00',
+    textColor: BrandColors.warningText,
   },
   High: {
     accent: '#EA580C',
-    backgroundColor: '#FFF1E6',
-    textColor: '#9A3412',
+    backgroundColor: BrandColors.orangeSoft,
+    textColor: BrandColors.orangeText,
   },
   Critical: {
     accent: BrandColors.red,
@@ -284,7 +284,7 @@ export function FloodRiskTrendChart({
                         styles.point,
                         {
                           backgroundColor: tone.accent,
-                          borderColor: BrandColors.white,
+                          borderColor: BrandColors.onPrimary,
                           left: point.x - (latest ? 7 : 5),
                           top: point.y - (latest ? 7 : 5),
                         },
@@ -399,7 +399,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   plotArea: {
-    backgroundColor: '#FAFCFF',
+    backgroundColor: BrandColors.chartSurface,
     borderColor: BrandColors.border,
     borderRadius: 8,
     borderWidth: 1,

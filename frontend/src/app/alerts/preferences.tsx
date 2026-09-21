@@ -468,8 +468,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
   },
   languageOptionSelected: {
-    backgroundColor: colors.navy,
-    borderColor: colors.navy,
+    backgroundColor: colors.primaryAction,
+    borderColor: colors.primaryAction,
   },
   languageOptionText: {
     color: colors.deepBlue,
@@ -479,7 +479,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   languageOptionTextSelected: {
-    color: colors.white,
+    color: colors.onPrimary,
   },
   preferenceField: {
     alignItems: 'center',

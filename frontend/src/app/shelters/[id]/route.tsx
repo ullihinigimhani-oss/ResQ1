@@ -442,7 +442,7 @@ export default function ShelterRouteScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <StatusBar style="dark" />
+        <StatusBar style="auto" />
         <View style={styles.loadingContainer}>
           <ActivityIndicator color={BrandColors.red} size="large" />
           <Text style={styles.loadingText}>Loading evacuation map...</Text>
@@ -453,7 +453,7 @@ export default function ShelterRouteScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="dark" />
+      <StatusBar style="auto" />
       <View style={styles.container}>
         <BackButton
           onPress={() => router.replace({
@@ -650,12 +650,12 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   openMapButton: {
-    backgroundColor: BrandColors.navy,
+    backgroundColor: BrandColors.primaryAction,
     borderRadius: 8,
     padding: 14,
   },
   openMapButtonText: {
-    color: BrandColors.white,
+    color: BrandColors.onPrimary,
     fontSize: 14,
     fontWeight: '900',
     lineHeight: 20,

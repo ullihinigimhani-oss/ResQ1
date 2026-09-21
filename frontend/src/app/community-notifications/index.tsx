@@ -55,7 +55,7 @@ const categoryTones: Record<CommunityNotificationCategory, CategoryTone> = {
   ROAD_ACCESS: {
     backgroundColor: colors.amberSoft,
     borderColor: colors.amber,
-    color: '#7A4B00',
+    color: colors.amberText,
   },
   SAFETY_NOTICE: {
     backgroundColor: colors.redSoft,
@@ -99,7 +99,7 @@ function statusTone(status: CommunityNotification['status']) {
     return {
       backgroundColor: colors.amberSoft,
       borderColor: colors.amber,
-      color: '#7A4B00',
+      color: colors.amberText,
     };
   }
 
@@ -442,7 +442,7 @@ export default function CommunityNotificationsScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="dark" />
+      <StatusBar style="auto" />
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={
@@ -569,7 +569,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
   },
   unreadCountText: {
-    color: colors.white,
+    color: colors.onPrimary,
     fontSize: 13,
     fontWeight: '900',
     lineHeight: 18,
@@ -595,8 +595,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xs,
   },
   languageOptionSelected: {
-    backgroundColor: colors.navy,
-    borderColor: colors.navy,
+    backgroundColor: colors.primaryAction,
+    borderColor: colors.primaryAction,
   },
   languageOptionText: {
     color: colors.deepBlue,
@@ -606,7 +606,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   languageOptionTextSelected: {
-    color: colors.white,
+    color: colors.onPrimary,
   },
   centerState: {
     alignItems: 'center',

@@ -23,10 +23,10 @@ const shelterStatusTones: Record<string, BadgeTone> = {
   limited: {
     backgroundColor: BrandColors.warningSoft,
     borderColor: '#D69E2E',
-    color: '#7A4B00',
+    color: BrandColors.warningText,
   },
   full: {
-    backgroundColor: '#EEF2F7',
+    backgroundColor: BrandColors.neutralSoft,
     borderColor: BrandColors.muted,
     color: BrandColors.navy,
   },
@@ -46,12 +46,12 @@ const roadStatusTones: Record<string, BadgeTone> = {
   caution: {
     backgroundColor: BrandColors.warningSoft,
     borderColor: '#D69E2E',
-    color: '#7A4B00',
+    color: BrandColors.warningText,
   },
   blocked: {
     backgroundColor: BrandColors.red,
     borderColor: BrandColors.red,
-    color: BrandColors.white,
+    color: BrandColors.onPrimary,
   },
 };
 
@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   progressFill: {
-    backgroundColor: BrandColors.deepBlue,
+    backgroundColor: BrandColors.accentAction,
     borderRadius: 8,
     height: '100%',
   },

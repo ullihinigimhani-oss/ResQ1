@@ -129,7 +129,7 @@ export default function EmergencyScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="dark" />
+      <StatusBar style="auto" />
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}>
@@ -247,7 +247,7 @@ const styles = StyleSheet.create({
     width: 80,
   },
   callButtonText: {
-    color: BrandColors.white,
+    color: BrandColors.onPrimary,
     fontSize: 13,
     fontWeight: '900',
     lineHeight: 17,

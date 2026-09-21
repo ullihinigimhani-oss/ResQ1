@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native';
 
-import { AppIcon, ScreenContainer, StatusBadge } from '@/components/ui/app-components';
+import { AppIcon, ScreenContainer, StatusBadge, ThemeToggleButton } from '@/components/ui/app-components';
 import { colors, radius, shadows, spacing, typography } from '@/constants/design';
 import type { DashboardSummary } from '@/services/dashboardSummaryService';
 import type { AuthUser } from '@/types/auth';
@@ -90,7 +90,7 @@ function openShelter(shelter: Shelter) {
   return normalize(shelter.status) === 'open';
 }
 
-function Header({ onRetry, refreshing, user }: Pick<AuthorityDashboardProps, 'onRetry' | 'refreshing' | 'user'>) {
+function Header({ user }: Pick<AuthorityDashboardProps, 'user'>) {
   const router = useRouter();
 
   return (
@@ -103,20 +103,7 @@ function Header({ onRetry, refreshing, user }: Pick<AuthorityDashboardProps, 'on
       </View>
 
       <View style={styles.headerActions}>
-        <Pressable
-          accessibilityLabel="Refresh dashboard data"
-          accessibilityRole="button"
-          accessibilityState={{ disabled: refreshing }}
-          disabled={refreshing}
-          hitSlop={8}
-          onPress={() => void onRetry()}
-          style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}>
-          {refreshing ? (
-            <ActivityIndicator color={colors.deepBlue} size="small" />
-          ) : (
-            <AppIcon fallback="R" name="arrow.clockwise" size={20} tintColor={colors.deepBlue} />
-          )}
-        </Pressable>
+        <ThemeToggleButton size={42} />
         <Pressable
           accessibilityLabel="Open emergency alerts"
           accessibilityRole="button"
@@ -500,7 +487,7 @@ export function AuthorityDashboard({
   return (
     <ScreenContainer>
       <View style={styles.page}>
-        <Header onRetry={onRetry} refreshing={refreshing} user={user} />
+        <Header user={user} />
 
         {initialError ? (
           <View style={styles.errorBanner}>
@@ -636,14 +623,14 @@ const styles = StyleSheet.create({
   },
   avatar: {
     alignItems: 'center',
-    backgroundColor: colors.navy,
+    backgroundColor: colors.primaryAction,
     borderRadius: radius.md,
     height: 42,
     justifyContent: 'center',
     width: 42,
   },
   avatarText: {
-    color: colors.white,
+    color: colors.onPrimary,
     fontSize: 13,
     fontWeight: '900',
   },
@@ -682,7 +669,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   retryButtonText: {
-    color: colors.white,
+    color: colors.onPrimary,
     fontSize: 13,
     fontWeight: '900',
   },

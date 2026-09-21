@@ -251,13 +251,13 @@ const authoritySeverityTheme: Record<AlertRiskLevel, {
     accent: colors.orange,
     badgeBackground: colors.orangeSoft,
     badgeBorder: colors.orange,
-    badgeText: '#9A3412',
+    badgeText: colors.orangeText,
   },
   Moderate: {
     accent: colors.amber,
     badgeBackground: colors.amberSoft,
     badgeBorder: colors.amber,
-    badgeText: '#7A4B00',
+    badgeText: colors.amberText,
   },
   Low: {
     accent: colors.success,
@@ -698,7 +698,7 @@ function ResidentRiskAlertCard({
       ) : null}
       <View style={styles.residentCardTopRow}>
         <View style={[styles.residentAlertIcon, { backgroundColor: theme.accent }]}>
-          <AppIcon fallback="!" name="exclamationmark.triangle.fill" size={26} tintColor={colors.white} />
+          <AppIcon fallback="!" name="exclamationmark.triangle.fill" size={26} tintColor={colors.onPrimary} />
         </View>
         <View style={styles.residentTitleBlock}>
           <Text numberOfLines={1} style={[styles.alertTitle, { color: theme.titleColor }]}>
@@ -757,7 +757,7 @@ function ResidentWarningAlertCard({
       ) : null}
       <View style={styles.residentCardTopRow}>
         <View style={[styles.residentAlertIcon, { backgroundColor: theme.accent }]}>
-          <AppIcon fallback="!" name="exclamationmark.triangle.fill" size={26} tintColor={colors.white} />
+          <AppIcon fallback="!" name="exclamationmark.triangle.fill" size={26} tintColor={colors.onPrimary} />
         </View>
         <View style={styles.residentTitleBlock}>
           <Text numberOfLines={1} style={[styles.alertTitle, { color: theme.titleColor }]}>
@@ -1566,7 +1566,7 @@ export default function AlertsScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="dark" />
+      <StatusBar style="auto" />
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={
@@ -1740,8 +1740,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xs,
   },
   residentTabSelected: {
-    backgroundColor: colors.navy,
-    borderColor: colors.navy,
+    backgroundColor: colors.primaryAction,
+    borderColor: colors.primaryAction,
   },
   residentTabText: {
     color: colors.deepBlue,
@@ -1751,7 +1751,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   residentTabTextSelected: {
-    color: colors.white,
+    color: colors.onPrimary,
   },
   schoolContextBadge: {
     alignSelf: 'flex-start',
@@ -1793,8 +1793,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
   },
   languageOptionSelected: {
-    backgroundColor: colors.navy,
-    borderColor: colors.navy,
+    backgroundColor: colors.primaryAction,
+    borderColor: colors.primaryAction,
   },
   languageOptionText: {
     color: colors.deepBlue,
@@ -1804,7 +1804,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   languageOptionTextSelected: {
-    color: colors.white,
+    color: colors.onPrimary,
   },
   filterPanel: {
     backgroundColor: colors.white,
@@ -1863,7 +1863,7 @@ const styles = StyleSheet.create({
   filterSelectButton: {
     alignItems: 'center',
     backgroundColor: colors.white,
-    borderColor: colors.navy,
+    borderColor: colors.primaryAction,
     borderRadius: radius.sm,
     borderWidth: 1,
     flexDirection: 'row',
@@ -1874,7 +1874,7 @@ const styles = StyleSheet.create({
   },
   filterSelectButtonOpen: {
     backgroundColor: colors.white,
-    borderColor: colors.navy,
+    borderColor: colors.primaryAction,
     borderBottomLeftRadius: 0,
     borderBottomRightRadius: 0,
   },
@@ -1896,7 +1896,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     borderBottomLeftRadius: radius.sm,
     borderBottomRightRadius: radius.sm,
-    borderColor: colors.navy,
+    borderColor: colors.primaryAction,
     borderWidth: 1,
     borderTopWidth: 0,
     left: 0,
@@ -1931,7 +1931,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   filterOptionTextSelected: {
-    color: colors.white,
+    color: colors.onPrimary,
   },
   preferencesButton: {
     alignItems: 'center',
@@ -2038,15 +2038,15 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   authorityModeBadge: {
-    backgroundColor: colors.navy,
-    borderColor: colors.deepBlue,
+    backgroundColor: colors.primaryAction,
+    borderColor: colors.accentAction,
     borderRadius: radius.sm,
     borderWidth: 1,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
   },
   authorityModeBadgeText: {
-    color: colors.white,
+    color: colors.onPrimary,
     fontSize: 11,
     fontWeight: '900',
     lineHeight: 15,
@@ -2104,7 +2104,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
   },
   authorityCreateButtonText: {
-    color: colors.white,
+    color: colors.onPrimary,
     fontSize: 14,
     fontWeight: '900',
     lineHeight: 19,
@@ -2355,13 +2355,13 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   activeCountBadge: {
-    backgroundColor: colors.navy,
+    backgroundColor: colors.primaryAction,
     borderRadius: radius.sm,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
   },
   activeCountBadgeText: {
-    color: colors.white,
+    color: colors.onPrimary,
     fontSize: 11,
     fontWeight: '900',
     lineHeight: 15,
@@ -2475,7 +2475,7 @@ const styles = StyleSheet.create({
   keepAlertButton: {
     alignItems: 'center',
     backgroundColor: colors.white,
-    borderColor: colors.navy,
+    borderColor: colors.primaryAction,
     borderRadius: radius.md,
     borderWidth: 1,
     flexGrow: 1,
@@ -2504,7 +2504,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   confirmCancelButtonText: {
-    color: colors.white,
+    color: colors.onPrimary,
     fontSize: 14,
     fontWeight: '900',
     lineHeight: 19,

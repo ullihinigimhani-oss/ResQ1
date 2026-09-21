@@ -163,7 +163,7 @@ export default function AlertAcknowledgementsScreen() {
   if (!isAuthorityRole(user.role)) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <StatusBar style="dark" />
+        <StatusBar style="auto" />
         <View style={styles.restrictedContent}>
           <Text style={styles.title}>Resident Acknowledgements</Text>
           <StatusBanner
@@ -186,7 +186,7 @@ export default function AlertAcknowledgementsScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="dark" />
+      <StatusBar style="auto" />
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={
@@ -518,8 +518,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   tabButtonSelected: {
-    backgroundColor: BrandColors.navy,
-    borderColor: BrandColors.navy,
+    backgroundColor: BrandColors.primaryAction,
+    borderColor: BrandColors.primaryAction,
   },
   tabButtonText: {
     color: BrandColors.deepBlue,
@@ -529,7 +529,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   tabButtonTextSelected: {
-    color: BrandColors.white,
+    color: BrandColors.onPrimary,
   },
   residentList: {
     gap: 8,

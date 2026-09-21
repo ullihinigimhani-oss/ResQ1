@@ -320,7 +320,7 @@ export default function EditShelterScreen() {
   if (!user || !canEditShelters(user.role)) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <StatusBar style="dark" />
+        <StatusBar style="auto" />
         <View style={styles.centerState}>
           <Text style={styles.errorTitle}>Access Denied</Text>
           <Text style={styles.errorText}>
@@ -349,7 +349,7 @@ export default function EditShelterScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="dark" />
+      <StatusBar style="auto" />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}>
@@ -523,7 +523,7 @@ export default function EditShelterScreen() {
 
             {isSubmitting ? (
               <View style={styles.loadingOverlay}>
-                <ActivityIndicator color={BrandColors.white} size="large" />
+                <ActivityIndicator color={BrandColors.onPrimary} size="large" />
               </View>
             ) : null}
           </View>
@@ -619,13 +619,13 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 12,
     right: 12,
-    backgroundColor: BrandColors.navy,
+    backgroundColor: BrandColors.primaryAction,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
   currentLocationButtonText: {
-    color: BrandColors.white,
+    color: BrandColors.onPrimary,
     fontSize: 12,
     fontWeight: '900',
     lineHeight: 16,
@@ -649,8 +649,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   statusChipSelected: {
-    backgroundColor: BrandColors.navy,
-    borderColor: BrandColors.navy,
+    backgroundColor: BrandColors.primaryAction,
+    borderColor: BrandColors.primaryAction,
   },
   statusText: {
     color: BrandColors.deepBlue,
@@ -659,7 +659,7 @@ const styles = StyleSheet.create({
     lineHeight: 17,
   },
   statusTextSelected: {
-    color: BrandColors.white,
+    color: BrandColors.onPrimary,
   },
   textArea: {
     backgroundColor: BrandColors.background,
