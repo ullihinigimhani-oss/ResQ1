@@ -114,6 +114,10 @@ export function AppIcon({
     return <ClockIcon size={size} tintColor={tintColor} />;
   }
 
+  if (iconName.includes('gear')) {
+    return <GearIcon size={size} tintColor={tintColor} />;
+  }
+
   if (iconName.includes('moon')) {
     return <MoonIcon size={size} tintColor={tintColor} />;
   }
@@ -254,6 +258,19 @@ function ClockIcon({ size, tintColor }: { size: number; tintColor: string }) {
       <View style={[styles.clockCircle, { borderColor: tintColor }]} />
       <View style={[styles.clockHandHour, { backgroundColor: tintColor }]} />
       <View style={[styles.clockHandMinute, { backgroundColor: tintColor }]} />
+    </IconCanvas>
+  );
+}
+
+function GearIcon({ size, tintColor }: { size: number; tintColor: string }) {
+  return (
+    <IconCanvas size={size}>
+      <View style={[styles.gearToothVertical, { backgroundColor: tintColor }]} />
+      <View style={[styles.gearToothHorizontal, { backgroundColor: tintColor }]} />
+      <View style={[styles.gearToothDiagonalLeft, { backgroundColor: tintColor }]} />
+      <View style={[styles.gearToothDiagonalRight, { backgroundColor: tintColor }]} />
+      <View style={[styles.gearRing, { backgroundColor: colors.white, borderColor: tintColor }]} />
+      <View style={[styles.gearCenter, { borderColor: tintColor }]} />
     </IconCanvas>
   );
 }
@@ -546,11 +563,13 @@ export function IconButton({
   fallback,
   name,
   onPress,
+  size = 44,
 }: {
   accessibilityLabel: string;
   fallback: string;
   name: SymbolName;
   onPress: () => void;
+  size?: number;
 }) {
   return (
     <Pressable
@@ -558,7 +577,11 @@ export function IconButton({
       accessibilityRole="button"
       hitSlop={8}
       onPress={onPress}
-      style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}>
+      style={({ pressed }) => [
+        styles.iconButton,
+        { borderRadius: Math.min(radius.md, size / 2), height: size, width: size },
+        pressed && styles.pressed,
+      ]}>
       <AppIcon fallback={fallback} name={name} size={20} />
     </Pressable>
   );
@@ -1143,6 +1166,46 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: '50%',
     width: '24%',
+  },
+  gearToothVertical: {
+    borderRadius: 2,
+    height: '100%',
+    position: 'absolute',
+    width: 3,
+  },
+  gearToothHorizontal: {
+    borderRadius: 2,
+    height: 3,
+    position: 'absolute',
+    width: '100%',
+  },
+  gearToothDiagonalLeft: {
+    borderRadius: 2,
+    height: 3,
+    position: 'absolute',
+    transform: [{ rotate: '45deg' }],
+    width: '92%',
+  },
+  gearToothDiagonalRight: {
+    borderRadius: 2,
+    height: 3,
+    position: 'absolute',
+    transform: [{ rotate: '-45deg' }],
+    width: '92%',
+  },
+  gearRing: {
+    borderRadius: 999,
+    borderWidth: 2,
+    height: '62%',
+    position: 'absolute',
+    width: '62%',
+  },
+  gearCenter: {
+    borderRadius: 999,
+    borderWidth: 2,
+    height: '22%',
+    position: 'absolute',
+    width: '22%',
   },
   moonDisc: {
     borderRadius: 999,

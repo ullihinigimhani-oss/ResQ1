@@ -8,6 +8,7 @@ const THEME_STORAGE_KEY = 'resq1-theme';
 
 type ThemeContextValue = {
   theme: AppTheme;
+  setTheme: (theme: AppTheme) => void;
   toggleTheme: () => void;
 };
 
@@ -89,6 +90,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<ThemeContextValue>(() => ({
     theme,
+    setTheme: (nextTheme) => setTheme(nextTheme),
     toggleTheme: () => setTheme((current) => (current === 'light' ? 'dark' : 'light')),
   }), [theme]);
 

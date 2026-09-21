@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 
-import { AppIcon, ScreenContainer, StatusBadge, ThemeToggleButton } from '@/components/ui/app-components';
+import { AppIcon, IconButton, ScreenContainer, StatusBadge } from '@/components/ui/app-components';
 import { colors, radius, shadows, spacing, typography } from '@/constants/design';
 import type { DashboardSummary } from '@/services/dashboardSummaryService';
 import type { AuthUser } from '@/types/auth';
@@ -104,7 +104,13 @@ function Header({ user }: Pick<AuthorityDashboardProps, 'user'>) {
       </View>
 
       <View style={styles.headerActions}>
-        <ThemeToggleButton size={42} />
+        <IconButton
+          accessibilityLabel="Open settings"
+          fallback="S"
+          name="gearshape"
+          onPress={() => router.push('/settings' as Href)}
+          size={42}
+        />
         <Pressable
           accessibilityLabel="Open emergency alerts"
           accessibilityRole="button"

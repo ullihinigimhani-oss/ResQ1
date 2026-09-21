@@ -15,9 +15,9 @@ import preparednessImage from '@/assets/images/emergency-preparedness.png';
 import residentHeroImage from '@/assets/images/resident-hero.png';
 import {
   AppIcon,
+  IconButton,
   ScreenContainer,
   StatusBadge,
-  ThemeToggleButton,
 } from '@/components/ui/app-components';
 import { colors, radius, shadows, spacing, typography } from '@/constants/design';
 import type { DashboardSummary } from '@/services/dashboardSummaryService';
@@ -123,7 +123,12 @@ function Header({ user }: { user: AuthUser }) {
         <Text style={styles.headerSubtitle}>Stay informed. Stay prepared.</Text>
       </View>
       <View style={styles.headerActions}>
-        <ThemeToggleButton />
+        <IconButton
+          accessibilityLabel="Open settings"
+          fallback="S"
+          name="gearshape"
+          onPress={() => router.push('/settings' as Href)}
+        />
         <Pressable
           accessibilityLabel="Open alert preferences"
           accessibilityRole="button"
