@@ -358,23 +358,26 @@ function CommunitySection({ wideLayout }: { wideLayout: boolean }) {
   );
 }
 
-function EmergencyHelp() {
+function AssistanceCard() {
   const router = useRouter();
 
   return (
     <View style={styles.helpCard}>
       <View style={styles.helpIcon}>
-        <AppIcon fallback="!" name="cross.case.fill" size={24} tintColor={colors.red} />
+        <AppIcon fallback="!" name="cross.case.fill" size={26} tintColor={colors.red} />
       </View>
       <View style={styles.helpCopy}>
-        <Text style={styles.helpTitle}>Need urgent help?</Text>
-        <Text style={styles.helpBody}>Prepare a request with your location and immediate needs.</Text>
+        <Text style={styles.helpTitle}>Request Assistance</Text>
+        <Text style={styles.helpBody}>
+          Need help during an emergency? Send an assistance request to the response team.
+        </Text>
       </View>
       <Pressable
+        accessibilityLabel="Request emergency assistance"
         accessibilityRole="button"
         onPress={() => router.push('/assistance' as Href)}
         style={({ pressed }) => [styles.helpAction, pressed && styles.pressed]}>
-        <Text style={styles.helpActionText}>Request help</Text>
+        <Text style={styles.helpActionText}>Request Help</Text>
       </Pressable>
     </View>
   );
@@ -437,12 +440,12 @@ export function ResidentHome({
 
         {!loading && !initialError ? <UpdatePreview update={latestUpdate} /> : null}
 
+        <AssistanceCard />
+
         <View style={[styles.visualGrid, wideLayout && styles.visualGridWide]}>
           <PreparednessSection wideLayout={wideLayout} />
           <CommunitySection wideLayout={wideLayout} />
         </View>
-
-        <EmergencyHelp />
       </View>
     </ScreenContainer>
   );
@@ -856,14 +859,15 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: spacing.md,
     padding: spacing.lg,
+    ...shadows.card,
   },
   helpIcon: {
     alignItems: 'center',
     backgroundColor: colors.redSoft,
     borderRadius: radius.md,
-    height: 44,
+    height: 48,
     justifyContent: 'center',
-    width: 44,
+    width: 48,
   },
   helpCopy: {
     flex: 1,
@@ -872,29 +876,30 @@ const styles = StyleSheet.create({
   },
   helpTitle: {
     color: colors.navy,
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: '900',
-    lineHeight: 20,
+    lineHeight: 22,
   },
   helpBody: {
-    color: colors.muted,
-    fontSize: 12,
-    fontWeight: '700',
-    lineHeight: 17,
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '600',
+    lineHeight: 19,
   },
   helpAction: {
     alignItems: 'center',
-    backgroundColor: colors.redSoft,
+    backgroundColor: colors.red,
     borderRadius: radius.md,
     justifyContent: 'center',
-    minHeight: 40,
-    paddingHorizontal: spacing.md,
+    minHeight: 46,
+    minWidth: 120,
+    paddingHorizontal: spacing.lg,
   },
   helpActionText: {
-    color: colors.red,
-    fontSize: 13,
+    color: colors.white,
+    fontSize: 14,
     fontWeight: '900',
-    lineHeight: 17,
+    lineHeight: 19,
   },
   pressed: {
     opacity: 0.72,
