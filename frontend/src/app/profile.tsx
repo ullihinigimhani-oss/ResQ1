@@ -100,6 +100,10 @@ export default function ProfileScreen() {
           label="Household Information"
           onPress={() => router.push('/household' as Href)}
         />
+        <ActionRow
+          label="Emergency Contacts"
+          onPress={() => router.push('/emergency-contacts' as Href)}
+        />
         <ActionRow label="Settings" onPress={() => router.push('/settings' as Href)} />
       </SectionCard>
 

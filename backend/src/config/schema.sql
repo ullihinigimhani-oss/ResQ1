@@ -245,3 +245,19 @@ CREATE TABLE IF NOT EXISTS family_member_medical_conditions (
 CREATE INDEX IF NOT EXISTS idx_family_member_medical_conditions_member_id
     ON family_member_medical_conditions(family_member_id);
 
+CREATE TABLE IF NOT EXISTS emergency_contacts (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name VARCHAR(150) NOT NULL,
+    phone_number VARCHAR(50) NOT NULL,
+    relationship VARCHAR(50) NOT NULL,
+    is_primary BOOLEAN NOT NULL DEFAULT FALSE,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_emergency_contacts_user_id
+    ON emergency_contacts(user_id);
+
+
