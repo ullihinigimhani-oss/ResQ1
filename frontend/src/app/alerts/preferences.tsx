@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import {
   AppHeader,
+  AppIcon,
   EmptyState,
   LoadingState,
   PrimaryButton,
@@ -325,6 +326,24 @@ export default function AlertPreferencesScreen() {
         </View>
       ) : null}
 
+      <SectionCard>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push('/alerts/areas' as Href)}
+          style={({ pressed }) => [styles.alertAreasLink, pressed && styles.pressed]}>
+          <View style={styles.alertAreasIcon}>
+            <AppIcon fallback="A" name="location.fill" size={22} tintColor={colors.deepBlue} />
+          </View>
+          <View style={styles.alertAreasTextBlock}>
+            <Text style={styles.alertAreasTitle}>Alert Areas</Text>
+            <Text style={styles.alertAreasHint}>
+              Manage locations you want to receive emergency alerts for.
+            </Text>
+          </View>
+          <Text style={styles.alertAreasChevron}>-&gt;</Text>
+        </Pressable>
+      </SectionCard>
+
       <SectionCard title="Notifications">
         <ToggleRow
           title="General Notifications"
@@ -424,6 +443,49 @@ export default function AlertPreferencesScreen() {
 }
 
 const styles = StyleSheet.create({
+  alertAreasLink: {
+    alignItems: 'center',
+    backgroundColor: colors.lightBlue,
+    borderColor: colors.sky,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.md,
+    minHeight: 72,
+    padding: spacing.md,
+  },
+  alertAreasIcon: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.sky,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    height: 42,
+    justifyContent: 'center',
+    width: 42,
+  },
+  alertAreasTextBlock: {
+    flex: 1,
+    gap: 3,
+    minWidth: 0,
+  },
+  alertAreasTitle: {
+    color: colors.navy,
+    fontSize: 15,
+    fontWeight: '900',
+    lineHeight: 20,
+  },
+  alertAreasHint: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 17,
+  },
+  alertAreasChevron: {
+    color: colors.deepBlue,
+    fontSize: 13,
+    fontWeight: '900',
+  },
   errorMessage: {
     backgroundColor: colors.redSoft,
     borderColor: colors.red,

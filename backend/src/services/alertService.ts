@@ -29,6 +29,7 @@ import {
   type ValidatedUpdateAlertInput,
 } from '../types/alert.js';
 import type { AuthenticatedUser } from '../types/auth.js';
+import { ensureAlertSubscriptionSchema } from './alertAreaSubscriptionService.js';
 
 const ACTIVE_ALERT_STATUS: AlertStatus = 'Active';
 const DEFAULT_ALERT_AUDIENCE: AlertAudience = 'GENERAL_PUBLIC';
@@ -182,6 +183,7 @@ function toAlert(row: AlertRow): Alert {
     createdAt: formatTimestamp(row.created_at),
     updatedAt: formatTimestamp(row.updated_at),
     isRelevantToResident: Boolean(row.is_relevant_to_resident),
+    isSubscribedArea: Boolean(row.is_subscribed_area),
     schools: parseSchools(row.schools),
   };
 }
@@ -1036,14 +1038,15 @@ async function validateUpdateAlertInput(input: UpdateAlertInput): Promise<Valida
   };
 }
 
-export async function getActiveAlerts(residentLocation: string | null | undefined) {
+export async function getActiveAlerts(userId: number, residentLocation: string | null | undefined) {
   await ensureAlertSchoolSchema();
+  await ensureAlertSubscriptionSchema();
 
   const location = trimmedText(residentLocation);
 
   const rows = await sql`
     WITH resident_context AS (
-      SELECT ${location}::text AS resident_location
+      SELECT ${userId}::integer AS resident_id, ${location}::text AS resident_location
     )
     SELECT
       alerts.id,
@@ -1087,7 +1090,27 @@ export async function getActiveAlerts(residentLocation: string | null | undefine
           OR LOWER(alerts.affected_area) LIKE '%' || LOWER(resident_context.resident_location) || '%'
           OR LOWER(resident_context.resident_location) LIKE '%' || LOWER(alerts.affected_area) || '%'
         )
-      ) AS is_relevant_to_resident
+        OR EXISTS (
+          SELECT 1
+          FROM alert_subscriptions
+          WHERE alert_subscriptions.user_id = resident_context.resident_id
+            AND (
+              LOWER(TRIM(alert_subscriptions.area_name)) = LOWER(TRIM(alerts.affected_area))
+              OR LOWER(TRIM(alert_subscriptions.area_name)) LIKE '%' || LOWER(TRIM(alerts.affected_area)) || '%'
+              OR LOWER(TRIM(alerts.affected_area)) LIKE '%' || LOWER(TRIM(alert_subscriptions.area_name)) || '%'
+            )
+        )
+      ) AS is_relevant_to_resident,
+      EXISTS (
+        SELECT 1
+        FROM alert_subscriptions
+        WHERE alert_subscriptions.user_id = resident_context.resident_id
+          AND (
+            LOWER(TRIM(alert_subscriptions.area_name)) = LOWER(TRIM(alerts.affected_area))
+            OR LOWER(TRIM(alert_subscriptions.area_name)) LIKE '%' || LOWER(TRIM(alerts.affected_area)) || '%'
+            OR LOWER(TRIM(alerts.affected_area)) LIKE '%' || LOWER(TRIM(alert_subscriptions.area_name)) || '%'
+          )
+      ) AS is_subscribed_area
     FROM alerts
     CROSS JOIN resident_context
     WHERE alerts.status = ${ACTIVE_ALERT_STATUS}
@@ -1103,7 +1126,17 @@ export async function getActiveAlerts(residentLocation: string | null | undefine
           )
         )
         THEN 0
-        ELSE 1
+        WHEN EXISTS (
+          SELECT 1
+          FROM alert_subscriptions
+          WHERE alert_subscriptions.user_id = resident_context.resident_id
+            AND (
+              LOWER(TRIM(alert_subscriptions.area_name)) = LOWER(TRIM(alerts.affected_area))
+              OR LOWER(TRIM(alert_subscriptions.area_name)) LIKE '%' || LOWER(TRIM(alerts.affected_area)) || '%'
+              OR LOWER(TRIM(alerts.affected_area)) LIKE '%' || LOWER(TRIM(alert_subscriptions.area_name)) || '%'
+            )
+        ) THEN 1
+        ELSE 2
       END ASC,
       CASE alerts.risk_level
         WHEN 'Critical' THEN 1

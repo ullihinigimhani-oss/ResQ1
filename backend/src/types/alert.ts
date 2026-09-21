@@ -81,6 +81,7 @@ export interface AlertRow {
   created_at: Date | string;
   updated_at: Date | string;
   is_relevant_to_resident?: boolean | null;
+  is_subscribed_area?: boolean | null;
   schools?: unknown;
 }
 
@@ -99,6 +100,7 @@ export interface Alert {
   createdAt: string;
   updatedAt: string;
   isRelevantToResident: boolean;
+  isSubscribedArea: boolean;
   schools: School[];
 }
 

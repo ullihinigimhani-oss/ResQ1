@@ -15,10 +15,17 @@ import type {
   AlertPreferences,
   UpdateAlertPreferencesPayload,
 } from '@/types/alertPreference';
+import type {
+  AlertAreaSubscription,
+  AlertAreaSubscriptionFieldErrors,
+  CreateAlertAreaSubscriptionPayload,
+} from '@/types/alertAreaSubscription';
+
+type AlertApiFieldErrors = AlertFieldErrors & AlertAreaSubscriptionFieldErrors;
 
 type ApiErrorBody = {
   message?: string;
-  errors?: AlertFieldErrors;
+  errors?: AlertApiFieldErrors;
 };
 
 type ApiAlertResponse = ApiErrorBody & {
@@ -73,11 +80,27 @@ type ApiPushTokenResponse = ApiErrorBody & {
   message?: string;
 };
 
+type ApiAlertAreaSubscriptionListResponse = ApiErrorBody & {
+  success: boolean;
+  subscriptions?: AlertAreaSubscription[];
+};
+
+type ApiAlertAreaOptionsResponse = ApiErrorBody & {
+  success: boolean;
+  areas?: string[];
+};
+
+type ApiAlertAreaSubscriptionResponse = ApiErrorBody & {
+  success: boolean;
+  message?: string;
+  subscription?: AlertAreaSubscription;
+};
+
 export class AlertApiError extends Error {
   constructor(
     public readonly statusCode: number,
     message: string,
-    public readonly fieldErrors?: AlertFieldErrors,
+    public readonly fieldErrors?: AlertApiFieldErrors,
   ) {
     super(message);
     this.name = 'AlertApiError';
@@ -101,7 +124,7 @@ async function alertRequest<T>(
   path: string,
   token: string,
   options: {
-    method?: 'GET' | 'POST' | 'PUT';
+    method?: 'DELETE' | 'GET' | 'POST' | 'PUT';
     body?: unknown;
   } = {},
 ) {
@@ -162,6 +185,49 @@ export async function getActiveAlerts(token: string) {
   const response = await alertRequest<ApiAlertListResponse>('/api/alerts', token);
 
   return response.alerts ?? [];
+}
+
+export async function getAlertAreaSubscriptions(token: string) {
+  const response = await alertRequest<ApiAlertAreaSubscriptionListResponse>(
+    '/api/alerts/subscriptions',
+    token,
+  );
+
+  return response.subscriptions ?? [];
+}
+
+export async function getAvailableAlertAreas(token: string) {
+  const response = await alertRequest<ApiAlertAreaOptionsResponse>(
+    '/api/alerts/subscriptions/options',
+    token,
+  );
+
+  return response.areas ?? [];
+}
+
+export async function createAlertAreaSubscription(
+  payload: CreateAlertAreaSubscriptionPayload,
+  token: string,
+) {
+  const response = await alertRequest<ApiAlertAreaSubscriptionResponse>(
+    '/api/alerts/subscriptions',
+    token,
+    { method: 'POST', body: payload },
+  );
+
+  if (!response.subscription) {
+    throw new AlertApiError(500, 'The server returned an unexpected response.');
+  }
+
+  return response.subscription;
+}
+
+export async function removeAlertAreaSubscription(subscriptionId: number, token: string) {
+  await alertRequest<ApiAlertAreaSubscriptionResponse>(
+    `/api/alerts/subscriptions/${subscriptionId}`,
+    token,
+    { method: 'DELETE' },
+  );
 }
 
 export async function getAlertHistory(token: string) {

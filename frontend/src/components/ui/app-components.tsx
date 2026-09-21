@@ -98,6 +98,10 @@ export function AppIcon({
     return <SearchIcon size={size} tintColor={tintColor} />;
   }
 
+  if (iconName.includes('location') || iconName.includes('mappin')) {
+    return <PinIcon size={size} tintColor={tintColor} />;
+  }
+
   if (iconName.includes('exclamationmark.triangle')) {
     return <WarningIcon size={size} tintColor={tintColor} />;
   }
@@ -226,6 +230,15 @@ function SearchIcon({ size, tintColor }: { size: number; tintColor: string }) {
     <IconCanvas size={size}>
       <View style={[styles.searchCircle, { borderColor: tintColor }]} />
       <View style={[styles.searchHandle, { backgroundColor: tintColor }]} />
+    </IconCanvas>
+  );
+}
+
+function PinIcon({ size, tintColor }: { size: number; tintColor: string }) {
+  return (
+    <IconCanvas size={size}>
+      <View style={[styles.pinBody, { borderColor: tintColor }]} />
+      <View style={[styles.pinDot, { backgroundColor: tintColor }]} />
     </IconCanvas>
   );
 }
@@ -1102,6 +1115,22 @@ const styles = StyleSheet.create({
     top: '67%',
     transform: [{ rotate: '45deg' }],
     width: '31%',
+  },
+  pinBody: {
+    borderRadius: 999,
+    borderWidth: 2,
+    height: '68%',
+    position: 'absolute',
+    top: '10%',
+    transform: [{ rotate: '45deg' }],
+    width: '68%',
+  },
+  pinDot: {
+    borderRadius: 999,
+    height: '20%',
+    position: 'absolute',
+    top: '28%',
+    width: '20%',
   },
   chevronLineTop: {
     borderRadius: 2,
