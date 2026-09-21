@@ -160,10 +160,6 @@ export default function EmergencyContactsScreen() {
             <Text style={styles.emptySubtext}>
               Add trusted family members, neighbors, or friends so emergency responders can reach them quickly.
             </Text>
-            <PrimaryButton
-              title="+ Add Trusted Contact"
-              onPress={() => router.push('/emergency-contacts/add' as Href)}
-            />
           </View>
         ) : (
           <View style={styles.contactList}>
