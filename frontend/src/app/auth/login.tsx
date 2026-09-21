@@ -211,14 +211,14 @@ const styles = StyleSheet.create({
   eyebrow: {
     color: BrandColors.red,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     textTransform: 'uppercase',
   },
   title: {
     color: BrandColors.navy,
-    fontSize: 36,
-    fontWeight: '900',
-    lineHeight: 42,
+    fontSize: 24,
+    fontWeight: '700',
+    lineHeight: 30,
   },
   subtitle: {
     color: BrandColors.muted,
@@ -238,7 +238,7 @@ const styles = StyleSheet.create({
   rememberText: {
     color: BrandColors.text,
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: '400',
   },
   checkbox: {
     alignItems: 'center',
@@ -256,7 +256,7 @@ const styles = StyleSheet.create({
   checkboxMark: {
     color: BrandColors.onPrimary,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 16,
   },
   actions: {

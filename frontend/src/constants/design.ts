@@ -42,30 +42,60 @@ export const radius = {
   md: 8,
 } as const;
 
+export const fontFamilies = {
+  regular: 'Inter_400Regular',
+  medium: 'Inter_500Medium',
+  semibold: 'Inter_600SemiBold',
+  bold: 'Inter_700Bold',
+} as const;
+
 export const typography = {
   hero: {
-    fontSize: 34,
-    fontWeight: '900' as const,
-    lineHeight: 40,
-  },
-  title: {
+    fontFamily: fontFamilies.bold,
     fontSize: 28,
-    fontWeight: '900' as const,
+    fontWeight: '700' as const,
     lineHeight: 34,
   },
+  title: {
+    fontFamily: fontFamilies.bold,
+    fontSize: 24,
+    fontWeight: '700' as const,
+    lineHeight: 30,
+  },
   sectionTitle: {
+    fontFamily: fontFamilies.semibold,
     fontSize: 18,
-    fontWeight: '900' as const,
+    fontWeight: '600' as const,
     lineHeight: 24,
   },
-  body: {
+  cardTitle: {
+    fontFamily: fontFamilies.semibold,
     fontSize: 15,
     fontWeight: '600' as const,
-    lineHeight: 22,
+    lineHeight: 20,
+  },
+  body: {
+    fontFamily: fontFamilies.regular,
+    fontSize: 14,
+    fontWeight: '400' as const,
+    lineHeight: 21,
+  },
+  supporting: {
+    fontFamily: fontFamilies.regular,
+    fontSize: 13,
+    fontWeight: '400' as const,
+    lineHeight: 18,
+  },
+  button: {
+    fontFamily: fontFamilies.semibold,
+    fontSize: 14,
+    fontWeight: '600' as const,
+    lineHeight: 19,
   },
   label: {
+    fontFamily: fontFamilies.semibold,
     fontSize: 12,
-    fontWeight: '900' as const,
+    fontWeight: '600' as const,
     lineHeight: 16,
   },
 } as const;
@@ -73,14 +103,14 @@ export const typography = {
 export const shadows = {
   card: Platform.select({
     web: {
-      boxShadow: `0px 10px 24px ${BrandColors.cardShadow}`,
+      boxShadow: `0px 2px 8px ${BrandColors.cardShadow}`,
     },
     default: {
-      elevation: 2,
+      elevation: 1,
       shadowColor: colors.navy,
-      shadowOffset: { width: 0, height: 6 },
-      shadowOpacity: 0.08,
-      shadowRadius: 12,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.05,
+      shadowRadius: 5,
     },
   }),
 } as const;

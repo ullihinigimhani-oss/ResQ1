@@ -434,7 +434,7 @@ const styles = StyleSheet.create({
   errorMessageText: {
     color: colors.red,
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 20,
   },
   criticalNotice: {
@@ -447,7 +447,7 @@ const styles = StyleSheet.create({
   criticalNoticeText: {
     color: colors.red,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 18,
   },
   languageOptions: {
@@ -474,7 +474,7 @@ const styles = StyleSheet.create({
   languageOptionText: {
     color: colors.deepBlue,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 18,
     textAlign: 'center',
   },
@@ -499,13 +499,13 @@ const styles = StyleSheet.create({
   preferenceFieldLabel: {
     color: colors.text,
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 21,
   },
   preferenceFieldHint: {
     color: colors.muted,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 17,
   },
   pressed: {
@@ -525,7 +525,7 @@ const styles = StyleSheet.create({
   soundPillText: {
     color: colors.deepBlue,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 18,
   },
   successMessage: {
@@ -538,7 +538,7 @@ const styles = StyleSheet.create({
   successMessageText: {
     color: colors.success,
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 20,
   },
   timeFields: {
@@ -559,7 +559,7 @@ const styles = StyleSheet.create({
   timeInput: {
     color: colors.text,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 20,
     minHeight: 34,
     padding: 0,
@@ -567,7 +567,7 @@ const styles = StyleSheet.create({
   timeLabel: {
     color: colors.muted,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 15,
     textTransform: 'uppercase',
   },

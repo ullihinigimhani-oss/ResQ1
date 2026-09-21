@@ -239,14 +239,14 @@ const styles = StyleSheet.create({
   disasterType: {
     color: colors.deepBlue,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 16,
     textTransform: 'uppercase',
   },
   title: {
     color: colors.navy,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 23,
   },
   metaBlock: {
@@ -261,7 +261,7 @@ const styles = StyleSheet.create({
     color: colors.muted,
     flex: 1,
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 18,
   },
   preview: {
@@ -290,13 +290,13 @@ const styles = StyleSheet.create({
   viewButtonText: {
     color: colors.deepBlue,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 19,
   },
   viewArrow: {
     color: colors.deepBlue,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   removeButton: {
     alignItems: 'center',

@@ -180,14 +180,14 @@ const styles = StyleSheet.create({
   disasterType: {
     color: colors.deepBlue,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 16,
     textTransform: 'uppercase',
   },
   title: {
     color: colors.navy,
     fontSize: 20,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 25,
   },
   offlineBadge: {
@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
   offlineBadgeText: {
     color: colors.success,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 15,
   },
   instructionList: {
@@ -227,7 +227,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     flex: 1,
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 22,
   },
 });

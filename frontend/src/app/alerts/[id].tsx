@@ -896,7 +896,7 @@ const styles = StyleSheet.create({
     color: BrandColors.navy,
     flex: 1,
     fontSize: 17,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 23,
   },
   backButton: {
@@ -913,7 +913,7 @@ const styles = StyleSheet.create({
   backButtonText: {
     color: BrandColors.navy,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 16,
   },
   languageContext: {
@@ -931,14 +931,14 @@ const styles = StyleSheet.create({
   languageContextLabel: {
     color: BrandColors.muted,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 15,
     textTransform: 'uppercase',
   },
   languageContextValue: {
     color: BrandColors.navy,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 18,
   },
   detailCard: {
@@ -984,7 +984,7 @@ const styles = StyleSheet.create({
   detailHeroTitle: {
     flex: 1,
     fontSize: 22,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 28,
   },
   detailAreaBadge: {
@@ -998,12 +998,12 @@ const styles = StyleSheet.create({
   },
   detailAreaBadgeText: {
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 15,
   },
   detailHeroRiskText: {
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 18,
   },
   detailPill: {
@@ -1015,7 +1015,7 @@ const styles = StyleSheet.create({
   },
   detailPillText: {
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 15,
   },
   detailInfoList: {
@@ -1043,19 +1043,19 @@ const styles = StyleSheet.create({
   sectionTitle: {
     color: BrandColors.navy,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 24,
   },
   detailInfoLabel: {
     color: BrandColors.muted,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 18,
   },
   detailInfoValue: {
     color: BrandColors.text,
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 21,
   },
   riskTrendTopSection: {
@@ -1086,13 +1086,13 @@ const styles = StyleSheet.create({
     color: BrandColors.onPrimary,
     flex: 1,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 19,
   },
   riskAssessmentArrow: {
     color: BrandColors.onPrimary,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 18,
   },
   safetyBulletList: {
@@ -1104,7 +1104,7 @@ const styles = StyleSheet.create({
   safetyBulletText: {
     color: BrandColors.text,
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 20,
   },
   offlineSaveButton: {
@@ -1127,7 +1127,7 @@ const styles = StyleSheet.create({
   offlineSaveButtonText: {
     color: BrandColors.deepBlue,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 18,
   },
   offlineSaveButtonTextSaved: {
@@ -1136,7 +1136,7 @@ const styles = StyleSheet.create({
   offlineSaveError: {
     color: BrandColors.red,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 17,
   },
   schoolList: {
@@ -1145,7 +1145,7 @@ const styles = StyleSheet.create({
   schoolListText: {
     color: BrandColors.text,
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 20,
   },
   sectionCopy: {
@@ -1179,13 +1179,13 @@ const styles = StyleSheet.create({
   acknowledgedTitle: {
     color: BrandColors.success,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 20,
   },
   acknowledgedText: {
     color: BrandColors.text,
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 20,
   },
   acknowledgedTimeBlock: {
@@ -1200,14 +1200,14 @@ const styles = StyleSheet.create({
   acknowledgedTimeLabel: {
     color: BrandColors.muted,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 15,
     textTransform: 'uppercase',
   },
   acknowledgedTimeText: {
     color: BrandColors.navy,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 18,
   },
   ackMetricGrid: {
@@ -1229,14 +1229,14 @@ const styles = StyleSheet.create({
   ackMetricLabel: {
     color: BrandColors.muted,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 15,
     textTransform: 'uppercase',
   },
   ackMetricValue: {
     color: BrandColors.navy,
     fontSize: 20,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 25,
   },
   ackRateBlock: {
@@ -1251,7 +1251,7 @@ const styles = StyleSheet.create({
   ackRateText: {
     color: BrandColors.navy,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 19,
   },
   progressTrack: {
@@ -1276,7 +1276,7 @@ const styles = StyleSheet.create({
   lastAcknowledgedText: {
     color: BrandColors.text,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 18,
   },
   actionButtons: {
@@ -1297,14 +1297,14 @@ const styles = StyleSheet.create({
   stateTitle: {
     color: BrandColors.navy,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 24,
     textAlign: 'center',
   },
   emptyTitle: {
     color: BrandColors.navy,
     fontSize: 20,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 26,
     textAlign: 'center',
   },

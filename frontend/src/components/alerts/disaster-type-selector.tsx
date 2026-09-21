@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
   label: {
     color: BrandColors.text,
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '400',
   },
   selectButton: {
     alignItems: 'center',
@@ -168,17 +168,17 @@ const styles = StyleSheet.create({
     color: BrandColors.text,
     flex: 1,
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 21,
   },
   placeholderText: {
     color: BrandColors.muted,
-    fontWeight: '700',
+    fontWeight: '400',
   },
   chevron: {
     color: BrandColors.deepBlue,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 18,
   },
   optionList: {
@@ -206,17 +206,17 @@ const styles = StyleSheet.create({
     color: BrandColors.text,
     flex: 1,
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 19,
   },
   optionTextSelected: {
     color: BrandColors.deepBlue,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   selectedMark: {
     color: BrandColors.red,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 15,
     textTransform: 'uppercase',
   },

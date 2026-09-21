@@ -126,7 +126,7 @@ const styles = StyleSheet.create({
   appearanceTitle: {
     color: colors.navy,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 20,
   },
   appearanceDescription: {
@@ -162,7 +162,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     flex: 1,
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 19,
   },
   themeOptionLabelSelected: {

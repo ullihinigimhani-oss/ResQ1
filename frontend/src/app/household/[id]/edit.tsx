@@ -475,7 +475,7 @@ const styles = StyleSheet.create({
   fieldLabel: {
     color: colors.navy,
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '400',
   },
   optionRow: {
     flexDirection: 'row',
@@ -498,7 +498,7 @@ const styles = StyleSheet.create({
   choiceChipText: {
     color: colors.muted,
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   choiceChipSelectedText: {
     color: colors.onPrimary,
@@ -526,7 +526,7 @@ const styles = StyleSheet.create({
   gridChipText: {
     color: colors.muted,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   gridChipSelectedText: {
     color: colors.deepBlue,
@@ -548,7 +548,7 @@ const styles = StyleSheet.create({
   hintText: {
     color: colors.deepBlue,
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '400',
   },
   checkboxList: {
     gap: 10,
@@ -586,16 +586,16 @@ const styles = StyleSheet.create({
   checkmark: {
     color: colors.onPrimary,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   checkboxLabel: {
     color: colors.muted,
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '400',
   },
   checkboxLabelChecked: {
     color: colors.navy,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   errorText: {
     color: colors.dangerText,

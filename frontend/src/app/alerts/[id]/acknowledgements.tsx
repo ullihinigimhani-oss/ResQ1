@@ -353,7 +353,7 @@ const styles = StyleSheet.create({
   backButtonText: {
     color: BrandColors.navy,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 16,
   },
   headerTextBlock: {
@@ -364,13 +364,13 @@ const styles = StyleSheet.create({
   title: {
     color: BrandColors.navy,
     fontSize: 23,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 29,
   },
   subtitle: {
     color: BrandColors.muted,
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 20,
   },
   alertContextCard: {
@@ -386,13 +386,13 @@ const styles = StyleSheet.create({
   alertTitle: {
     color: BrandColors.navy,
     fontSize: 17,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 22,
   },
   alertMeta: {
     color: BrandColors.muted,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 18,
   },
   centerState: {
@@ -409,14 +409,14 @@ const styles = StyleSheet.create({
   stateTitle: {
     color: BrandColors.navy,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 24,
     textAlign: 'center',
   },
   stateText: {
     color: BrandColors.muted,
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 20,
     textAlign: 'center',
   },
@@ -444,13 +444,13 @@ const styles = StyleSheet.create({
   summaryValue: {
     color: BrandColors.navy,
     fontSize: 21,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 26,
   },
   summaryLabel: {
     color: BrandColors.muted,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 15,
     textTransform: 'uppercase',
   },
@@ -471,13 +471,13 @@ const styles = StyleSheet.create({
   rateLabel: {
     color: BrandColors.navy,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 20,
   },
   rateValue: {
     color: BrandColors.success,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 20,
   },
   progressTrack: {
@@ -494,7 +494,7 @@ const styles = StyleSheet.create({
   lastAcknowledged: {
     color: BrandColors.muted,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 17,
   },
   tabs: {
@@ -524,7 +524,7 @@ const styles = StyleSheet.create({
   tabButtonText: {
     color: BrandColors.deepBlue,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 16,
     textAlign: 'center',
   },
@@ -548,13 +548,13 @@ const styles = StyleSheet.create({
   residentName: {
     color: BrandColors.navy,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 20,
   },
   residentMeta: {
     color: BrandColors.muted,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 17,
   },
   statusBadge: {
@@ -574,7 +574,7 @@ const styles = StyleSheet.create({
   },
   statusBadgeText: {
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 15,
   },
   acknowledgedBadgeText: {
@@ -586,7 +586,7 @@ const styles = StyleSheet.create({
   acknowledgedAt: {
     color: BrandColors.text,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 17,
   },
   emptyCard: {
@@ -600,13 +600,13 @@ const styles = StyleSheet.create({
   emptyTitle: {
     color: BrandColors.navy,
     fontSize: 17,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 22,
   },
   emptyText: {
     color: BrandColors.muted,
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 19,
   },
   pressed: {

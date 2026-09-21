@@ -64,13 +64,13 @@ const styles = StyleSheet.create({
   appName: {
     color: BrandColors.onPrimary,
     fontSize: 36,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 42,
   },
   tagline: {
     color: BrandColors.onPrimaryMuted,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 18,
     textAlign: 'center',
   },

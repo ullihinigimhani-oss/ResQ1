@@ -217,10 +217,10 @@ const styles = StyleSheet.create({
   label: {
     color: BrandColors.text,
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '600',
   },
   inputShell: {
-    minHeight: 52,
+    minHeight: 48,
     borderColor: BrandColors.border,
     borderRadius: 8,
     borderWidth: 1,
@@ -235,8 +235,8 @@ const styles = StyleSheet.create({
   input: {
     color: BrandColors.text,
     flex: 1,
-    fontSize: 16,
-    minHeight: 50,
+    fontSize: 14,
+    minHeight: 46,
     paddingHorizontal: 14,
   },
   inputWithAccessory: {
@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
   iconFallback: {
     color: BrandColors.deepBlue,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
   },
   errorText: {
     color: BrandColors.red,
@@ -259,7 +259,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   button: {
-    minHeight: 52,
+    minHeight: 48,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
@@ -281,8 +281,8 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: BrandColors.onPrimary,
-    fontSize: 16,
-    fontWeight: '800',
+    fontSize: 14,
+    fontWeight: '600',
   },
   secondaryButtonText: {
     color: BrandColors.navy,
@@ -293,7 +293,7 @@ const styles = StyleSheet.create({
   linkText: {
     color: BrandColors.deepBlue,
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '600',
     textAlign: 'center',
   },
   languageRow: {
@@ -322,7 +322,7 @@ const styles = StyleSheet.create({
   languageOptionText: {
     color: BrandColors.muted,
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '400',
     textAlign: 'center',
   },
   languageOptionSelectedText: {
@@ -345,7 +345,7 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 20,
   },
   successText: {
@@ -367,7 +367,7 @@ const styles = StyleSheet.create({
   backFallback: {
     color: BrandColors.navy,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   pressed: {
     opacity: 0.72,

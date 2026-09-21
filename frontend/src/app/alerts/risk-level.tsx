@@ -229,7 +229,7 @@ const styles = StyleSheet.create({
   currentLevel: {
     color: colors.navy,
     fontSize: 36,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 42,
   },
   currentCopy: {
@@ -239,7 +239,7 @@ const styles = StyleSheet.create({
   emptyRiskTitle: {
     color: colors.navy,
     fontSize: 20,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 26,
   },
   initialRiskState: {
@@ -259,13 +259,13 @@ const styles = StyleSheet.create({
   refreshText: {
     color: colors.muted,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 16,
   },
   refreshWarning: {
     color: colors.muted,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 16,
     marginTop: spacing.sm,
   },
@@ -290,7 +290,7 @@ const styles = StyleSheet.create({
   scaleLabel: {
     color: colors.navy,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 20,
   },
 });

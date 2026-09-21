@@ -213,7 +213,7 @@ const styles = StyleSheet.create({
   chipText: {
     color: colors.amberEmphasis,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   listBlock: {
     gap: 8,
@@ -229,7 +229,7 @@ const styles = StyleSheet.create({
   listText: {
     color: colors.navy,
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '400',
   },
   infoBox: {
     backgroundColor: colors.background,
@@ -266,7 +266,7 @@ const styles = StyleSheet.create({
   editBtnText: {
     color: colors.onPrimary,
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   backBtn: {
     alignItems: 'center',
@@ -281,7 +281,7 @@ const styles = StyleSheet.create({
   backBtnText: {
     color: colors.navy,
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   pressed: {
     opacity: 0.75,

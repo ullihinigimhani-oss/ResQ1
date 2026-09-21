@@ -30,7 +30,6 @@ export default function WelcomeScreen() {
         </View>
 
         <View style={styles.messageBlock}>
-          <View style={styles.alertAccent} />
           <Text style={styles.description}>
             Receive verified disaster warnings, report incidents, and access emergency information
             for your local community.
@@ -56,10 +55,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
+    alignSelf: 'center',
     flexGrow: 1,
     justifyContent: 'space-between',
+    maxWidth: 560,
     paddingHorizontal: 24,
-    paddingVertical: 28,
+    paddingVertical: 24,
+    width: '100%',
   },
   logoSection: {
     alignItems: 'center',
@@ -72,34 +74,35 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     justifyContent: 'center',
-    padding: 16,
+    maxWidth: 240,
+    padding: 12,
     width: '100%',
   },
   logo: {
     aspectRatio: 1,
-    maxWidth: 280,
+    maxWidth: 216,
     width: '100%',
   },
   appName: {
     color: BrandColors.navy,
-    fontSize: 42,
-    fontWeight: '900',
-    lineHeight: 48,
-    marginTop: 22,
+    fontSize: 36,
+    fontWeight: '700',
+    lineHeight: 42,
+    marginTop: 20,
     textAlign: 'center',
   },
   subtitle: {
     color: BrandColors.deepBlue,
-    fontSize: 17,
-    fontWeight: '800',
-    lineHeight: 24,
+    fontSize: 15,
+    fontWeight: '400',
+    lineHeight: 21,
     marginTop: 8,
     textAlign: 'center',
   },
   tagline: {
     color: BrandColors.red,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '600',
     lineHeight: 19,
     marginTop: 10,
     textAlign: 'center',
@@ -110,22 +113,14 @@ const styles = StyleSheet.create({
     borderColor: BrandColors.border,
     borderRadius: 8,
     borderWidth: 1,
-    marginVertical: 28,
-    paddingHorizontal: 18,
-    paddingVertical: 18,
-  },
-  alertAccent: {
-    backgroundColor: BrandColors.red,
-    borderRadius: 2,
-    height: 4,
-    marginBottom: 14,
-    width: 52,
+    marginVertical: 24,
+    padding: 16,
   },
   description: {
     color: BrandColors.muted,
-    fontSize: 16,
-    fontWeight: '600',
-    lineHeight: 24,
+    fontSize: 14,
+    fontWeight: '400',
+    lineHeight: 21,
   },
   actions: {
     gap: 12,

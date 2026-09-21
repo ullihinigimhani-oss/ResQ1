@@ -211,7 +211,7 @@ const styles = StyleSheet.create({
   emptyTitle: {
     color: BrandColors.navy,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 24,
     textAlign: 'center',
   },
@@ -239,11 +239,16 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 5,
+    ...Platform.select({
+      web: { boxShadow: '0 2px 6px rgba(8, 29, 56, 0.08)' },
+      default: {
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 4,
+      },
+    }),
   },
   titleContainer: {
     flex: 1,
@@ -251,13 +256,13 @@ const styles = StyleSheet.create({
   title: {
     color: BrandColors.navy,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 24,
   },
   subtitle: {
     color: BrandColors.muted,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 16,
   },
   bottomBar: {
@@ -270,11 +275,16 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 5,
+    ...Platform.select({
+      web: { boxShadow: '0 -2px 6px rgba(8, 29, 56, 0.08)' },
+      default: {
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 4,
+      },
+    }),
   },
   routeSelector: {
     flexDirection: 'row',
@@ -296,7 +306,7 @@ const styles = StyleSheet.create({
   routeButtonText: {
     color: BrandColors.text,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 17,
   },
   routeButtonTextSelected: {
@@ -320,7 +330,7 @@ const styles = StyleSheet.create({
   legendText: {
     color: BrandColors.text,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 16,
   },
   pressed: {

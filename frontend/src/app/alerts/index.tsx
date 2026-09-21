@@ -1766,7 +1766,7 @@ const styles = StyleSheet.create({
   loadingStateText: {
     color: colors.muted,
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 20,
     textAlign: 'center',
   },
@@ -1807,7 +1807,7 @@ const styles = StyleSheet.create({
   residentStatusBadgeText: {
     color: colors.deepBlue,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 15,
   },
   residentStatusBadgeActiveDark: {
@@ -1844,7 +1844,7 @@ const styles = StyleSheet.create({
   residentTabText: {
     color: colors.deepBlue,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 16,
     textAlign: 'center',
   },
@@ -1854,7 +1854,7 @@ const styles = StyleSheet.create({
   schoolContextBadge: {
     alignSelf: 'flex-start',
     fontSize: 10,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 13,
     textTransform: 'uppercase',
   },
@@ -1869,7 +1869,7 @@ const styles = StyleSheet.create({
   languageLabel: {
     color: colors.muted,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 15,
     textTransform: 'uppercase',
   },
@@ -1897,7 +1897,7 @@ const styles = StyleSheet.create({
   languageOptionText: {
     color: colors.deepBlue,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 16,
     textAlign: 'center',
   },
@@ -1959,7 +1959,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     flex: 1,
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 18,
     minHeight: 40,
     minWidth: 0,
@@ -2005,14 +2005,14 @@ const styles = StyleSheet.create({
     color: colors.navy,
     flex: 1,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 16,
     minWidth: 0,
   },
   filterSelectChevron: {
     color: colors.navy,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 16,
   },
   filterOptionScroller: {
@@ -2049,7 +2049,7 @@ const styles = StyleSheet.create({
   filterOptionText: {
     color: colors.navy,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 16,
     minWidth: 0,
   },
@@ -2071,7 +2071,7 @@ const styles = StyleSheet.create({
   preferencesButtonText: {
     color: colors.deepBlue,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 16,
   },
   allClearCard: {
@@ -2090,26 +2090,26 @@ const styles = StyleSheet.create({
   allClearLabel: {
     color: colors.success,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 16,
     textTransform: 'uppercase',
   },
   allClearTitle: {
     color: colors.navy,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 24,
   },
   allClearArea: {
     color: colors.success,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 18,
   },
   allClearText: {
     color: colors.text,
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 21,
   },
   tabEmptyCard: {
@@ -2124,13 +2124,13 @@ const styles = StyleSheet.create({
   tabEmptyTitle: {
     color: colors.navy,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 24,
   },
   tabEmptyText: {
     color: colors.muted,
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 20,
   },
   schoolDisabledCard: {
@@ -2145,13 +2145,13 @@ const styles = StyleSheet.create({
   schoolDisabledTitle: {
     color: colors.navy,
     fontSize: 17,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 22,
   },
   schoolDisabledText: {
     color: colors.text,
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 19,
   },
   authorityHeader: {
@@ -2175,7 +2175,7 @@ const styles = StyleSheet.create({
   authorityModeBadgeText: {
     color: colors.onPrimary,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 15,
   },
   authorityEmergencyActionCard: {
@@ -2211,13 +2211,13 @@ const styles = StyleSheet.create({
   authorityActionTitle: {
     color: colors.red,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 23,
   },
   authorityActionBody: {
     color: colors.text,
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 19,
   },
   authorityCreateButton: {
@@ -2233,7 +2233,7 @@ const styles = StyleSheet.create({
   authorityCreateButtonText: {
     color: colors.onPrimary,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 19,
     textAlign: 'center',
   },
@@ -2276,7 +2276,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     color: colors.success,
     fontSize: 10,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 13,
     paddingHorizontal: 6,
     paddingVertical: 2,
@@ -2285,14 +2285,14 @@ const styles = StyleSheet.create({
   authorityCardMetaText: {
     color: colors.deepBlue,
     fontSize: 10,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 14,
     marginLeft: 36,
   },
   authorityMessagePreview: {
     color: colors.text,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 17,
     marginTop: 1,
   },
@@ -2335,20 +2335,20 @@ const styles = StyleSheet.create({
   alertTitle: {
     color: colors.navy,
     fontSize: 17,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 22,
   },
   authorityAlertTitle: {
     color: colors.navy,
     flex: 1,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 18,
   },
   statusText: {
     color: colors.deepBlue,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 15,
     textAlign: 'right',
     textTransform: 'uppercase',
@@ -2356,7 +2356,7 @@ const styles = StyleSheet.create({
   areaText: {
     color: colors.muted,
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 14,
     marginLeft: 36,
   },
@@ -2366,13 +2366,13 @@ const styles = StyleSheet.create({
   residentSchoolSummaryText: {
     color: colors.text,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 16,
   },
   residentAreaText: {
     color: colors.text,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 16,
   },
   residentSecondaryTextDark: {
@@ -2403,19 +2403,19 @@ const styles = StyleSheet.create({
   },
   areaMatchBadgeText: {
     fontSize: 9,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 12,
   },
   riskText: {
     color: colors.text,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 17,
   },
   issuedText: {
     color: colors.muted,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 17,
   },
   alertAction: {
@@ -2433,7 +2433,7 @@ const styles = StyleSheet.create({
   alertActionText: {
     color: colors.navy,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 18,
   },
   sectionHeader: {
@@ -2457,7 +2457,7 @@ const styles = StyleSheet.create({
   authoritySectionSubtitle: {
     color: colors.muted,
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 18,
   },
   authoritySectionActions: {
@@ -2481,7 +2481,7 @@ const styles = StyleSheet.create({
   historyLinkText: {
     color: colors.deepBlue,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 16,
   },
   activeCountBadge: {
@@ -2493,14 +2493,14 @@ const styles = StyleSheet.create({
   activeCountBadgeText: {
     color: colors.onPrimary,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 15,
   },
   compactMetaText: {
     color: colors.muted,
     flex: 1,
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 15,
     minWidth: 0,
   },
@@ -2515,7 +2515,7 @@ const styles = StyleSheet.create({
   inlineErrorText: {
     color: colors.red,
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 20,
   },
   inlineSuccess: {
@@ -2528,7 +2528,7 @@ const styles = StyleSheet.create({
   inlineSuccessText: {
     color: colors.success,
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 20,
   },
   modalBackdrop: {
@@ -2554,20 +2554,20 @@ const styles = StyleSheet.create({
   cancelDialogEyebrow: {
     color: colors.red,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 16,
     textTransform: 'uppercase',
   },
   cancelDialogTitle: {
     color: colors.navy,
     fontSize: 22,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 28,
   },
   cancelDialogText: {
     color: colors.text,
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 21,
   },
   cancelDialogContext: {
@@ -2581,20 +2581,20 @@ const styles = StyleSheet.create({
   cancelDialogContextLabel: {
     color: colors.red,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 15,
     textTransform: 'uppercase',
   },
   cancelDialogAlertTitle: {
     color: colors.navy,
     fontSize: 17,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 22,
   },
   cancelDialogMeta: {
     color: colors.text,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 18,
   },
   cancelDialogActions: {
@@ -2617,7 +2617,7 @@ const styles = StyleSheet.create({
   keepAlertButtonText: {
     color: colors.navy,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 19,
     textAlign: 'center',
   },
@@ -2636,7 +2636,7 @@ const styles = StyleSheet.create({
   confirmCancelButtonText: {
     color: colors.onPrimary,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 19,
     textAlign: 'center',
   },

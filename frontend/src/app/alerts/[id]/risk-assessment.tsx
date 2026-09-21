@@ -663,7 +663,7 @@ const styles = StyleSheet.create({
     color: BrandColors.navy,
     flex: 1,
     fontSize: 17,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 23,
   },
   backButton: {
@@ -680,7 +680,7 @@ const styles = StyleSheet.create({
   backButtonText: {
     color: BrandColors.navy,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 16,
   },
   languageContext: {
@@ -698,14 +698,14 @@ const styles = StyleSheet.create({
   languageContextLabel: {
     color: BrandColors.muted,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 15,
     textTransform: 'uppercase',
   },
   languageContextValue: {
     color: BrandColors.navy,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 18,
   },
   summaryCard: {
@@ -741,13 +741,13 @@ const styles = StyleSheet.create({
   summaryEyebrow: {
     color: BrandColors.muted,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 15,
     textTransform: 'uppercase',
   },
   summaryTitle: {
     fontSize: 22,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 28,
   },
   detailPill: {
@@ -759,7 +759,7 @@ const styles = StyleSheet.create({
   },
   detailPillText: {
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 15,
   },
   summaryMetaGrid: {
@@ -781,20 +781,20 @@ const styles = StyleSheet.create({
   metaLabel: {
     color: BrandColors.muted,
     fontSize: 10,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 14,
     textTransform: 'uppercase',
   },
   metaValue: {
     color: BrandColors.navy,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 19,
   },
   summaryIssued: {
     color: BrandColors.muted,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 17,
   },
   summaryBody: {
@@ -803,7 +803,7 @@ const styles = StyleSheet.create({
   summaryBodyText: {
     color: BrandColors.text,
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 20,
   },
   sectionCard: {
@@ -820,13 +820,13 @@ const styles = StyleSheet.create({
   sectionTitle: {
     color: BrandColors.navy,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 24,
   },
   sectionCopy: {
     color: BrandColors.muted,
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 19,
   },
   factorList: {
@@ -859,20 +859,20 @@ const styles = StyleSheet.create({
   factorLabel: {
     color: BrandColors.muted,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 15,
     textTransform: 'uppercase',
   },
   factorValue: {
     color: BrandColors.navy,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 20,
   },
   factorNote: {
     color: BrandColors.text,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 17,
   },
   actionList: {
@@ -893,7 +893,7 @@ const styles = StyleSheet.create({
     color: BrandColors.text,
     flex: 1,
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 20,
   },
   centerState: {
@@ -911,14 +911,14 @@ const styles = StyleSheet.create({
   stateTitle: {
     color: BrandColors.navy,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 24,
     textAlign: 'center',
   },
   emptyTitle: {
     color: BrandColors.navy,
     fontSize: 20,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 26,
     textAlign: 'center',
   },

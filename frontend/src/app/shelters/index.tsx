@@ -344,15 +344,15 @@ const styles = StyleSheet.create({
   eyebrow: {
     color: BrandColors.red,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 16,
     textTransform: 'uppercase',
   },
   title: {
     color: BrandColors.navy,
-    fontSize: 28,
-    fontWeight: '900',
-    lineHeight: 34,
+    fontSize: 24,
+    fontWeight: '700',
+    lineHeight: 30,
   },
   subtitle: {
     color: BrandColors.muted,
@@ -382,7 +382,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     color: BrandColors.text,
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: '400',
     minHeight: 48,
     paddingHorizontal: 12,
   },
@@ -408,7 +408,7 @@ const styles = StyleSheet.create({
   filterText: {
     color: BrandColors.deepBlue,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 17,
   },
   filterTextSelected: {
@@ -445,13 +445,13 @@ const styles = StyleSheet.create({
   cardTitle: {
     color: BrandColors.navy,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 24,
   },
   cardArea: {
     color: BrandColors.deepBlue,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 18,
     textTransform: 'uppercase',
   },
@@ -465,7 +465,7 @@ const styles = StyleSheet.create({
   areaMatchText: {
     color: BrandColors.onPrimary,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 15,
   },
   metricGrid: {
@@ -484,14 +484,14 @@ const styles = StyleSheet.create({
   metricLabel: {
     color: BrandColors.muted,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 15,
     textTransform: 'uppercase',
   },
   metricValue: {
     color: BrandColors.text,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 20,
   },
   cardButtonRow: {
@@ -511,7 +511,7 @@ const styles = StyleSheet.create({
   cardButtonText: {
     color: BrandColors.onPrimary,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 17,
   },
   callButton: {
@@ -540,7 +540,7 @@ const styles = StyleSheet.create({
   emptyTitle: {
     color: BrandColors.navy,
     fontSize: 20,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 26,
     textAlign: 'center',
   },

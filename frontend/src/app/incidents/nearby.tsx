@@ -156,7 +156,7 @@ const styles = StyleSheet.create({
   mapText: {
     color: colors.muted,
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 19,
   },
   filterRow: {
@@ -182,13 +182,13 @@ const styles = StyleSheet.create({
   incidentTitle: {
     color: colors.navy,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 20,
   },
   incidentMeta: {
     color: colors.muted,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 17,
   },
   pressed: {

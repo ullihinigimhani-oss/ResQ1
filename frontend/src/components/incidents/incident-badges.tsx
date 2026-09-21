@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 16,
   },
   timeline: {
@@ -238,7 +238,7 @@ const styles = StyleSheet.create({
   timelineTitle: {
     color: BrandColors.muted,
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 20,
   },
   timelineTitleActive: {
@@ -277,7 +277,7 @@ const styles = StyleSheet.create({
   },
   stageBadgeText: {
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 14,
     textTransform: 'uppercase',
   },

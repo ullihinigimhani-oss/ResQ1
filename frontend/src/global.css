@@ -1,12 +1,40 @@
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400;
+  src: url('../node_modules/@expo-google-fonts/inter/400Regular/Inter_400Regular.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 500;
+  src: url('../node_modules/@expo-google-fonts/inter/500Medium/Inter_500Medium.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 600;
+  src: url('../node_modules/@expo-google-fonts/inter/600SemiBold/Inter_600SemiBold.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 700;
+  src: url('../node_modules/@expo-google-fonts/inter/700Bold/Inter_700Bold.ttf') format('truetype');
+}
+
 :root {
   color-scheme: light;
-  --resq1-background: #f6f9fc;
-  --resq1-background-secondary: #f6f9fc;
+  --resq1-background: #f4f7fa;
+  --resq1-background-secondary: #f1f5f8;
   --resq1-surface: #ffffff;
-  --resq1-surface-muted: #eef4fa;
+  --resq1-surface-muted: #f0f3f6;
   --resq1-surface-elevated: #ffffff;
   --resq1-control-surface: #ffffff;
-  --resq1-control-surface-subtle: #f6f9fc;
+  --resq1-control-surface-subtle: #f4f7fa;
   --resq1-text-strong: #071a35;
   --resq1-text: #102033;
   --resq1-text-muted: #5f6f86;
@@ -23,7 +51,7 @@
   --resq1-info-soft: #eaf4ff;
   --resq1-info-border: #d8ecff;
   --resq1-blue-border: #0b74c4;
-  --resq1-border: #cbd9e8;
+  --resq1-border: #d6dee7;
   --resq1-red: #d71920;
   --resq1-red-soft: #fdecec;
   --resq1-red-border: #d71920;
@@ -65,14 +93,13 @@
   --resq1-route-alternate: #000000;
   --resq1-gold-accent: #f7c15c;
   --resq1-emergency-orange: #ff9500;
-  --resq1-card-shadow: rgba(7, 26, 53, 0.08);
+  --resq1-card-shadow: rgba(7, 26, 53, 0.06);
   --resq1-splash-blue-top: #3c9ffe;
   --resq1-splash-blue-bottom: #0274df;
   --resq1-splash-blue: #208aef;
   --resq1-slate: #24344d;
-  --font-display:
-    Spline Sans, Inter, ui-sans-serif, system-ui, sans-serif, Apple Color Emoji, Segoe UI Emoji,
-    Segoe UI Symbol, Noto Color Emoji;
+  --font-ui: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-display: var(--font-ui);
   --font-mono:
     ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, Courier New, monospace;
   --font-rounded: 'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif;
@@ -81,13 +108,13 @@
 
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --resq1-background: #172033;
-  --resq1-background-secondary: #1b2638;
-  --resq1-surface: #202c3d;
-  --resq1-surface-muted: #263449;
-  --resq1-surface-elevated: #263449;
-  --resq1-control-surface: #263449;
-  --resq1-control-surface-subtle: #263449;
+  --resq1-background: #141c28;
+  --resq1-background-secondary: #182230;
+  --resq1-surface: #1d2836;
+  --resq1-surface-muted: #243141;
+  --resq1-surface-elevated: #263444;
+  --resq1-control-surface: #243141;
+  --resq1-control-surface-subtle: #202c3a;
   --resq1-text-strong: #f9fafb;
   --resq1-text: #f9fafb;
   --resq1-text-muted: #cbd5e1;
@@ -104,7 +131,7 @@
   --resq1-info-soft: #1e3a5f;
   --resq1-info-border: #3b82f6;
   --resq1-blue-border: #3b82f6;
-  --resq1-border: #34445a;
+  --resq1-border: #354456;
   --resq1-red: #fb7185;
   --resq1-red-soft: #4c1d2a;
   --resq1-red-border: #be4455;
@@ -146,7 +173,7 @@
   --resq1-route-alternate: #cbd5e1;
   --resq1-gold-accent: #fbbf24;
   --resq1-emergency-orange: #fbbf24;
-  --resq1-card-shadow: rgba(0, 0, 0, 0.32);
+  --resq1-card-shadow: rgba(0, 0, 0, 0.22);
   --resq1-splash-blue-top: #4d7fa8;
   --resq1-splash-blue-bottom: #315f83;
   --resq1-splash-blue: #3f7199;
@@ -157,6 +184,15 @@ html,
 body,
 #root {
   background: var(--resq1-background);
+  font-family: var(--font-ui);
+}
+
+body *,
+button,
+input,
+textarea {
+  font-family: var(--font-ui) !important;
+  letter-spacing: 0 !important;
 }
 
 @media (prefers-reduced-motion: no-preference) {

@@ -559,15 +559,15 @@ const styles = StyleSheet.create({
   eyebrow: {
     color: BrandColors.red,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 16,
     textTransform: 'uppercase',
   },
   title: {
     color: BrandColors.navy,
-    fontSize: 28,
-    fontWeight: '900',
-    lineHeight: 34,
+    fontSize: 24,
+    fontWeight: '700',
+    lineHeight: 30,
   },
   subtitle: {
     color: BrandColors.muted,
@@ -596,7 +596,7 @@ const styles = StyleSheet.create({
   label: {
     color: BrandColors.navy,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 17,
   },
   helperText: {
@@ -627,7 +627,7 @@ const styles = StyleSheet.create({
   currentLocationButtonText: {
     color: BrandColors.onPrimary,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 16,
   },
   readOnlyField: {
@@ -655,7 +655,7 @@ const styles = StyleSheet.create({
   statusText: {
     color: BrandColors.deepBlue,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 17,
   },
   statusTextSelected: {
@@ -668,7 +668,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     color: BrandColors.text,
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: '400',
     minHeight: 100,
     paddingHorizontal: 12,
     paddingVertical: 12,
@@ -699,7 +699,7 @@ const styles = StyleSheet.create({
   errorTitle: {
     color: BrandColors.navy,
     fontSize: 20,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 26,
     textAlign: 'center',
   },

@@ -263,7 +263,7 @@ const styles = StyleSheet.create({
   sectionSubtitle: {
     color: colors.muted,
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '400',
   },
   addSmallBtn: {
     backgroundColor: colors.navy,
@@ -274,7 +274,7 @@ const styles = StyleSheet.create({
   addSmallBtnText: {
     color: '#ffffff',
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   contactList: {
     gap: spacing.md,
@@ -305,12 +305,12 @@ const styles = StyleSheet.create({
   contactName: {
     color: colors.navy,
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   contactRelationship: {
     color: colors.muted,
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '400',
   },
   callBtn: {
     backgroundColor: colors.lightBlue,
@@ -323,7 +323,7 @@ const styles = StyleSheet.create({
   callBtnText: {
     color: colors.deepBlue,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   notesBox: {
     backgroundColor: '#fffbe6',
@@ -336,7 +336,7 @@ const styles = StyleSheet.create({
   notesText: {
     color: '#b45309',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 17,
   },
   cardActions: {
@@ -362,7 +362,7 @@ const styles = StyleSheet.create({
   editBtnText: {
     color: '#d97706',
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   deleteBtn: {
     backgroundColor: '#fef2f2',
@@ -372,7 +372,7 @@ const styles = StyleSheet.create({
   deleteBtnText: {
     color: '#dc2626',
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   emptyContainer: {
     alignItems: 'center',
@@ -382,7 +382,7 @@ const styles = StyleSheet.create({
   emptyTitle: {
     color: colors.navy,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   emptySubtext: {
     color: colors.muted,
@@ -400,7 +400,7 @@ const styles = StyleSheet.create({
   errorText: {
     color: '#dc2626',
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '400',
     textAlign: 'center',
   },
   modalOverlay: {
@@ -421,7 +421,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     color: colors.navy,
     fontSize: 20,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   modalText: {
     color: colors.muted,
@@ -430,7 +430,7 @@ const styles = StyleSheet.create({
   },
   boldText: {
     color: colors.navy,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   modalBtnRow: {
     flexDirection: 'row',
@@ -450,7 +450,7 @@ const styles = StyleSheet.create({
   cancelModalBtnText: {
     color: colors.navy,
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   confirmModalBtn: {
     alignItems: 'center',
@@ -463,7 +463,7 @@ const styles = StyleSheet.create({
   confirmModalBtnText: {
     color: '#ffffff',
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   pressed: {
     opacity: 0.75,

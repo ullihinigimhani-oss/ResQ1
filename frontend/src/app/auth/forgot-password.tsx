@@ -388,14 +388,14 @@ const styles = StyleSheet.create({
   eyebrow: {
     color: BrandColors.red,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     textTransform: 'uppercase',
   },
   title: {
     color: BrandColors.navy,
-    fontSize: 32,
-    fontWeight: '900',
-    lineHeight: 38,
+    fontSize: 24,
+    fontWeight: '700',
+    lineHeight: 30,
   },
   subtitle: {
     color: BrandColors.muted,
@@ -405,7 +405,7 @@ const styles = StyleSheet.create({
   },
   emailHighlight: {
     color: BrandColors.navy,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   formGroup: {
     gap: 16,
@@ -424,7 +424,7 @@ const styles = StyleSheet.create({
   resendLink: {
     color: BrandColors.deepBlue,
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   resendDisabled: {
     color: BrandColors.muted,

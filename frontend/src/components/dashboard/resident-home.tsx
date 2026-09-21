@@ -452,13 +452,13 @@ const styles = StyleSheet.create({
   greeting: {
     color: colors.navy,
     fontSize: 21,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 27,
   },
   headerSubtitle: {
     color: colors.muted,
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 18,
   },
   headerActions: {
@@ -489,7 +489,7 @@ const styles = StyleSheet.create({
   avatarText: {
     color: colors.onPrimary,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 17,
   },
   heroFrame: {
@@ -559,7 +559,7 @@ const styles = StyleSheet.create({
   statusTitle: {
     color: colors.navy,
     fontSize: 17,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 22,
   },
   statusBody: {
@@ -579,7 +579,7 @@ const styles = StyleSheet.create({
     color: colors.muted,
     flexShrink: 1,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 17,
   },
   textButton: {
@@ -594,7 +594,7 @@ const styles = StyleSheet.create({
   textButtonLabel: {
     color: colors.deepBlue,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 17,
   },
   warningBanner: {
@@ -617,7 +617,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     flex: 1,
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 18,
   },
   viewAllButton: {
@@ -630,13 +630,13 @@ const styles = StyleSheet.create({
   viewAllLabel: {
     color: colors.deepBlue,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 17,
   },
   viewAllArrow: {
     color: colors.deepBlue,
     fontSize: 17,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 20,
   },
   updateCard: {
@@ -674,7 +674,7 @@ const styles = StyleSheet.create({
     color: colors.navy,
     flex: 1,
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 21,
     minWidth: 160,
   },
@@ -694,7 +694,7 @@ const styles = StyleSheet.create({
     color: colors.muted,
     flexShrink: 1,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 17,
   },
   metaSeparator: {
@@ -724,7 +724,7 @@ const styles = StyleSheet.create({
   emptyUpdateTitle: {
     color: colors.success,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 20,
   },
   visualGrid: {
@@ -793,7 +793,7 @@ const styles = StyleSheet.create({
   tipNumberText: {
     color: colors.deepBlue,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 15,
   },
   tipCopy: {
@@ -803,7 +803,7 @@ const styles = StyleSheet.create({
   tipTitle: {
     color: colors.navy,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 18,
   },
   tipBody: {
@@ -826,7 +826,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     flex: 1,
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 19,
   },
   pressed: {

@@ -325,14 +325,14 @@ const styles = StyleSheet.create({
   eyebrow: {
     color: BrandColors.red,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     textTransform: 'uppercase',
   },
   title: {
     color: BrandColors.navy,
-    fontSize: 32,
-    fontWeight: '900',
-    lineHeight: 38,
+    fontSize: 24,
+    fontWeight: '700',
+    lineHeight: 30,
   },
   subtitle: {
     color: BrandColors.muted,
@@ -376,19 +376,19 @@ const styles = StyleSheet.create({
   reportActionTitle: {
     color: BrandColors.navy,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 20,
   },
   reportActionBody: {
     color: BrandColors.muted,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 17,
   },
   reportActionArrow: {
     color: BrandColors.deepBlue,
     fontSize: 20,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 24,
   },
   list: {
@@ -401,13 +401,13 @@ const styles = StyleSheet.create({
   listTitle: {
     color: BrandColors.navy,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 24,
   },
   listMeta: {
     color: BrandColors.muted,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 17,
     textTransform: 'uppercase',
   },
@@ -425,13 +425,13 @@ const styles = StyleSheet.create({
   cardTitle: {
     color: BrandColors.navy,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 24,
   },
   cardMeta: {
     color: BrandColors.muted,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 18,
     textTransform: 'uppercase',
   },
@@ -449,13 +449,13 @@ const styles = StyleSheet.create({
   cardLabel: {
     color: BrandColors.muted,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
     textTransform: 'uppercase',
   },
   cardValue: {
     color: BrandColors.text,
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 21,
   },
   badgeSection: {
@@ -470,7 +470,7 @@ const styles = StyleSheet.create({
   badgeLabel: {
     color: BrandColors.muted,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 14,
     textTransform: 'uppercase',
   },
@@ -483,14 +483,14 @@ const styles = StyleSheet.create({
   submittedText: {
     color: BrandColors.text,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 17,
     marginTop: 3,
   },
   cardArrow: {
     color: BrandColors.deepBlue,
     fontSize: 24,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 28,
   },
   centerState: {
@@ -508,7 +508,7 @@ const styles = StyleSheet.create({
   emptyTitle: {
     color: BrandColors.navy,
     fontSize: 20,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 26,
     textAlign: 'center',
   },

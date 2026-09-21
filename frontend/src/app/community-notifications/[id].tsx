@@ -309,7 +309,7 @@ const styles = StyleSheet.create({
     color: BrandColors.navy,
     flex: 1,
     fontSize: 17,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 23,
   },
   backButton: {
@@ -326,7 +326,7 @@ const styles = StyleSheet.create({
   backButtonText: {
     color: BrandColors.navy,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 16,
   },
   languageContext: {
@@ -344,14 +344,14 @@ const styles = StyleSheet.create({
   languageContextLabel: {
     color: BrandColors.muted,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 15,
     textTransform: 'uppercase',
   },
   languageContextValue: {
     color: BrandColors.navy,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 18,
   },
   centerState: {
@@ -369,14 +369,14 @@ const styles = StyleSheet.create({
   emptyTitle: {
     color: BrandColors.navy,
     fontSize: 20,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 26,
     textAlign: 'center',
   },
   stateText: {
     color: BrandColors.muted,
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 21,
     textAlign: 'center',
   },
@@ -422,13 +422,13 @@ const styles = StyleSheet.create({
   heroTitle: {
     color: BrandColors.navy,
     fontSize: 22,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 28,
   },
   heroSubtitle: {
     color: BrandColors.deepBlue,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 18,
   },
   statusPill: {
@@ -443,7 +443,7 @@ const styles = StyleSheet.create({
   statusPillText: {
     color: BrandColors.success,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 15,
     textTransform: 'uppercase',
   },
@@ -472,19 +472,19 @@ const styles = StyleSheet.create({
   detailLabel: {
     color: BrandColors.muted,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 18,
   },
   detailValue: {
     color: BrandColors.text,
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 21,
   },
   messageText: {
     color: BrandColors.text,
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 22,
   },
   pressed: {

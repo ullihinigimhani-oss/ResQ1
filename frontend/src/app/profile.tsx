@@ -150,7 +150,7 @@ const styles = StyleSheet.create({
   avatarText: {
     color: colors.navy,
     fontSize: 20,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 25,
   },
   identityBlock: {
@@ -160,13 +160,13 @@ const styles = StyleSheet.create({
   name: {
     color: colors.onPrimary,
     fontSize: 21,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 27,
   },
   email: {
     color: colors.onPrimaryMuted,
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 20,
   },
   identityBadges: {
@@ -189,7 +189,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     flex: 1,
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 21,
   },
   actionIcon: {
@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
   actionArrow: {
     color: colors.deepBlue,
     fontSize: 22,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 26,
   },
   pressed: {

@@ -270,20 +270,20 @@ const styles = StyleSheet.create({
   brandName: {
     color: colors.navy,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 23,
   },
   brandLabel: {
     color: colors.muted,
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 15,
     textTransform: 'uppercase',
   },
   stepLabel: {
     color: colors.deepBlue,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 16,
   },
   progressRow: {
@@ -376,7 +376,7 @@ const styles = StyleSheet.create({
   metricText: {
     color: colors.navy,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 16,
     textTransform: 'uppercase',
   },
@@ -583,7 +583,7 @@ const styles = StyleSheet.create({
   safeZoneText: {
     color: colors.success,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 16,
   },
   copyBlock: {
@@ -591,15 +591,15 @@ const styles = StyleSheet.create({
   },
   kicker: {
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 16,
     textTransform: 'uppercase',
   },
   title: {
     color: colors.navy,
-    fontSize: 27,
-    fontWeight: '900',
-    lineHeight: 33,
+    fontSize: 24,
+    fontWeight: '700',
+    lineHeight: 30,
   },
   description: {
     color: colors.muted,
@@ -630,14 +630,14 @@ const styles = StyleSheet.create({
   navButtonPrimaryText: {
     color: colors.onPrimary,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 20,
     textAlign: 'center',
   },
   navButtonSecondaryText: {
     color: colors.deepBlue,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 20,
     textAlign: 'center',
   },

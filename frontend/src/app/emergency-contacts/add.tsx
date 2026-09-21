@@ -239,7 +239,7 @@ const styles = StyleSheet.create({
   fieldLabel: {
     color: colors.navy,
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '400',
   },
   gridRow: {
     flexDirection: 'row',
@@ -264,7 +264,7 @@ const styles = StyleSheet.create({
   gridChipText: {
     color: colors.muted,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   gridChipSelectedText: {
     color: '#ffffff',
@@ -287,7 +287,7 @@ const styles = StyleSheet.create({
   switchLabel: {
     color: colors.navy,
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   switchHelp: {
     color: colors.muted,

@@ -571,7 +571,7 @@ const styles = StyleSheet.create({
   unreadCountText: {
     color: colors.onPrimary,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 18,
   },
   languageSelector: {
@@ -601,7 +601,7 @@ const styles = StyleSheet.create({
   languageOptionText: {
     color: colors.deepBlue,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 16,
     textAlign: 'center',
   },
@@ -623,7 +623,7 @@ const styles = StyleSheet.create({
   emptyTitle: {
     color: colors.navy,
     fontSize: 20,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 26,
     textAlign: 'center',
   },
@@ -688,7 +688,7 @@ const styles = StyleSheet.create({
     color: colors.navy,
     flex: 1,
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 21,
   },
   unreadTitle: {
@@ -709,7 +709,7 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 15,
     textTransform: 'uppercase',
   },
@@ -717,13 +717,13 @@ const styles = StyleSheet.create({
     color: colors.text,
     flexShrink: 1,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 18,
   },
   previewText: {
     color: colors.text,
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 19,
   },
   cardFooter: {
@@ -736,13 +736,13 @@ const styles = StyleSheet.create({
     color: colors.muted,
     flexShrink: 1,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 17,
   },
   viewActionText: {
     color: colors.deepBlue,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 18,
   },
   authorityActions: {
@@ -765,7 +765,7 @@ const styles = StyleSheet.create({
   authorityViewButtonText: {
     color: colors.deepBlue,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 18,
   },
   authorityCancelButton: {
@@ -783,7 +783,7 @@ const styles = StyleSheet.create({
   authorityCancelButtonText: {
     color: colors.red,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 18,
   },
   disabled: {

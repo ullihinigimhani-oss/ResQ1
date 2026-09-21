@@ -626,14 +626,14 @@ const styles = StyleSheet.create({
   restrictedEyebrow: {
     color: BrandColors.red,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 16,
     textTransform: 'uppercase',
   },
   restrictedTitle: {
     color: BrandColors.navy,
     fontSize: 22,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 28,
   },
   restrictedText: {
@@ -648,14 +648,14 @@ const styles = StyleSheet.create({
   eyebrow: {
     color: BrandColors.red,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     textTransform: 'uppercase',
   },
   title: {
     color: BrandColors.navy,
-    fontSize: 30,
-    fontWeight: '900',
-    lineHeight: 36,
+    fontSize: 24,
+    fontWeight: '700',
+    lineHeight: 30,
   },
   subtitle: {
     color: BrandColors.muted,
@@ -683,7 +683,7 @@ const styles = StyleSheet.create({
   noticeTitle: {
     color: BrandColors.navy,
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 22,
   },
   noticeText: {
@@ -709,7 +709,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     color: BrandColors.navy,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 24,
   },
   sectionHelper: {
@@ -724,7 +724,7 @@ const styles = StyleSheet.create({
   label: {
     color: BrandColors.text,
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '400',
   },
   fixedField: {
     backgroundColor: BrandColors.lightBlue,
@@ -738,7 +738,7 @@ const styles = StyleSheet.create({
   fixedFieldText: {
     color: BrandColors.navy,
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   riskGrid: {
     backgroundColor: BrandColors.white,
@@ -780,7 +780,7 @@ const styles = StyleSheet.create({
   riskOptionText: {
     color: BrandColors.deepBlue,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 19,
   },
   riskOptionTextSelected: {
@@ -806,13 +806,13 @@ const styles = StyleSheet.create({
   publishTitle: {
     color: BrandColors.onPrimary,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 24,
   },
   publishCopy: {
     color: BrandColors.onPrimaryMuted,
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 20,
   },
   reviewCard: {
@@ -826,7 +826,7 @@ const styles = StyleSheet.create({
   reviewEyebrow: {
     color: BrandColors.red,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 16,
     textTransform: 'uppercase',
   },
@@ -839,14 +839,14 @@ const styles = StyleSheet.create({
   summaryLabel: {
     color: BrandColors.muted,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 15,
     textTransform: 'uppercase',
   },
   summaryValue: {
     color: BrandColors.text,
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 20,
   },
   publishButton: {

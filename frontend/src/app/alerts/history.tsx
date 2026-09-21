@@ -431,37 +431,37 @@ const styles = StyleSheet.create({
     color: colors.muted,
     flex: 1,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 17,
   },
   alertTitle: {
     color: colors.navy,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 20,
   },
   areaText: {
     color: colors.deepBlue,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 17,
   },
   historyMetaText: {
     color: colors.muted,
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 15,
   },
   historyOutcomeText: {
     color: colors.text,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 17,
   },
   chevronText: {
     color: colors.muted,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 22,
   },
   badgeRow: {
@@ -478,13 +478,13 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontSize: 10,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 13,
   },
   changeText: {
     color: colors.text,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 17,
   },
   centerState: {
@@ -514,7 +514,7 @@ const styles = StyleSheet.create({
   inlineErrorText: {
     color: colors.red,
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 20,
   },
   pressed: {

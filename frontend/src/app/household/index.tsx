@@ -293,7 +293,7 @@ const styles = StyleSheet.create({
   sectionSubtitle: {
     color: colors.muted,
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '400',
   },
   addSmallBtn: {
     backgroundColor: colors.primaryAction,
@@ -304,7 +304,7 @@ const styles = StyleSheet.create({
   addSmallBtnText: {
     color: colors.onPrimary,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   memberList: {
     gap: spacing.md,
@@ -329,18 +329,18 @@ const styles = StyleSheet.create({
   memberName: {
     color: colors.navy,
     fontSize: 17,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 22,
   },
   memberMeta: {
     color: colors.muted,
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '400',
   },
   nicText: {
     color: colors.navy,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
   },
   badgeChipsRow: {
     flexDirection: 'row',
@@ -365,7 +365,7 @@ const styles = StyleSheet.create({
   chipText: {
     color: colors.amberEmphasis,
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   detailsSubRow: {
     flexDirection: 'row',
@@ -375,13 +375,13 @@ const styles = StyleSheet.create({
   detailsSubLabel: {
     color: colors.navy,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   detailsSubValue: {
     color: colors.muted,
     flex: 1,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
   },
   cardActions: {
     borderTopColor: colors.border,
@@ -406,7 +406,7 @@ const styles = StyleSheet.create({
   viewBtnText: {
     color: colors.navy,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   editBtn: {
     backgroundColor: colors.white,
@@ -416,7 +416,7 @@ const styles = StyleSheet.create({
   editBtnText: {
     color: colors.warningAction,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   deleteBtn: {
     backgroundColor: colors.dangerSoft,
@@ -426,7 +426,7 @@ const styles = StyleSheet.create({
   deleteBtnText: {
     color: colors.dangerText,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   emptyContainer: {
     alignItems: 'center',
@@ -436,7 +436,7 @@ const styles = StyleSheet.create({
   emptyTitle: {
     color: colors.navy,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   emptySubtext: {
     color: colors.muted,
@@ -454,7 +454,7 @@ const styles = StyleSheet.create({
   errorText: {
     color: colors.dangerText,
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '400',
     textAlign: 'center',
   },
   modalOverlay: {
@@ -475,7 +475,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     color: colors.navy,
     fontSize: 20,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   modalText: {
     color: colors.muted,
@@ -484,7 +484,7 @@ const styles = StyleSheet.create({
   },
   boldText: {
     color: colors.navy,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   modalBtnRow: {
     flexDirection: 'row',
@@ -504,7 +504,7 @@ const styles = StyleSheet.create({
   cancelModalBtnText: {
     color: colors.navy,
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   confirmModalBtn: {
     alignItems: 'center',
@@ -517,7 +517,7 @@ const styles = StyleSheet.create({
   confirmModalBtnText: {
     color: colors.onPrimary,
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   pressed: {
     opacity: 0.75,

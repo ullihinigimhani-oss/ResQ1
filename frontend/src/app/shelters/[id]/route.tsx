@@ -646,7 +646,7 @@ const styles = StyleSheet.create({
   legendText: {
     color: BrandColors.text,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 16,
   },
   openMapButton: {
@@ -657,7 +657,7 @@ const styles = StyleSheet.create({
   openMapButtonText: {
     color: BrandColors.onPrimary,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 20,
     textAlign: 'center',
   },
@@ -673,15 +673,15 @@ const styles = StyleSheet.create({
   eyebrow: {
     color: BrandColors.red,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 16,
     textTransform: 'uppercase',
   },
   title: {
     color: BrandColors.navy,
-    fontSize: 28,
-    fontWeight: '900',
-    lineHeight: 34,
+    fontSize: 24,
+    fontWeight: '700',
+    lineHeight: 30,
   },
   subtitle: {
     color: BrandColors.muted,
@@ -704,7 +704,7 @@ const styles = StyleSheet.create({
   emptyTitle: {
     color: BrandColors.navy,
     fontSize: 20,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 26,
     textAlign: 'center',
   },

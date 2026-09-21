@@ -930,7 +930,11 @@ export function BottomNavigation() {
                 router.replace(tab.route);
               }
             }}
-            style={({ pressed }) => [styles.tabButton, pressed && styles.pressed]}>
+            style={({ pressed }) => [
+              styles.tabButton,
+              active && styles.tabButtonActive,
+              pressed && styles.pressed,
+            ]}>
             <AppIcon
               fallback={tab.fallback}
               name={tab.icon}
@@ -1081,7 +1085,7 @@ const styles = StyleSheet.create({
     width: '58%',
   },
   warningMark: {
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 18,
     position: 'absolute',
   },
@@ -1515,7 +1519,6 @@ const styles = StyleSheet.create({
   eyebrow: {
     color: colors.red,
     ...typography.label,
-    textTransform: 'uppercase',
   },
   title: {
     color: colors.navy,
@@ -1554,18 +1557,14 @@ const styles = StyleSheet.create({
   },
   wordmarkName: {
     color: colors.navy,
-    fontSize: 19,
-    fontWeight: '900',
-    lineHeight: 24,
+    ...typography.sectionTitle,
   },
   homeGreetingBlock: {
     flex: 1,
   },
   homeGreeting: {
     color: colors.muted,
-    fontSize: 13,
-    fontWeight: '800',
-    lineHeight: 18,
+    ...typography.supporting,
   },
   homeHeaderActions: {
     alignItems: 'center',
@@ -1585,7 +1584,7 @@ const styles = StyleSheet.create({
   avatarText: {
     color: colors.navy,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 18,
   },
   sectionCard: {
@@ -1621,9 +1620,7 @@ const styles = StyleSheet.create({
   },
   sectionSubtitle: {
     color: colors.muted,
-    fontSize: 14,
-    fontWeight: '600',
-    lineHeight: 20,
+    ...typography.supporting,
   },
   sectionSubtitleOnDark: {
     color: colors.onPrimaryMuted,
@@ -1633,7 +1630,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primaryAction,
     borderRadius: radius.md,
     justifyContent: 'center',
-    minHeight: 50,
+    minHeight: 48,
     paddingHorizontal: spacing.lg,
   },
   primaryButtonRed: {
@@ -1641,9 +1638,7 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: {
     color: colors.onPrimary,
-    fontSize: 15,
-    fontWeight: '900',
-    lineHeight: 20,
+    ...typography.button,
     textAlign: 'center',
   },
   secondaryButton: {
@@ -1653,14 +1648,12 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     borderWidth: 1,
     justifyContent: 'center',
-    minHeight: 48,
+    minHeight: 46,
     paddingHorizontal: spacing.lg,
   },
   secondaryButtonText: {
     color: colors.deepBlue,
-    fontSize: 14,
-    fontWeight: '900',
-    lineHeight: 19,
+    ...typography.button,
     textAlign: 'center',
   },
   iconButton: {
@@ -1674,9 +1667,8 @@ const styles = StyleSheet.create({
     width: 44,
   },
   iconFallback: {
+    ...typography.label,
     fontSize: 12,
-    fontWeight: '900',
-    lineHeight: 16,
   },
   quickAction: {
     alignItems: 'flex-start',
@@ -1703,14 +1695,12 @@ const styles = StyleSheet.create({
   },
   quickTitle: {
     color: colors.navy,
-    fontSize: 15,
-    fontWeight: '900',
-    lineHeight: 20,
+    ...typography.cardTitle,
   },
   quickBody: {
     color: colors.muted,
+    ...typography.supporting,
     fontSize: 12,
-    fontWeight: '700',
     lineHeight: 17,
   },
   infoRow: {
@@ -1722,25 +1712,24 @@ const styles = StyleSheet.create({
   infoLabel: {
     color: colors.muted,
     ...typography.label,
-    textTransform: 'uppercase',
   },
   infoValue: {
     color: colors.text,
-    fontSize: 15,
-    fontWeight: '800',
-    lineHeight: 21,
+    ...typography.cardTitle,
+    fontSize: 14,
+    lineHeight: 20,
   },
   statusBadge: {
     alignSelf: 'flex-start',
     borderRadius: radius.md,
     borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
   },
   statusBadgeText: {
+    ...typography.label,
     fontSize: 11,
-    fontWeight: '900',
-    lineHeight: 15,
+    lineHeight: 14,
     textTransform: 'uppercase',
   },
   searchShell: {
@@ -1757,8 +1746,7 @@ const styles = StyleSheet.create({
   searchInput: {
     color: colors.text,
     flex: 1,
-    fontSize: 15,
-    fontWeight: '700',
+    ...typography.body,
     minHeight: 46,
   },
   filterChip: {
@@ -1777,9 +1765,8 @@ const styles = StyleSheet.create({
   },
   filterChipText: {
     color: colors.deepBlue,
-    fontSize: 13,
-    fontWeight: '900',
-    lineHeight: 17,
+    ...typography.supporting,
+    fontWeight: '600',
   },
   filterChipTextSelected: {
     color: colors.onPrimary,
@@ -1800,14 +1787,13 @@ const styles = StyleSheet.create({
   },
   toggleTitle: {
     color: colors.text,
-    fontSize: 15,
-    fontWeight: '800',
-    lineHeight: 21,
+    ...typography.cardTitle,
+    fontSize: 14,
   },
   toggleSubtitle: {
     color: colors.muted,
+    ...typography.supporting,
     fontSize: 12,
-    fontWeight: '700',
     lineHeight: 17,
   },
   toggleTrack: {
@@ -1848,7 +1834,7 @@ const styles = StyleSheet.create({
   },
   segmentedOption: {
     alignItems: 'center',
-    backgroundColor: colors.lightBlue,
+    backgroundColor: colors.controlSurfaceSubtle,
     borderColor: colors.border,
     borderRadius: radius.md,
     borderWidth: 1,
@@ -1864,9 +1850,8 @@ const styles = StyleSheet.create({
   },
   segmentedText: {
     color: colors.deepBlue,
-    fontSize: 13,
-    fontWeight: '900',
-    lineHeight: 17,
+    ...typography.supporting,
+    fontWeight: '600',
   },
   segmentedTextSelected: {
     color: colors.onPrimary,
@@ -1881,9 +1866,7 @@ const styles = StyleSheet.create({
   },
   demoNoticeText: {
     color: colors.text,
-    fontSize: 13,
-    fontWeight: '700',
-    lineHeight: 19,
+    ...typography.supporting,
   },
   centerState: {
     alignItems: 'center',
@@ -1898,9 +1881,7 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     color: colors.navy,
-    fontSize: 20,
-    fontWeight: '900',
-    lineHeight: 26,
+    ...typography.sectionTitle,
     textAlign: 'center',
   },
   stateText: {
@@ -1932,10 +1913,13 @@ const styles = StyleSheet.create({
     minHeight: 54,
     paddingHorizontal: 2,
   },
+  tabButtonActive: {
+    backgroundColor: colors.primaryMuted,
+  },
   tabLabel: {
     color: colors.subtleText,
+    ...typography.label,
     fontSize: 10,
-    fontWeight: '900',
     lineHeight: 13,
   },
   tabLabelActive: {

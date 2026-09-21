@@ -601,14 +601,14 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     color: colors.navy,
-    fontSize: 27,
-    fontWeight: '900',
-    lineHeight: 33,
+    fontSize: 24,
+    fontWeight: '700',
+    lineHeight: 30,
   },
   headerGreeting: {
     color: colors.text,
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 20,
   },
   headerSubtitle: {
@@ -643,7 +643,7 @@ const styles = StyleSheet.create({
   avatarText: {
     color: colors.onPrimary,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   errorBanner: {
     alignItems: 'center',
@@ -663,7 +663,7 @@ const styles = StyleSheet.create({
   errorTitle: {
     color: colors.navy,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 20,
   },
   errorBody: {
@@ -682,7 +682,7 @@ const styles = StyleSheet.create({
   retryButtonText: {
     color: colors.onPrimary,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   warningBanner: {
     alignItems: 'center',
@@ -704,7 +704,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     flex: 1,
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 18,
   },
   sectionHeadingBlock: {
@@ -750,14 +750,14 @@ const styles = StyleSheet.create({
   summaryLabel: {
     color: colors.muted,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 16,
     minHeight: 32,
   },
   summaryValue: {
     color: colors.navy,
     fontSize: 27,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 32,
   },
   summaryValueCompact: {
@@ -796,7 +796,7 @@ const styles = StyleSheet.create({
   panelTitle: {
     color: colors.navy,
     fontSize: 17,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 22,
   },
   panelSubtitle: {
@@ -815,12 +815,12 @@ const styles = StyleSheet.create({
   textActionLabel: {
     color: colors.deepBlue,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   textActionArrow: {
     color: colors.deepBlue,
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   stateRow: {
     alignItems: 'center',
@@ -831,7 +831,7 @@ const styles = StyleSheet.create({
   stateText: {
     color: colors.muted,
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '400',
   },
   emptyState: {
     gap: spacing.xs,
@@ -840,7 +840,7 @@ const styles = StyleSheet.create({
   emptyTitle: {
     color: colors.navy,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 19,
   },
   emptyBody: {
@@ -873,7 +873,7 @@ const styles = StyleSheet.create({
   assistanceTitle: {
     color: colors.navy,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 19,
   },
   assistanceBody: {
@@ -916,20 +916,20 @@ const styles = StyleSheet.create({
   listEyebrow: {
     color: colors.blue,
     fontSize: 10,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 14,
     textTransform: 'uppercase',
   },
   listTitle: {
     color: colors.navy,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 19,
   },
   listLocation: {
     color: colors.muted,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 17,
   },
   listMetaRow: {
@@ -968,12 +968,12 @@ const styles = StyleSheet.create({
   shelterTotalValue: {
     color: colors.navy,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   shelterTotalLabel: {
     color: colors.muted,
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: '400',
   },
   shelterRow: {
     borderBottomColor: colors.border,
@@ -996,12 +996,12 @@ const styles = StyleSheet.create({
   occupancyLabel: {
     color: colors.muted,
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: '400',
   },
   occupancyValue: {
     color: colors.navy,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   progressTrack: {
     backgroundColor: colors.surfaceMuted,
@@ -1035,12 +1035,12 @@ const styles = StyleSheet.create({
   workflowLabel: {
     color: colors.text,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   workflowCount: {
     color: colors.navy,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   workflowTrack: {
     backgroundColor: colors.surfaceMuted,

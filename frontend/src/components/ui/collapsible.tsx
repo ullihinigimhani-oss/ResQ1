@@ -49,7 +49,7 @@ const styles = StyleSheet.create({
   },
   chevron: {
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   content: {
     marginTop: Spacing.three,

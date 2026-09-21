@@ -457,7 +457,7 @@ const styles = StyleSheet.create({
   label: {
     color: BrandColors.text,
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '400',
   },
   optionGrid: {
     backgroundColor: BrandColors.white,
@@ -488,7 +488,7 @@ const styles = StyleSheet.create({
   optionButtonText: {
     color: BrandColors.deepBlue,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 18,
     textAlign: 'center',
   },
@@ -504,7 +504,7 @@ const styles = StyleSheet.create({
   targetingTitle: {
     color: BrandColors.navy,
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 22,
   },
   targetingBody: {
@@ -537,13 +537,13 @@ const styles = StyleSheet.create({
   findButtonText: {
     color: BrandColors.onPrimary,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 18,
   },
   selectedCount: {
     color: BrandColors.navy,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 16,
   },
   mapShell: {
@@ -581,13 +581,13 @@ const styles = StyleSheet.create({
   mapTitle: {
     color: BrandColors.navy,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 20,
   },
   mapBody: {
     color: BrandColors.text,
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 19,
   },
   mapMarker: {
@@ -613,7 +613,7 @@ const styles = StyleSheet.create({
   mapMarkerText: {
     color: BrandColors.onPrimary,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 14,
   },
   mapMarkerTextSelected: {
@@ -638,7 +638,7 @@ const styles = StyleSheet.create({
   selectAllText: {
     color: BrandColors.onPrimary,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 16,
   },
   schoolList: {
@@ -676,7 +676,7 @@ const styles = StyleSheet.create({
   checkText: {
     color: BrandColors.onPrimary,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 16,
   },
   checkTextSelected: {
@@ -690,19 +690,19 @@ const styles = StyleSheet.create({
   schoolName: {
     color: BrandColors.navy,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 19,
   },
   schoolMeta: {
     color: BrandColors.text,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 17,
   },
   stateText: {
     color: BrandColors.muted,
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 19,
   },
   selectorError: {

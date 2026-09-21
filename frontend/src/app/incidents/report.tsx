@@ -586,14 +586,14 @@ const styles = StyleSheet.create({
   eyebrow: {
     color: BrandColors.red,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     textTransform: 'uppercase',
   },
   title: {
     color: BrandColors.navy,
-    fontSize: 32,
-    fontWeight: '900',
-    lineHeight: 38,
+    fontSize: 24,
+    fontWeight: '700',
+    lineHeight: 30,
   },
   subtitle: {
     color: BrandColors.muted,
@@ -621,13 +621,13 @@ const styles = StyleSheet.create({
   infoTitle: {
     color: BrandColors.navy,
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 22,
   },
   infoText: {
     color: BrandColors.muted,
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 20,
   },
   form: {
@@ -643,7 +643,7 @@ const styles = StyleSheet.create({
   label: {
     color: BrandColors.text,
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '400',
   },
   severityGrid: {
     backgroundColor: BrandColors.white,
@@ -685,7 +685,7 @@ const styles = StyleSheet.create({
   severityText: {
     color: BrandColors.deepBlue,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 19,
   },
   severityTextSelected: {
@@ -724,19 +724,24 @@ const styles = StyleSheet.create({
   },
   dropdownMenu: {
     backgroundColor: BrandColors.white,
-    borderRadius: 12,
+    borderRadius: 8,
     overflow: 'hidden',
     padding: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
+    ...Platform.select({
+      web: { boxShadow: '0 2px 6px rgba(8, 29, 56, 0.08)' },
+      default: {
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 6,
+      },
+    }),
   },
   dropdownTitle: {
     color: BrandColors.navy,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
     paddingHorizontal: 12,
     paddingVertical: 16,
     textAlign: 'center',
@@ -756,7 +761,7 @@ const styles = StyleSheet.create({
   },
   dropdownItemTextSelected: {
     color: BrandColors.deepBlue,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   coordinateGrid: {
     flexDirection: 'row',
@@ -776,7 +781,7 @@ const styles = StyleSheet.create({
   photoTitle: {
     color: BrandColors.navy,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 20,
   },
   photoText: {

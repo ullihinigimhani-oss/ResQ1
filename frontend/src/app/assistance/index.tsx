@@ -193,7 +193,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     color: colors.deepBlue,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 17,
     minHeight: 40,
     paddingHorizontal: spacing.md,

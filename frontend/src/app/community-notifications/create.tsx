@@ -358,14 +358,14 @@ const styles = StyleSheet.create({
   restrictedEyebrow: {
     color: BrandColors.red,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 16,
     textTransform: 'uppercase',
   },
   restrictedTitle: {
     color: BrandColors.navy,
     fontSize: 22,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 28,
   },
   restrictedText: {
@@ -380,14 +380,14 @@ const styles = StyleSheet.create({
   eyebrow: {
     color: BrandColors.deepBlue,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     textTransform: 'uppercase',
   },
   title: {
     color: BrandColors.navy,
-    fontSize: 30,
-    fontWeight: '900',
-    lineHeight: 36,
+    fontSize: 24,
+    fontWeight: '700',
+    lineHeight: 30,
   },
   subtitle: {
     color: BrandColors.muted,
@@ -412,7 +412,7 @@ const styles = StyleSheet.create({
   label: {
     color: BrandColors.text,
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '400',
   },
   categoryGrid: {
     backgroundColor: BrandColors.white,
@@ -447,7 +447,7 @@ const styles = StyleSheet.create({
   categoryOptionText: {
     color: colors.deepBlue,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 18,
     textAlign: 'center',
   },
@@ -474,13 +474,13 @@ const styles = StyleSheet.create({
   publishTitle: {
     color: BrandColors.onPrimary,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 24,
   },
   publishCopy: {
     color: BrandColors.onPrimaryMuted,
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 20,
   },
   pressed: {
