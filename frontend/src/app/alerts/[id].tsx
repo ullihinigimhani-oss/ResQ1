@@ -25,6 +25,10 @@ import {
   getAlertRiskHistory,
   isAlertApiError,
 } from '@/services/alertService';
+import {
+  isOfflineSafetyInstructionSaved,
+  saveOfflineSafetyInstruction,
+} from '@/services/offlineSafetyService';
 import type {
   Alert,
   AlertAcknowledgementReport,
@@ -353,6 +357,9 @@ export default function AlertDetailsScreen() {
   const [acknowledgementReport, setAcknowledgementReport] = useState<AlertAcknowledgementReport | null>(null);
   const [loadingAcknowledgementReport, setLoadingAcknowledgementReport] = useState(false);
   const [acknowledgementReportError, setAcknowledgementReportError] = useState<string | null>(null);
+  const [savedOffline, setSavedOffline] = useState(false);
+  const [savingOffline, setSavingOffline] = useState(false);
+  const [offlineSaveError, setOfflineSaveError] = useState<string | null>(null);
   const userLanguage = toPreferredLanguage(user?.preferredLanguage);
   const selectedLanguage = routeLanguage ?? userLanguage;
   const showResidentLanguage = user ? !isAuthorityRole(user.role) : true;
@@ -455,6 +462,40 @@ export default function AlertDetailsScreen() {
     }
   }, [alertId, loadAlert, token]));
 
+  useFocusEffect(useCallback(() => {
+    let active = true;
+
+    if (!user || !showResidentLanguage || !alert?.id) {
+      setSavedOffline(false);
+      setOfflineSaveError(null);
+      return () => {
+        active = false;
+      };
+    }
+
+    setOfflineSaveError(null);
+    void isOfflineSafetyInstructionSaved(user.id, alert.id)
+      .then((saved) => {
+        if (active) {
+          setSavedOffline(saved);
+        }
+      })
+      .catch((error) => {
+        if (__DEV__) {
+          console.warn('Unable to read saved offline instructions:', error);
+        }
+
+        if (active) {
+          setSavedOffline(false);
+          setOfflineSaveError('Unable to check offline storage on this device.');
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [alert?.id, showResidentLanguage, user]));
+
   const safetyInstructions = useMemo(
     () => safetyInstructionLines(
       alert?.safetyInstructions ?? '',
@@ -519,6 +560,36 @@ export default function AlertDetailsScreen() {
         alertDisplayTheme: riskAssessmentDisplayTheme,
       },
     } as unknown as Href);
+  };
+
+  const handleSaveOffline = async () => {
+    if (!alert || !user || !showResidentLanguage || savedOffline || savingOffline) {
+      return;
+    }
+
+    setSavingOffline(true);
+    setOfflineSaveError(null);
+
+    try {
+      await saveOfflineSafetyInstruction(user.id, {
+        alertId: alert.id,
+        disasterType: translateDisasterType(alert.disasterType, displayLanguage),
+        title: translateAlertTitle(alert, displayLanguage),
+        riskLevel: alert.riskLevel,
+        affectedArea: alert.affectedArea,
+        safetyInstructions,
+        language: displayLanguage,
+      });
+      setSavedOffline(true);
+    } catch (error) {
+      if (__DEV__) {
+        console.warn('Unable to save offline safety instructions:', error);
+      }
+
+      setOfflineSaveError('Unable to save instructions offline. Please try again.');
+    } finally {
+      setSavingOffline(false);
+    }
   };
 
   const handleAcknowledge = async () => {
@@ -704,12 +775,46 @@ export default function AlertDetailsScreen() {
                   />
                 </DetailInfoRow>
                 <DetailInfoRow fallback="!" label={detailCopy.safetyInstructions} name="cross.case.fill">
-                  <View style={styles.safetyBulletList}>
-                    {safetyInstructions.map((instruction, index) => (
-                      <Text key={`${instruction}-${index}`} style={styles.safetyBulletText}>
-                        - {instruction}
-                      </Text>
-                    ))}
+                  <View style={styles.safetyContent}>
+                    <View style={styles.safetyBulletList}>
+                      {safetyInstructions.map((instruction, index) => (
+                        <Text key={`${instruction}-${index}`} style={styles.safetyBulletText}>
+                          - {instruction}
+                        </Text>
+                      ))}
+                    </View>
+                    {showResidentLanguage ? (
+                      <Pressable
+                        accessibilityLabel={savedOffline ? 'Saved Offline' : 'Save Offline'}
+                        accessibilityRole="button"
+                        accessibilityState={{ disabled: savedOffline || savingOffline }}
+                        disabled={savedOffline || savingOffline}
+                        onPress={() => void handleSaveOffline()}
+                        style={({ pressed }) => [
+                          styles.offlineSaveButton,
+                          savedOffline && styles.offlineSaveButtonSaved,
+                          pressed && !savedOffline && !savingOffline && styles.pressed,
+                        ]}>
+                        {savingOffline ? (
+                          <ActivityIndicator color={BrandColors.deepBlue} size="small" />
+                        ) : (
+                          <AppIcon
+                            fallback={savedOffline ? 'OK' : 'D'}
+                            name={savedOffline ? 'bookmark.fill' : 'arrow.down.circle.fill'}
+                            size={18}
+                            tintColor={savedOffline ? BrandColors.success : BrandColors.deepBlue}
+                          />
+                        )}
+                        <Text
+                          style={[
+                            styles.offlineSaveButtonText,
+                            savedOffline && styles.offlineSaveButtonTextSaved,
+                          ]}>
+                          {savedOffline ? 'Saved Offline ✓' : savingOffline ? 'Saving...' : 'Save Offline'}
+                        </Text>
+                      </Pressable>
+                    ) : null}
+                    {offlineSaveError ? <Text style={styles.offlineSaveError}>{offlineSaveError}</Text> : null}
                   </View>
                 </DetailInfoRow>
               </View>
@@ -993,11 +1098,46 @@ const styles = StyleSheet.create({
   safetyBulletList: {
     gap: 4,
   },
+  safetyContent: {
+    gap: 12,
+  },
   safetyBulletText: {
     color: BrandColors.text,
     fontSize: 14,
     fontWeight: '700',
     lineHeight: 20,
+  },
+  offlineSaveButton: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: BrandColors.lightBlue,
+    borderColor: BrandColors.blueBorder,
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 8,
+    minHeight: 40,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  offlineSaveButtonSaved: {
+    backgroundColor: BrandColors.successSoft,
+    borderColor: BrandColors.successBorder,
+  },
+  offlineSaveButtonText: {
+    color: BrandColors.deepBlue,
+    fontSize: 13,
+    fontWeight: '900',
+    lineHeight: 18,
+  },
+  offlineSaveButtonTextSaved: {
+    color: BrandColors.success,
+  },
+  offlineSaveError: {
+    color: BrandColors.red,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 17,
   },
   schoolList: {
     gap: 4,
