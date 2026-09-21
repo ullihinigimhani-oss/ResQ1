@@ -854,7 +854,7 @@ const styles = StyleSheet.create({
   helpCard: {
     alignItems: 'center',
     backgroundColor: colors.white,
-    borderColor: colors.red,
+    borderColor: colors.redBorder,
     borderRadius: radius.md,
     borderWidth: 1,
     flexDirection: 'row',
@@ -890,7 +890,7 @@ const styles = StyleSheet.create({
   },
   helpAction: {
     alignItems: 'center',
-    backgroundColor: colors.red,
+    backgroundColor: colors.redAction,
     borderRadius: radius.md,
     justifyContent: 'center',
     minHeight: 46,

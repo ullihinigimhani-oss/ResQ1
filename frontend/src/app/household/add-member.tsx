@@ -428,7 +428,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   choiceChipSelectedText: {
-    color: '#ffffff',
+    color: colors.onPrimary,
   },
   gridRow: {
     flexDirection: 'row',
@@ -494,7 +494,7 @@ const styles = StyleSheet.create({
   },
   checkboxRowChecked: {
     backgroundColor: colors.cautionSoft,
-    borderColor: '#f59e0b',
+    borderColor: colors.warningAccent,
   },
   checkboxBox: {
     alignItems: 'center',
@@ -507,11 +507,11 @@ const styles = StyleSheet.create({
     width: 22,
   },
   checkboxBoxChecked: {
-    backgroundColor: '#f59e0b',
-    borderColor: '#f59e0b',
+    backgroundColor: colors.warningAccent,
+    borderColor: colors.warningAccent,
   },
   checkmark: {
-    color: '#ffffff',
+    color: colors.onPrimary,
     fontSize: 14,
     fontWeight: '900',
   },

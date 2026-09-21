@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import {
   ActivityIndicator,
   type DimensionValue,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -142,9 +143,13 @@ function SummaryCard({
   value: string;
   wide: boolean;
 }) {
+  const iconBackground = Platform.OS === 'web'
+    ? `color-mix(in srgb, ${accent} 8%, transparent)`
+    : `${accent}14`;
+
   return (
     <View style={[styles.summaryCard, wide && styles.summaryCardWide]}>
-      <View style={[styles.summaryIcon, { backgroundColor: `${accent}14` }]}>
+      <View style={[styles.summaryIcon, { backgroundColor: iconBackground }]}>
         <AppIcon fallback={fallback} name={icon} size={21} tintColor={accent} />
       </View>
       <Text numberOfLines={2} style={styles.summaryLabel}>{label}</Text>
@@ -637,7 +642,7 @@ const styles = StyleSheet.create({
   errorBanner: {
     alignItems: 'center',
     backgroundColor: colors.redSoft,
-    borderColor: colors.red,
+    borderColor: colors.redBorder,
     borderRadius: radius.md,
     borderWidth: 1,
     flexDirection: 'row',
@@ -662,7 +667,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   retryButton: {
-    backgroundColor: colors.red,
+    backgroundColor: colors.redAction,
     borderRadius: radius.md,
     minHeight: 40,
     paddingHorizontal: spacing.lg,
@@ -676,7 +681,7 @@ const styles = StyleSheet.create({
   warningBanner: {
     alignItems: 'center',
     backgroundColor: colors.amberSoft,
-    borderColor: colors.amber,
+    borderColor: colors.warningBorder,
     borderRadius: radius.md,
     borderWidth: 1,
     flexDirection: 'row',
@@ -767,7 +772,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   assistancePanel: {
-    borderColor: '#E7C66C',
+    borderColor: colors.warningBorder,
   },
   panelHeader: {
     alignItems: 'flex-start',
@@ -848,7 +853,7 @@ const styles = StyleSheet.create({
   assistanceIcon: {
     alignItems: 'center',
     backgroundColor: colors.white,
-    borderColor: '#E7C66C',
+    borderColor: colors.warningBorder,
     borderRadius: radius.md,
     borderWidth: 1,
     height: 46,

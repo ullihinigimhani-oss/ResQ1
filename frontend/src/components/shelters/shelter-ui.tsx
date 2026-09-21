@@ -17,12 +17,12 @@ const neutralTone: BadgeTone = {
 const shelterStatusTones: Record<string, BadgeTone> = {
   open: {
     backgroundColor: BrandColors.successSoft,
-    borderColor: BrandColors.success,
+    borderColor: BrandColors.successBorder,
     color: BrandColors.success,
   },
   limited: {
     backgroundColor: BrandColors.warningSoft,
-    borderColor: '#D69E2E',
+    borderColor: BrandColors.warningBorderStrong,
     color: BrandColors.warningText,
   },
   full: {
@@ -32,7 +32,7 @@ const shelterStatusTones: Record<string, BadgeTone> = {
   },
   closed: {
     backgroundColor: BrandColors.redSoft,
-    borderColor: BrandColors.red,
+    borderColor: BrandColors.redBorder,
     color: BrandColors.red,
   },
 };
@@ -40,18 +40,18 @@ const shelterStatusTones: Record<string, BadgeTone> = {
 const roadStatusTones: Record<string, BadgeTone> = {
   safe: {
     backgroundColor: BrandColors.successSoft,
-    borderColor: BrandColors.success,
+    borderColor: BrandColors.successBorder,
     color: BrandColors.success,
   },
   caution: {
     backgroundColor: BrandColors.warningSoft,
-    borderColor: '#D69E2E',
+    borderColor: BrandColors.warningBorderStrong,
     color: BrandColors.warningText,
   },
   blocked: {
-    backgroundColor: BrandColors.red,
-    borderColor: BrandColors.red,
-    color: BrandColors.onPrimary,
+    backgroundColor: BrandColors.criticalBackground,
+    borderColor: BrandColors.criticalBorder,
+    color: BrandColors.criticalText,
   },
 };
 

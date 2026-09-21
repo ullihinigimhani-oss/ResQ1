@@ -68,7 +68,7 @@ const styles = StyleSheet.create({
     lineHeight: 42,
   },
   tagline: {
-    color: BrandColors.sky,
+    color: BrandColors.onPrimaryMuted,
     fontSize: 13,
     fontWeight: '800',
     lineHeight: 18,

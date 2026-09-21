@@ -252,7 +252,7 @@ export default function NearbySheltersScreen() {
             accessibilityLabel="Search shelters"
             autoCapitalize="words"
             placeholder="Search shelters"
-            placeholderTextColor="#8B98A9"
+            placeholderTextColor={BrandColors.placeholder}
             returnKeyType="search"
             selectionColor={BrandColors.blue}
             style={styles.searchInput}
@@ -364,7 +364,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   emergencyButton: {
-    backgroundColor: BrandColors.red,
+    backgroundColor: BrandColors.redAction,
     marginTop: 4,
   },
   searchPanel: {
@@ -376,7 +376,7 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   searchInput: {
-    backgroundColor: BrandColors.background,
+    backgroundColor: BrandColors.controlSurfaceSubtle,
     borderColor: BrandColors.border,
     borderRadius: 8,
     borderWidth: 1,
@@ -516,7 +516,7 @@ const styles = StyleSheet.create({
   },
   callButton: {
     alignItems: 'center',
-    backgroundColor: BrandColors.success,
+    backgroundColor: BrandColors.successBorder,
     borderRadius: 20,
     height: 40,
     justifyContent: 'center',

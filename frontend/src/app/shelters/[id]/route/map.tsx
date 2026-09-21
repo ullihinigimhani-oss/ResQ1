@@ -231,7 +231,7 @@ const styles = StyleSheet.create({
   },
   topBar: {
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backgroundColor: BrandColors.mapOverlay,
     flexDirection: 'row',
     gap: 12,
     padding: 12,
@@ -261,7 +261,7 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   bottomBar: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backgroundColor: BrandColors.mapOverlay,
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     gap: 12,

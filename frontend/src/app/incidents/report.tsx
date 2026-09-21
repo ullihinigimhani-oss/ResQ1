@@ -680,7 +680,7 @@ const styles = StyleSheet.create({
     borderColor: BrandColors.red,
   },
   criticalOptionSelected: {
-    backgroundColor: BrandColors.red,
+    backgroundColor: BrandColors.criticalBackground,
   },
   severityText: {
     color: BrandColors.deepBlue,
@@ -718,7 +718,7 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    backgroundColor: BrandColors.dropdownBackdrop,
     justifyContent: 'center',
     padding: 24,
   },
@@ -813,7 +813,7 @@ const styles = StyleSheet.create({
   },
   removePhotoButton: {
     alignItems: 'center',
-    backgroundColor: BrandColors.red,
+    backgroundColor: BrandColors.redAction,
     borderColor: BrandColors.onPrimary,
     borderRadius: 12,
     borderWidth: 2,

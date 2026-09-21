@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
   chip: {
     alignItems: 'center',
     backgroundColor: colors.cautionSoft,
-    borderColor: '#f59e0b',
+    borderColor: colors.warningAccent,
     borderRadius: 16,
     borderWidth: 1,
     flexDirection: 'row',
@@ -257,14 +257,14 @@ const styles = StyleSheet.create({
   },
   editBtn: {
     alignItems: 'center',
-    backgroundColor: '#d97706',
+    backgroundColor: colors.warningAction,
     borderRadius: radius.md,
     flex: 1,
     justifyContent: 'center',
     minHeight: 50,
   },
   editBtnText: {
-    color: '#ffffff',
+    color: colors.onPrimary,
     fontSize: 15,
     fontWeight: '800',
   },

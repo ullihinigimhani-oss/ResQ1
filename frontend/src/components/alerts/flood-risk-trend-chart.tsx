@@ -25,12 +25,12 @@ const riskTone: Record<AlertRiskLevel, { accent: string; backgroundColor: string
     textColor: BrandColors.success,
   },
   Moderate: {
-    accent: '#D69E2E',
+    accent: BrandColors.warningBorderStrong,
     backgroundColor: BrandColors.warningSoft,
     textColor: BrandColors.warningText,
   },
   High: {
-    accent: '#EA580C',
+    accent: BrandColors.orange,
     backgroundColor: BrandColors.orangeSoft,
     textColor: BrandColors.orangeText,
   },

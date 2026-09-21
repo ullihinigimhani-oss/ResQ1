@@ -480,7 +480,7 @@ function ResidentAlertFilters({
           autoCorrect={false}
           onChangeText={onSearchQueryChange}
           placeholder={copy.searchPlaceholder}
-          placeholderTextColor="#8B98A9"
+          placeholderTextColor={colors.placeholder}
           selectionColor={colors.blue}
           style={styles.searchInput}
           value={searchQuery}
@@ -1823,7 +1823,7 @@ const styles = StyleSheet.create({
   },
   searchField: {
     alignItems: 'center',
-    backgroundColor: colors.background,
+    backgroundColor: colors.controlSurfaceSubtle,
     borderColor: colors.border,
     borderRadius: radius.sm,
     borderWidth: 1,
@@ -2053,8 +2053,8 @@ const styles = StyleSheet.create({
   },
   authorityEmergencyActionCard: {
     backgroundColor: colors.redSoft,
-    borderColor: colors.red,
-    borderLeftColor: colors.red,
+    borderColor: colors.redBorder,
+    borderLeftColor: colors.redBorder,
     borderLeftWidth: 5,
     borderRadius: radius.md,
     borderWidth: 1,
@@ -2070,7 +2070,7 @@ const styles = StyleSheet.create({
   authorityActionIcon: {
     alignItems: 'center',
     backgroundColor: colors.white,
-    borderColor: colors.red,
+    borderColor: colors.redBorder,
     borderRadius: radius.md,
     borderWidth: 1,
     height: 42,
@@ -2096,7 +2096,7 @@ const styles = StyleSheet.create({
   authorityCreateButton: {
     alignItems: 'center',
     alignSelf: 'flex-start',
-    backgroundColor: colors.red,
+    backgroundColor: colors.redAction,
     borderRadius: radius.md,
     justifyContent: 'center',
     minHeight: 42,
@@ -2144,7 +2144,7 @@ const styles = StyleSheet.create({
   },
   authorityStatusBadge: {
     backgroundColor: colors.successSoft,
-    borderColor: colors.success,
+    borderColor: colors.successBorder,
     borderRadius: radius.sm,
     borderWidth: 1,
     color: colors.success,
@@ -2376,7 +2376,7 @@ const styles = StyleSheet.create({
   },
   inlineError: {
     backgroundColor: colors.redSoft,
-    borderColor: colors.red,
+    borderColor: colors.redBorder,
     borderRadius: radius.md,
     borderWidth: 1,
     gap: spacing.sm,
@@ -2390,7 +2390,7 @@ const styles = StyleSheet.create({
   },
   inlineSuccess: {
     backgroundColor: colors.successSoft,
-    borderColor: colors.success,
+    borderColor: colors.successBorder,
     borderRadius: radius.md,
     borderWidth: 1,
     padding: spacing.md,
@@ -2403,16 +2403,16 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     alignItems: 'center',
-    backgroundColor: 'rgba(7, 26, 53, 0.58)',
+    backgroundColor: colors.backdrop,
     flex: 1,
     justifyContent: 'center',
     padding: spacing.xl,
   },
   cancelDialog: {
     backgroundColor: colors.white,
-    borderColor: colors.red,
+    borderColor: colors.redBorder,
     borderRadius: radius.md,
-    borderTopColor: colors.red,
+    borderTopColor: colors.redBorder,
     borderTopWidth: 5,
     borderWidth: 1,
     gap: spacing.md,
@@ -2442,7 +2442,7 @@ const styles = StyleSheet.create({
   },
   cancelDialogContext: {
     backgroundColor: colors.redSoft,
-    borderColor: colors.red,
+    borderColor: colors.redBorder,
     borderRadius: radius.md,
     borderWidth: 1,
     gap: spacing.xs,
@@ -2493,8 +2493,8 @@ const styles = StyleSheet.create({
   },
   confirmCancelButton: {
     alignItems: 'center',
-    backgroundColor: colors.red,
-    borderColor: colors.red,
+    backgroundColor: colors.redAction,
+    borderColor: colors.redBorder,
     borderRadius: radius.md,
     borderWidth: 1,
     flexGrow: 1,

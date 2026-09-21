@@ -39,7 +39,7 @@ function applyBrowserTheme(theme: AppTheme) {
   document.documentElement.style.colorScheme = theme;
 
   const themeColor = document.querySelector('meta[name="theme-color"]');
-  themeColor?.setAttribute('content', theme === 'dark' ? '#0F1115' : '#F6F9FC');
+  themeColor?.setAttribute('content', theme === 'dark' ? '#172033' : '#F6F9FC');
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {

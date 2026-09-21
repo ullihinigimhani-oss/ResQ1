@@ -111,8 +111,8 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   identityPanel: {
     alignItems: 'center',
-    backgroundColor: colors.primaryAction,
-    borderColor: colors.accentAction,
+    backgroundColor: colors.identitySurface,
+    borderColor: colors.identityBorder,
     borderRadius: radius.md,
     borderWidth: 1,
     flexDirection: 'row',
@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
     lineHeight: 27,
   },
   email: {
-    color: colors.sky,
+    color: colors.onPrimaryMuted,
     fontSize: 14,
     fontWeight: '700',
     lineHeight: 20,

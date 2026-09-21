@@ -522,8 +522,8 @@ const styles = StyleSheet.create({
   },
   findButton: {
     alignItems: 'center',
-    backgroundColor: BrandColors.red,
-    borderColor: BrandColors.red,
+    backgroundColor: BrandColors.redAction,
+    borderColor: BrandColors.redBorder,
     borderRadius: 8,
     borderWidth: 1,
     justifyContent: 'center',
@@ -560,7 +560,7 @@ const styles = StyleSheet.create({
   },
   mapOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(7, 26, 53, 0.04)',
+    backgroundColor: BrandColors.subtleOverlay,
   },
   nativeMapFallback: {
     ...StyleSheet.absoluteFillObject,

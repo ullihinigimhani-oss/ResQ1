@@ -94,11 +94,11 @@ function alertToneForRisk(riskLevel: Alert['riskLevel'] | undefined) {
 
   if (riskLevel === 'Moderate') {
     return {
-      accent: '#B7791F',
+      accent: BrandColors.warning,
       backgroundColor: BrandColors.warningSoft,
-      borderColor: '#D69E2E',
+      borderColor: BrandColors.warningBorderStrong,
       pillBackground: BrandColors.warningSoft,
-      pillBorder: '#D69E2E',
+      pillBorder: BrandColors.warningBorderStrong,
       pillText: BrandColors.warningText,
       titleColor: BrandColors.warningStrong,
     };

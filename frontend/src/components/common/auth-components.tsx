@@ -51,7 +51,7 @@ export function AuthTextField({
       <Text style={styles.label}>{label}</Text>
       <View style={[styles.inputShell, error && styles.inputShellError]}>
         <TextInput
-          placeholderTextColor="#8B98A9"
+          placeholderTextColor={BrandColors.placeholder}
           selectionColor={BrandColors.blue}
           style={[styles.input, rightAccessory ? styles.inputWithAccessory : null, style]}
           {...textInputProps}
@@ -224,7 +224,7 @@ const styles = StyleSheet.create({
     borderColor: BrandColors.border,
     borderRadius: 8,
     borderWidth: 1,
-    backgroundColor: BrandColors.white,
+    backgroundColor: BrandColors.controlSurface,
     flexDirection: 'row',
     alignItems: 'center',
   },

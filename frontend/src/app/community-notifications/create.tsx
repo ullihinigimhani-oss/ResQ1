@@ -478,7 +478,7 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   publishCopy: {
-    color: BrandColors.sky,
+    color: BrandColors.onPrimaryMuted,
     fontSize: 14,
     fontWeight: '700',
     lineHeight: 20,

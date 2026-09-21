@@ -425,7 +425,7 @@ export default function CreateShelterScreen() {
                 multiline
                 numberOfLines={4}
                 placeholder="Enter facilities separated by commas (e.g., Medical, Food, Water)"
-                placeholderTextColor="#8B98A9"
+                placeholderTextColor={BrandColors.placeholder}
                 selectionColor={BrandColors.blue}
                 style={styles.textArea}
                 value={form.facilities}
@@ -551,7 +551,7 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   readOnlyField: {
-    backgroundColor: BrandColors.background,
+    backgroundColor: BrandColors.controlSurfaceSubtle,
   },
   statusRow: {
     flexDirection: 'row',
@@ -560,7 +560,7 @@ const styles = StyleSheet.create({
   },
   statusChip: {
     alignItems: 'center',
-    backgroundColor: BrandColors.background,
+    backgroundColor: BrandColors.controlSurfaceSubtle,
     borderColor: BrandColors.border,
     borderRadius: 8,
     borderWidth: 1,
@@ -582,7 +582,7 @@ const styles = StyleSheet.create({
     color: BrandColors.onPrimary,
   },
   textArea: {
-    backgroundColor: BrandColors.background,
+    backgroundColor: BrandColors.controlSurfaceSubtle,
     borderColor: BrandColors.border,
     borderRadius: 8,
     borderWidth: 1,
@@ -600,7 +600,7 @@ const styles = StyleSheet.create({
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: BrandColors.modalBackdrop,
     borderRadius: 8,
     justifyContent: 'center',
   },

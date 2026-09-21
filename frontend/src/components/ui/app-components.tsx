@@ -37,17 +37,17 @@ const toneStyles: Record<Tone, { backgroundColor: string; borderColor: string; c
   },
   red: {
     backgroundColor: colors.redSoft,
-    borderColor: colors.red,
+    borderColor: colors.redBorder,
     color: colors.red,
   },
   green: {
     backgroundColor: colors.successSoft,
-    borderColor: colors.success,
+    borderColor: colors.successBorder,
     color: colors.success,
   },
   amber: {
     backgroundColor: colors.amberSoft,
-    borderColor: colors.amber,
+    borderColor: colors.warningBorder,
     color: colors.amberText,
   },
   muted: {
@@ -673,7 +673,7 @@ export function SearchBar({
       <AppIcon fallback="S" name="magnifyingglass" size={18} tintColor={colors.muted} />
       <TextInput
         placeholder={placeholder}
-        placeholderTextColor="#8B98A9"
+        placeholderTextColor={colors.placeholder}
         selectionColor={colors.blue}
         style={styles.searchInput}
         {...props}
@@ -883,7 +883,7 @@ export function BottomNavigation() {
               fallback={tab.fallback}
               name={tab.icon}
               size={20}
-              tintColor={active ? colors.red : colors.muted}
+              tintColor={active ? colors.navigationActive : colors.subtleText}
             />
             <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>{tab.label}</Text>
           </Pressable>
@@ -1257,7 +1257,7 @@ const styles = StyleSheet.create({
   pencilWood: {
     borderBottomColor: 'transparent',
     borderBottomWidth: 3,
-    borderLeftColor: '#F7C15C',
+    borderLeftColor: colors.goldAccent,
     borderLeftWidth: 7,
     borderTopColor: 'transparent',
     borderTopWidth: 3,
@@ -1447,8 +1447,8 @@ const styles = StyleSheet.create({
     ...shadows.card,
   },
   sectionCardNavy: {
-    backgroundColor: colors.primaryAction,
-    borderColor: colors.accentAction,
+    backgroundColor: colors.identitySurface,
+    borderColor: colors.identityBorder,
   },
   sectionCardBlue: {
     backgroundColor: colors.lightBlue,
@@ -1456,7 +1456,7 @@ const styles = StyleSheet.create({
   },
   sectionCardDanger: {
     backgroundColor: colors.redSoft,
-    borderColor: colors.red,
+    borderColor: colors.redBorder,
   },
   sectionHeader: {
     gap: spacing.xs,
@@ -1475,7 +1475,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   sectionSubtitleOnDark: {
-    color: colors.sky,
+    color: colors.onPrimaryMuted,
   },
   primaryButton: {
     alignItems: 'center',
@@ -1486,7 +1486,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
   },
   primaryButtonRed: {
-    backgroundColor: colors.red,
+    backgroundColor: colors.redAction,
   },
   primaryButtonText: {
     color: colors.onPrimary,
@@ -1594,7 +1594,7 @@ const styles = StyleSheet.create({
   },
   searchShell: {
     alignItems: 'center',
-    backgroundColor: colors.white,
+    backgroundColor: colors.controlSurface,
     borderColor: colors.border,
     borderRadius: radius.md,
     borderWidth: 1,
@@ -1670,8 +1670,8 @@ const styles = StyleSheet.create({
     width: 50,
   },
   toggleTrackOn: {
-    backgroundColor: colors.success,
-    borderColor: colors.success,
+    backgroundColor: colors.successBorder,
+    borderColor: colors.successBorder,
   },
   toggleLocked: {
     opacity: 0.75,
@@ -1722,7 +1722,7 @@ const styles = StyleSheet.create({
   },
   demoNotice: {
     backgroundColor: colors.amberSoft,
-    borderColor: colors.amber,
+    borderColor: colors.warningBorder,
     borderRadius: radius.md,
     borderWidth: 1,
     gap: spacing.sm,
@@ -1782,13 +1782,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
   },
   tabLabel: {
-    color: colors.muted,
+    color: colors.subtleText,
     fontSize: 10,
     fontWeight: '900',
     lineHeight: 13,
   },
   tabLabelActive: {
-    color: colors.red,
+    color: colors.navigationActive,
   },
   disabled: {
     opacity: 0.6,

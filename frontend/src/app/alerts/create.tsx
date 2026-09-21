@@ -775,7 +775,7 @@ const styles = StyleSheet.create({
     borderColor: BrandColors.red,
   },
   criticalOptionSelected: {
-    backgroundColor: BrandColors.red,
+    backgroundColor: BrandColors.criticalBackground,
   },
   riskOptionText: {
     color: BrandColors.deepBlue,
@@ -810,7 +810,7 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   publishCopy: {
-    color: BrandColors.sky,
+    color: BrandColors.onPrimaryMuted,
     fontSize: 14,
     fontWeight: '700',
     lineHeight: 20,
@@ -850,7 +850,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   publishButton: {
-    backgroundColor: BrandColors.red,
+    backgroundColor: BrandColors.redAction,
   },
   pressed: {
     opacity: 0.72,

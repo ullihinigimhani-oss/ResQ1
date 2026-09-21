@@ -270,7 +270,7 @@ export default function HouseholdScreen() {
                 onPress={handleDeleteConfirm}
                 style={({ pressed }) => [styles.confirmModalBtn, pressed && styles.pressed]}>
                 {deleting ? (
-                  <ActivityIndicator color="#ffffff" size="small" />
+                  <ActivityIndicator color={colors.onPrimary} size="small" />
                 ) : (
                   <Text style={styles.confirmModalBtnText}>Remove</Text>
                 )}
@@ -302,7 +302,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   addSmallBtnText: {
-    color: '#ffffff',
+    color: colors.onPrimary,
     fontSize: 12,
     fontWeight: '800',
   },
@@ -351,7 +351,7 @@ const styles = StyleSheet.create({
   chip: {
     alignItems: 'center',
     backgroundColor: colors.cautionSoft,
-    borderColor: '#f59e0b',
+    borderColor: colors.warningAccent,
     borderRadius: 14,
     borderWidth: 1,
     flexDirection: 'row',
@@ -410,17 +410,17 @@ const styles = StyleSheet.create({
   },
   editBtn: {
     backgroundColor: colors.white,
-    borderColor: '#d97706',
+    borderColor: colors.warningAction,
     borderWidth: 1,
   },
   editBtnText: {
-    color: '#d97706',
+    color: colors.warningAction,
     fontSize: 13,
     fontWeight: '800',
   },
   deleteBtn: {
     backgroundColor: colors.dangerSoft,
-    borderColor: '#ef4444',
+    borderColor: colors.dangerBorder,
     borderWidth: 1,
   },
   deleteBtnText: {
@@ -459,7 +459,7 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: colors.modalBackdrop,
     flex: 1,
     justifyContent: 'center',
     padding: spacing.lg,
@@ -508,14 +508,14 @@ const styles = StyleSheet.create({
   },
   confirmModalBtn: {
     alignItems: 'center',
-    backgroundColor: '#dc2626',
+    backgroundColor: colors.dangerAction,
     borderRadius: radius.sm,
     flex: 1,
     justifyContent: 'center',
     paddingVertical: 12,
   },
   confirmModalBtnText: {
-    color: '#ffffff',
+    color: colors.onPrimary,
     fontSize: 14,
     fontWeight: '800',
   },

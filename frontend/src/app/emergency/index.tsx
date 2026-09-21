@@ -85,7 +85,7 @@ function EmergencyContactCard({ contact }: { contact: EmergencyContact }) {
       case 'fire':
         return BrandColors.red;
       case 'disaster':
-        return '#FF9500';
+        return BrandColors.emergencyOrange;
       default:
         return BrandColors.blue;
     }

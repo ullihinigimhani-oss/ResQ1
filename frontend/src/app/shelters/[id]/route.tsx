@@ -529,7 +529,7 @@ export default function ShelterRouteScreen() {
                 <Polyline
                   key={route.id}
                   coordinates={route.points}
-                  strokeColor={route.isSafest ? '#22C55E' : '#000000'}
+                  strokeColor={route.isSafest ? BrandColors.routeSafe : BrandColors.routeAlternate}
                   strokeWidth={route.isSafest ? 5 : 3}
                   lineDashPattern={route.isSafest ? undefined : [10, 5]}
                 />
@@ -551,11 +551,11 @@ export default function ShelterRouteScreen() {
                   <Text style={styles.legendText}>Incident</Text>
                 </View>
                 <View style={styles.legendItem}>
-                  <View style={[styles.legendLine, { backgroundColor: '#22C55E' }]} />
+                  <View style={[styles.legendLine, { backgroundColor: BrandColors.routeSafe }]} />
                   <Text style={styles.legendText}>Safest Route</Text>
                 </View>
                 <View style={styles.legendItem}>
-                  <View style={[styles.legendLine, { backgroundColor: '#000000', borderStyle: 'dashed' }]} />
+                  <View style={[styles.legendLine, { backgroundColor: BrandColors.routeAlternate, borderStyle: 'dashed' }]} />
                   <Text style={styles.legendText}>Alternative Routes</Text>
                 </View>
               </View>
@@ -623,7 +623,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   legend: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backgroundColor: BrandColors.mapOverlay,
     borderRadius: 8,
     padding: 12,
     gap: 8,
