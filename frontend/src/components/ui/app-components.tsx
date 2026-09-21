@@ -16,6 +16,8 @@ import { StatusBar } from 'expo-status-bar';
 
 import resq1Logo from '@/assets/images/resq1-logo.jfif';
 import { colors, radius, shadows, spacing, typography } from '@/constants/design';
+import { useAuth } from '@/context/auth-context';
+import { isAuthorityRole } from '@/utils/format';
 
 type SymbolName = string;
 
@@ -721,7 +723,7 @@ export function DemoNotice({ text }: { text: string }) {
   );
 }
 
-const tabs = [
+const residentTabs = [
   {
     label: 'Home',
     route: '/dashboard' as Href,
@@ -759,9 +761,49 @@ const tabs = [
   },
 ] as const;
 
+const authorityTabs = [
+  {
+    label: 'Dashboard',
+    route: '/dashboard' as Href,
+    match: ['/dashboard'],
+    icon: 'gauge.with.dots.needle.67percent' as SymbolName,
+    fallback: 'D',
+  },
+  {
+    label: 'Incidents',
+    route: '/incidents' as Href,
+    match: ['/incidents'],
+    icon: 'exclamationmark.triangle.fill' as SymbolName,
+    fallback: 'I',
+  },
+  {
+    label: 'Alerts',
+    route: '/alerts' as Href,
+    match: ['/alerts', '/community-notifications'],
+    icon: 'bell.fill' as SymbolName,
+    fallback: 'A',
+  },
+  {
+    label: 'Shelters',
+    route: '/shelters' as Href,
+    match: ['/shelters'],
+    icon: 'house.and.flag.fill' as SymbolName,
+    fallback: 'S',
+  },
+  {
+    label: 'Profile',
+    route: '/profile' as Href,
+    match: ['/profile', '/settings'],
+    icon: 'person.fill' as SymbolName,
+    fallback: 'P',
+  },
+] as const;
+
 export function BottomNavigation() {
   const pathname = usePathname();
   const router = useRouter();
+  const { user } = useAuth();
+  const tabs = isAuthorityRole(user?.role) ? authorityTabs : residentTabs;
 
   return (
     <View style={styles.bottomNav}>
