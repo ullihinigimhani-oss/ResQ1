@@ -383,7 +383,7 @@ export default function CreateAlertScreen() {
   if (!authorized) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <StatusBar style="dark" />
+        <StatusBar style="auto" />
         <View style={styles.restrictedContent}>
           <BackButton onPress={() => router.replace('/alerts' as Href)} />
           <View style={styles.restrictedPanel}>
@@ -405,7 +405,7 @@ export default function CreateAlertScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="dark" />
+      <StatusBar style="auto" />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.keyboardView}>
@@ -767,8 +767,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   riskOptionSelected: {
-    backgroundColor: BrandColors.deepBlue,
-    borderColor: BrandColors.deepBlue,
+    backgroundColor: BrandColors.accentAction,
+    borderColor: BrandColors.accentAction,
   },
   criticalOption: {
     backgroundColor: BrandColors.redSoft,
@@ -784,7 +784,7 @@ const styles = StyleSheet.create({
     lineHeight: 19,
   },
   riskOptionTextSelected: {
-    color: BrandColors.white,
+    color: BrandColors.onPrimary,
   },
   errorText: {
     color: BrandColors.red,
@@ -796,15 +796,15 @@ const styles = StyleSheet.create({
     paddingTop: 13,
   },
   publishPanel: {
-    backgroundColor: BrandColors.navy,
-    borderColor: BrandColors.deepBlue,
+    backgroundColor: BrandColors.primaryAction,
+    borderColor: BrandColors.accentAction,
     borderRadius: 8,
     borderWidth: 1,
     gap: 12,
     padding: 16,
   },
   publishTitle: {
-    color: BrandColors.white,
+    color: BrandColors.onPrimary,
     fontSize: 18,
     fontWeight: '900',
     lineHeight: 24,

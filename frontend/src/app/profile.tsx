@@ -111,8 +111,8 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   identityPanel: {
     alignItems: 'center',
-    backgroundColor: colors.navy,
-    borderColor: colors.deepBlue,
+    backgroundColor: colors.primaryAction,
+    borderColor: colors.accentAction,
     borderRadius: radius.md,
     borderWidth: 1,
     flexDirection: 'row',
@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   name: {
-    color: colors.white,
+    color: colors.onPrimary,
     fontSize: 21,
     fontWeight: '900',
     lineHeight: 27,

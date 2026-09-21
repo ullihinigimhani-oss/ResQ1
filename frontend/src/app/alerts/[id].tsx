@@ -99,8 +99,8 @@ function alertToneForRisk(riskLevel: Alert['riskLevel'] | undefined) {
       borderColor: '#D69E2E',
       pillBackground: BrandColors.warningSoft,
       pillBorder: '#D69E2E',
-      pillText: '#7A4B00',
-      titleColor: '#8A4B00',
+      pillText: BrandColors.warningText,
+      titleColor: BrandColors.warningStrong,
     };
   }
 
@@ -550,7 +550,7 @@ export default function AlertDetailsScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="dark" />
+      <StatusBar style="auto" />
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={
@@ -605,7 +605,7 @@ export default function AlertDetailsScreen() {
                 <View style={styles.detailHeroTopRow}>
                   <View style={styles.detailHeroTitleRow}>
                     <View style={[styles.detailHeroIcon, { backgroundColor: alertTone.accent }]}>
-                      <AppIcon fallback="!" name="exclamationmark.triangle.fill" size={30} tintColor={BrandColors.white} />
+                      <AppIcon fallback="!" name="exclamationmark.triangle.fill" size={30} tintColor={BrandColors.onPrimary} />
                     </View>
                     <Text style={[styles.detailHeroTitle, { color: alertTone.titleColor }]}>
                       {translateAlertTitle(alert, displayLanguage)}
@@ -648,7 +648,7 @@ export default function AlertDetailsScreen() {
                     pressed && styles.pressed,
                   ]}>
                   <View style={styles.riskAssessmentButtonTextBlock}>
-                    <AppIcon fallback="R" name="gauge.fill" size={18} tintColor={BrandColors.white} />
+                    <AppIcon fallback="R" name="gauge.fill" size={18} tintColor={BrandColors.onPrimary} />
                     <Text style={styles.riskAssessmentButtonText}>{detailCopy.viewRiskAssessment}</Text>
                   </View>
                   <Text style={styles.riskAssessmentArrow}>-&gt;</Text>
@@ -978,14 +978,14 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   riskAssessmentButtonText: {
-    color: BrandColors.white,
+    color: BrandColors.onPrimary,
     flex: 1,
     fontSize: 14,
     fontWeight: '900',
     lineHeight: 19,
   },
   riskAssessmentArrow: {
-    color: BrandColors.white,
+    color: BrandColors.onPrimary,
     fontSize: 13,
     fontWeight: '900',
     lineHeight: 18,

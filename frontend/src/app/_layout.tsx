@@ -2,8 +2,10 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 
+import '@/global.css';
 import { BrandColors } from '@/constants/brand';
 import { AuthProvider, useAuth } from '@/context/auth-context';
+import { ThemeProvider } from '@/context/theme-context';
 import {
   configureForegroundNotificationHandler,
   registerResidentDeviceForPushNotifications,
@@ -28,13 +30,14 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <AuthProvider>
-      <ResidentPushNotificationRegistration />
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: BrandColors.background },
-        }}>
+    <ThemeProvider>
+      <AuthProvider>
+        <ResidentPushNotificationRegistration />
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: BrandColors.background },
+          }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="onboarding/index" />
         <Stack.Screen name="auth/welcome" />
@@ -70,7 +73,8 @@ export default function RootLayout() {
         <Stack.Screen name="shelters/[id]/route" />
         <Stack.Screen name="assistance/index" />
         <Stack.Screen name="contacts/index" />
-      </Stack>
-    </AuthProvider>
+        </Stack>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

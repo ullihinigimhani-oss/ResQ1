@@ -17,6 +17,7 @@ import {
   AppIcon,
   ScreenContainer,
   StatusBadge,
+  ThemeToggleButton,
 } from '@/components/ui/app-components';
 import { colors, radius, shadows, spacing, typography } from '@/constants/design';
 import type { DashboardSummary } from '@/services/dashboardSummaryService';
@@ -122,6 +123,7 @@ function Header({ user }: { user: AuthUser }) {
         <Text style={styles.headerSubtitle}>Stay informed. Stay prepared.</Text>
       </View>
       <View style={styles.headerActions}>
+        <ThemeToggleButton />
         <Pressable
           accessibilityLabel="Open alert preferences"
           accessibilityRole="button"
@@ -498,8 +500,8 @@ const styles = StyleSheet.create({
   },
   avatar: {
     alignItems: 'center',
-    backgroundColor: colors.navy,
-    borderColor: colors.deepBlue,
+    backgroundColor: colors.primaryAction,
+    borderColor: colors.accentAction,
     borderRadius: 22,
     borderWidth: 1,
     height: 44,
@@ -507,7 +509,7 @@ const styles = StyleSheet.create({
     width: 44,
   },
   avatarText: {
-    color: colors.white,
+    color: colors.onPrimary,
     fontSize: 13,
     fontWeight: '900',
     lineHeight: 17,
@@ -896,7 +898,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
   },
   helpActionText: {
-    color: colors.white,
+    color: colors.onPrimary,
     fontSize: 14,
     fontWeight: '900',
     lineHeight: 19,

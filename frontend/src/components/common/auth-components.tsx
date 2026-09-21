@@ -112,7 +112,7 @@ export function AuthButton({
         style,
       ]}>
       {loading ? (
-        <ActivityIndicator color={isSecondary ? BrandColors.navy : BrandColors.white} />
+        <ActivityIndicator color={isSecondary ? BrandColors.navy : BrandColors.onPrimary} />
       ) : (
         <Text
           style={[
@@ -263,12 +263,12 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: BrandColors.navy,
+    backgroundColor: BrandColors.primaryAction,
     paddingHorizontal: 18,
   },
   secondaryButton: {
     backgroundColor: BrandColors.white,
-    borderColor: BrandColors.navy,
+    borderColor: BrandColors.primaryAction,
     borderWidth: 1,
   },
   dangerButton: {
@@ -280,7 +280,7 @@ const styles = StyleSheet.create({
     opacity: 0.65,
   },
   buttonText: {
-    color: BrandColors.white,
+    color: BrandColors.onPrimary,
     fontSize: 16,
     fontWeight: '800',
   },
@@ -317,7 +317,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
   },
   languageOptionSelected: {
-    backgroundColor: BrandColors.deepBlue,
+    backgroundColor: BrandColors.accentAction,
   },
   languageOptionText: {
     color: BrandColors.muted,
@@ -326,7 +326,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   languageOptionSelectedText: {
-    color: BrandColors.white,
+    color: BrandColors.onPrimary,
   },
   statusBanner: {
     borderRadius: 8,

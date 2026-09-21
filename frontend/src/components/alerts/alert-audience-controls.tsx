@@ -397,7 +397,7 @@ export function SchoolTargetingSection({
             pressed && !loadingSchools && styles.pressed,
           ]}>
           {loadingSchools ? (
-            <ActivityIndicator color={BrandColors.white} />
+            <ActivityIndicator color={BrandColors.onPrimary} />
           ) : (
             <Text style={styles.findButtonText}>Find Schools</Text>
           )}
@@ -482,8 +482,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   optionButtonSelected: {
-    backgroundColor: BrandColors.deepBlue,
-    borderColor: BrandColors.deepBlue,
+    backgroundColor: BrandColors.accentAction,
+    borderColor: BrandColors.accentAction,
   },
   optionButtonText: {
     color: BrandColors.deepBlue,
@@ -493,7 +493,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   optionButtonTextSelected: {
-    color: BrandColors.white,
+    color: BrandColors.onPrimary,
   },
   targetingShell: {
     gap: 12,
@@ -535,7 +535,7 @@ const styles = StyleSheet.create({
     opacity: 0.58,
   },
   findButtonText: {
-    color: BrandColors.white,
+    color: BrandColors.onPrimary,
     fontSize: 13,
     fontWeight: '900',
     lineHeight: 18,
@@ -592,8 +592,8 @@ const styles = StyleSheet.create({
   },
   mapMarker: {
     alignItems: 'center',
-    backgroundColor: BrandColors.deepBlue,
-    borderColor: BrandColors.white,
+    backgroundColor: BrandColors.accentAction,
+    borderColor: BrandColors.onPrimary,
     borderRadius: 999,
     borderWidth: 2,
     height: 28,
@@ -611,7 +611,7 @@ const styles = StyleSheet.create({
     width: 34,
   },
   mapMarkerText: {
-    color: BrandColors.white,
+    color: BrandColors.onPrimary,
     fontSize: 11,
     fontWeight: '900',
     lineHeight: 14,
@@ -629,14 +629,14 @@ const styles = StyleSheet.create({
   },
   selectAllButton: {
     alignItems: 'center',
-    backgroundColor: BrandColors.navy,
+    backgroundColor: BrandColors.primaryAction,
     borderRadius: 8,
     justifyContent: 'center',
     minHeight: 38,
     paddingHorizontal: 12,
   },
   selectAllText: {
-    color: BrandColors.white,
+    color: BrandColors.onPrimary,
     fontSize: 12,
     fontWeight: '900',
     lineHeight: 16,
@@ -670,17 +670,17 @@ const styles = StyleSheet.create({
     width: 24,
   },
   checkBoxSelected: {
-    backgroundColor: BrandColors.navy,
-    borderColor: BrandColors.navy,
+    backgroundColor: BrandColors.primaryAction,
+    borderColor: BrandColors.primaryAction,
   },
   checkText: {
-    color: BrandColors.white,
+    color: BrandColors.onPrimary,
     fontSize: 13,
     fontWeight: '900',
     lineHeight: 16,
   },
   checkTextSelected: {
-    color: BrandColors.white,
+    color: BrandColors.onPrimary,
   },
   schoolTextBlock: {
     flex: 1,

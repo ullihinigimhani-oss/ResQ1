@@ -18,17 +18,17 @@ export const riskTones: Record<AlertRiskLevel, BadgeTone> = {
   Moderate: {
     backgroundColor: BrandColors.warningSoft,
     borderColor: '#D69E2E',
-    color: '#7A4B00',
+    color: BrandColors.warningText,
   },
   High: {
-    backgroundColor: '#FFF1E6',
+    backgroundColor: BrandColors.orangeSoft,
     borderColor: '#EA580C',
-    color: '#9A3412',
+    color: BrandColors.orangeText,
   },
   Critical: {
     backgroundColor: BrandColors.red,
     borderColor: BrandColors.red,
-    color: BrandColors.white,
+    color: BrandColors.onPrimary,
   },
 };
 
@@ -111,10 +111,10 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   locationBadge: {
-    backgroundColor: BrandColors.navy,
-    borderColor: BrandColors.navy,
+    backgroundColor: BrandColors.primaryAction,
+    borderColor: BrandColors.primaryAction,
   },
   locationBadgeText: {
-    color: BrandColors.white,
+    color: BrandColors.onPrimary,
   },
 });

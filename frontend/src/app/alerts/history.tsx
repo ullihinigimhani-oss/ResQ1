@@ -163,7 +163,7 @@ function severityTone(riskLevel: string | null) {
     return {
       backgroundColor: colors.amberSoft,
       borderColor: colors.amber,
-      color: '#7A4B00',
+      color: colors.amberText,
     };
   }
 

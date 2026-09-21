@@ -17,6 +17,7 @@ import { StatusBar } from 'expo-status-bar';
 import resq1Logo from '@/assets/images/resq1-logo.jfif';
 import { colors, radius, shadows, spacing, typography } from '@/constants/design';
 import { useAuth } from '@/context/auth-context';
+import { useAppTheme } from '@/context/theme-context';
 import { isAuthorityRole } from '@/utils/format';
 
 type SymbolName = string;
@@ -25,9 +26,9 @@ type Tone = 'navy' | 'blue' | 'red' | 'green' | 'amber' | 'muted';
 
 const toneStyles: Record<Tone, { backgroundColor: string; borderColor: string; color: string }> = {
   navy: {
-    backgroundColor: colors.navy,
-    borderColor: colors.navy,
-    color: colors.white,
+    backgroundColor: colors.primaryAction,
+    borderColor: colors.primaryAction,
+    color: colors.onPrimary,
   },
   blue: {
     backgroundColor: colors.lightBlue,
@@ -47,7 +48,7 @@ const toneStyles: Record<Tone, { backgroundColor: string; borderColor: string; c
   amber: {
     backgroundColor: colors.amberSoft,
     borderColor: colors.amber,
-    color: '#7A4B00',
+    color: colors.amberText,
   },
   muted: {
     backgroundColor: colors.surfaceMuted,
@@ -111,6 +112,14 @@ export function AppIcon({
 
   if (iconName.includes('clock')) {
     return <ClockIcon size={size} tintColor={tintColor} />;
+  }
+
+  if (iconName.includes('moon')) {
+    return <MoonIcon size={size} tintColor={tintColor} />;
+  }
+
+  if (iconName.includes('sun')) {
+    return <SunIcon size={size} tintColor={tintColor} />;
   }
 
   if (iconName.includes('slider')) {
@@ -249,6 +258,27 @@ function ClockIcon({ size, tintColor }: { size: number; tintColor: string }) {
   );
 }
 
+function MoonIcon({ size, tintColor }: { size: number; tintColor: string }) {
+  return (
+    <IconCanvas size={size}>
+      <View style={[styles.moonDisc, { borderColor: tintColor }]} />
+      <View style={styles.moonCutout} />
+    </IconCanvas>
+  );
+}
+
+function SunIcon({ size, tintColor }: { size: number; tintColor: string }) {
+  return (
+    <IconCanvas size={size}>
+      <View style={[styles.sunDisc, { borderColor: tintColor }]} />
+      <View style={[styles.sunRayVertical, { backgroundColor: tintColor }]} />
+      <View style={[styles.sunRayHorizontal, { backgroundColor: tintColor }]} />
+      <View style={[styles.sunRayDiagonalLeft, { backgroundColor: tintColor }]} />
+      <View style={[styles.sunRayDiagonalRight, { backgroundColor: tintColor }]} />
+    </IconCanvas>
+  );
+}
+
 function SliderIcon({ size, tintColor }: { size: number; tintColor: string }) {
   return (
     <IconCanvas size={size}>
@@ -296,9 +326,11 @@ export function ScreenContainer({
   scroll?: boolean;
   statusBar?: 'dark' | 'light';
 }) {
+  const { theme } = useAppTheme();
+
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar style={statusBar} />
+      <StatusBar style={statusBar === 'light' || theme === 'dark' ? 'light' : 'dark'} />
       {scroll ? (
         <ScrollView
           contentContainerStyle={[styles.content, bottomNav && styles.contentWithBottomNav]}
@@ -477,7 +509,7 @@ export function PrimaryButton({
         pressed && !inactive && styles.pressed,
       ]}>
       {loading ? (
-        <ActivityIndicator color={colors.white} />
+        <ActivityIndicator color={colors.onPrimary} />
       ) : (
         <Text style={styles.primaryButtonText}>{title}</Text>
       )}
@@ -528,6 +560,32 @@ export function IconButton({
       onPress={onPress}
       style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}>
       <AppIcon fallback={fallback} name={name} size={20} />
+    </Pressable>
+  );
+}
+
+export function ThemeToggleButton({ size = 44 }: { size?: number }) {
+  const { theme, toggleTheme } = useAppTheme();
+  const isDark = theme === 'dark';
+
+  return (
+    <Pressable
+      accessibilityHint={`Switch to ${isDark ? 'light' : 'dark'} mode`}
+      accessibilityLabel={`${isDark ? 'Light' : 'Dark'} mode`}
+      accessibilityRole="button"
+      hitSlop={8}
+      onPress={toggleTheme}
+      style={({ pressed }) => [
+        styles.iconButton,
+        { borderRadius: Math.min(radius.md, size / 2), height: size, width: size },
+        pressed && styles.pressed,
+      ]}>
+      <AppIcon
+        fallback={isDark ? 'S' : 'M'}
+        name={isDark ? 'sun.max.fill' : 'moon.fill'}
+        size={20}
+        tintColor={colors.deepBlue}
+      />
     </Pressable>
   );
 }
@@ -1086,6 +1144,57 @@ const styles = StyleSheet.create({
     top: '50%',
     width: '24%',
   },
+  moonDisc: {
+    borderRadius: 999,
+    borderWidth: 2,
+    height: '72%',
+    left: '12%',
+    position: 'absolute',
+    top: '14%',
+    width: '72%',
+  },
+  moonCutout: {
+    backgroundColor: colors.surface,
+    borderRadius: 999,
+    height: '62%',
+    position: 'absolute',
+    right: '2%',
+    top: '4%',
+    width: '62%',
+  },
+  sunDisc: {
+    borderRadius: 999,
+    borderWidth: 2,
+    height: '38%',
+    position: 'absolute',
+    width: '38%',
+  },
+  sunRayVertical: {
+    borderRadius: 2,
+    height: '100%',
+    position: 'absolute',
+    width: 2,
+  },
+  sunRayHorizontal: {
+    borderRadius: 2,
+    height: 2,
+    position: 'absolute',
+    width: '100%',
+  },
+  sunRayDiagonalLeft: {
+    borderRadius: 2,
+    height: 2,
+    position: 'absolute',
+    transform: [{ rotate: '45deg' }],
+    width: '88%',
+  },
+  sunRayDiagonalRight: {
+    borderRadius: 2,
+    height: 2,
+    position: 'absolute',
+    transform: [{ rotate: '-45deg' }],
+    width: '88%',
+  },
   sliderLineTop: {
     borderRadius: 1,
     height: 2,
@@ -1108,7 +1217,7 @@ const styles = StyleSheet.create({
     width: '78%',
   },
   sliderKnobLeft: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.onPrimary,
     borderRadius: 4,
     borderWidth: 2,
     height: 8,
@@ -1118,7 +1227,7 @@ const styles = StyleSheet.create({
     width: 8,
   },
   sliderKnobRight: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.onPrimary,
     borderRadius: 4,
     borderWidth: 2,
     height: 8,
@@ -1128,7 +1237,7 @@ const styles = StyleSheet.create({
     width: 8,
   },
   sliderKnobCenter: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.onPrimary,
     borderRadius: 4,
     borderWidth: 2,
     bottom: '18%',
@@ -1338,8 +1447,8 @@ const styles = StyleSheet.create({
     ...shadows.card,
   },
   sectionCardNavy: {
-    backgroundColor: colors.navy,
-    borderColor: colors.deepBlue,
+    backgroundColor: colors.primaryAction,
+    borderColor: colors.accentAction,
   },
   sectionCardBlue: {
     backgroundColor: colors.lightBlue,
@@ -1357,7 +1466,7 @@ const styles = StyleSheet.create({
     ...typography.sectionTitle,
   },
   sectionTitleOnDark: {
-    color: colors.white,
+    color: colors.onPrimary,
   },
   sectionSubtitle: {
     color: colors.muted,
@@ -1370,7 +1479,7 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     alignItems: 'center',
-    backgroundColor: colors.navy,
+    backgroundColor: colors.primaryAction,
     borderRadius: radius.md,
     justifyContent: 'center',
     minHeight: 50,
@@ -1380,7 +1489,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.red,
   },
   primaryButtonText: {
-    color: colors.white,
+    color: colors.onPrimary,
     fontSize: 15,
     fontWeight: '900',
     lineHeight: 20,
@@ -1512,8 +1621,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   filterChipSelected: {
-    backgroundColor: colors.navy,
-    borderColor: colors.navy,
+    backgroundColor: colors.primaryAction,
+    borderColor: colors.primaryAction,
   },
   filterChipText: {
     color: colors.deepBlue,
@@ -1522,7 +1631,7 @@ const styles = StyleSheet.create({
     lineHeight: 17,
   },
   filterChipTextSelected: {
-    color: colors.white,
+    color: colors.onPrimary,
   },
   toggleRow: {
     alignItems: 'center',
@@ -1568,7 +1677,7 @@ const styles = StyleSheet.create({
     opacity: 0.75,
   },
   toggleKnob: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.onPrimary,
     borderRadius: 10,
     height: 20,
     width: 20,
@@ -1599,8 +1708,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   segmentedOptionSelected: {
-    backgroundColor: colors.navy,
-    borderColor: colors.navy,
+    backgroundColor: colors.primaryAction,
+    borderColor: colors.primaryAction,
   },
   segmentedText: {
     color: colors.deepBlue,
@@ -1609,7 +1718,7 @@ const styles = StyleSheet.create({
     lineHeight: 17,
   },
   segmentedTextSelected: {
-    color: colors.white,
+    color: colors.onPrimary,
   },
   demoNotice: {
     backgroundColor: colors.amberSoft,

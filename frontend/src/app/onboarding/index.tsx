@@ -195,7 +195,7 @@ export default function OnboardingScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="dark" />
+      <StatusBar style="auto" />
       <View style={styles.content}>
         <View style={styles.header}>
           <View style={styles.brandRow}>
@@ -381,7 +381,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   signalMast: {
-    backgroundColor: colors.navy,
+    backgroundColor: colors.primaryAction,
     borderRadius: radius.xs,
     bottom: 70,
     height: 84,
@@ -390,7 +390,7 @@ const styles = StyleSheet.create({
     width: 8,
   },
   signalBase: {
-    backgroundColor: colors.navy,
+    backgroundColor: colors.primaryAction,
     borderRadius: radius.xs,
     bottom: 62,
     height: 8,
@@ -442,7 +442,7 @@ const styles = StyleSheet.create({
   },
   phoneFrame: {
     backgroundColor: colors.white,
-    borderColor: colors.navy,
+    borderColor: colors.primaryAction,
     borderRadius: radius.md,
     borderWidth: 2,
     height: 142,
@@ -488,7 +488,7 @@ const styles = StyleSheet.create({
   },
   evidenceCard: {
     alignItems: 'center',
-    backgroundColor: colors.navy,
+    backgroundColor: colors.primaryAction,
     borderRadius: radius.md,
     bottom: 26,
     flexDirection: 'row',
@@ -511,7 +511,7 @@ const styles = StyleSheet.create({
     height: 5,
   },
   routeLine: {
-    backgroundColor: colors.deepBlue,
+    backgroundColor: colors.accentAction,
     borderRadius: radius.xs,
     height: 5,
     position: 'absolute',
@@ -522,7 +522,7 @@ const styles = StyleSheet.create({
   },
   routePoint: {
     backgroundColor: colors.white,
-    borderColor: colors.deepBlue,
+    borderColor: colors.accentAction,
     borderRadius: 13,
     borderWidth: 4,
     height: 26,
@@ -620,7 +620,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   navButtonPrimary: {
-    backgroundColor: colors.navy,
+    backgroundColor: colors.primaryAction,
   },
   navButtonSecondary: {
     backgroundColor: colors.white,
@@ -628,7 +628,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   navButtonPrimaryText: {
-    color: colors.white,
+    color: colors.onPrimary,
     fontSize: 15,
     fontWeight: '900',
     lineHeight: 20,

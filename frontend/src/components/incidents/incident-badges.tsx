@@ -18,7 +18,7 @@ const severityStyles: Record<IncidentSeverity, { backgroundColor: string; border
   Medium: {
     backgroundColor: BrandColors.warningSoft,
     borderColor: '#D69E2E',
-    color: '#7A4B00',
+    color: BrandColors.warningText,
   },
   High: {
     backgroundColor: BrandColors.redSoft,
@@ -28,7 +28,7 @@ const severityStyles: Record<IncidentSeverity, { backgroundColor: string; border
   Critical: {
     backgroundColor: BrandColors.red,
     borderColor: BrandColors.red,
-    color: BrandColors.white,
+    color: BrandColors.onPrimary,
   },
 };
 
@@ -41,11 +41,11 @@ const statusStyles: Record<IncidentStatus, { backgroundColor: string; borderColo
   'Under Review': {
     backgroundColor: BrandColors.warningSoft,
     borderColor: '#D69E2E',
-    color: '#7A4B00',
+    color: BrandColors.warningText,
   },
   'In Progress': {
-    backgroundColor: '#E8F1FF',
-    borderColor: BrandColors.deepBlue,
+    backgroundColor: BrandColors.incidentSoft,
+    borderColor: BrandColors.accentAction,
     color: BrandColors.deepBlue,
   },
   Resolved: {
@@ -199,8 +199,8 @@ const styles = StyleSheet.create({
     width: 18,
   },
   timelineDotCompleted: {
-    backgroundColor: BrandColors.deepBlue,
-    borderColor: BrandColors.deepBlue,
+    backgroundColor: BrandColors.accentAction,
+    borderColor: BrandColors.accentAction,
   },
   timelineDotCurrent: {
     backgroundColor: BrandColors.white,
@@ -223,7 +223,7 @@ const styles = StyleSheet.create({
     width: 2,
   },
   timelineLineActive: {
-    backgroundColor: BrandColors.deepBlue,
+    backgroundColor: BrandColors.accentAction,
   },
   timelineTextBlock: {
     flex: 1,
@@ -255,7 +255,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   timelineCopyPending: {
-    color: '#7A8798',
+    color: BrandColors.muted,
   },
   stageBadge: {
     borderRadius: 8,

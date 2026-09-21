@@ -198,7 +198,7 @@ const styles = StyleSheet.create({
   },
   chip: {
     alignItems: 'center',
-    backgroundColor: '#fffbe6',
+    backgroundColor: colors.cautionSoft,
     borderColor: '#f59e0b',
     borderRadius: 16,
     borderWidth: 1,
@@ -211,7 +211,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   chipText: {
-    color: '#b45309',
+    color: colors.amberEmphasis,
     fontSize: 13,
     fontWeight: '800',
   },
@@ -271,7 +271,7 @@ const styles = StyleSheet.create({
   backBtn: {
     alignItems: 'center',
     backgroundColor: colors.white,
-    borderColor: colors.navy,
+    borderColor: colors.primaryAction,
     borderRadius: radius.md,
     borderWidth: 1,
     flex: 1,

@@ -193,7 +193,7 @@ export default function CreateCommunityNotificationScreen() {
   if (!isAuthorityRole(user.role)) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <StatusBar style="dark" />
+        <StatusBar style="auto" />
         <View style={styles.restrictedContent}>
           <BackButton onPress={() => router.replace('/community-notifications' as Href)} />
           <View style={styles.restrictedPanel}>
@@ -215,7 +215,7 @@ export default function CreateCommunityNotificationScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="dark" />
+      <StatusBar style="auto" />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.keyboardView}>
@@ -441,8 +441,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
   },
   categoryOptionSelected: {
-    backgroundColor: colors.navy,
-    borderColor: colors.navy,
+    backgroundColor: colors.primaryAction,
+    borderColor: colors.primaryAction,
   },
   categoryOptionText: {
     color: colors.deepBlue,
@@ -452,7 +452,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   categoryOptionTextSelected: {
-    color: colors.white,
+    color: colors.onPrimary,
   },
   errorText: {
     color: BrandColors.red,
@@ -464,15 +464,15 @@ const styles = StyleSheet.create({
     paddingTop: 13,
   },
   publishPanel: {
-    backgroundColor: BrandColors.navy,
-    borderColor: BrandColors.deepBlue,
+    backgroundColor: BrandColors.primaryAction,
+    borderColor: BrandColors.accentAction,
     borderRadius: radius.md,
     borderWidth: 1,
     gap: spacing.md,
     padding: spacing.lg,
   },
   publishTitle: {
-    color: BrandColors.white,
+    color: BrandColors.onPrimary,
     fontSize: 18,
     fontWeight: '900',
     lineHeight: 24,
