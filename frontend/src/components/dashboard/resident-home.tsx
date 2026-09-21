@@ -365,31 +365,6 @@ function CommunitySection({ wideLayout }: { wideLayout: boolean }) {
   );
 }
 
-function AssistanceCard() {
-  const router = useRouter();
-
-  return (
-    <View style={styles.helpCard}>
-      <View style={styles.helpIcon}>
-        <AppIcon fallback="!" name="cross.case.fill" size={26} tintColor={colors.red} />
-      </View>
-      <View style={styles.helpCopy}>
-        <Text style={styles.helpTitle}>Request Assistance</Text>
-        <Text style={styles.helpBody}>
-          Need help during an emergency? Send an assistance request to the response team.
-        </Text>
-      </View>
-      <Pressable
-        accessibilityLabel="Request emergency assistance"
-        accessibilityRole="button"
-        onPress={() => router.push('/assistance' as Href)}
-        style={({ pressed }) => [styles.helpAction, pressed && styles.pressed]}>
-        <Text style={styles.helpActionText}>Request Help</Text>
-      </Pressable>
-    </View>
-  );
-}
-
 export function ResidentHome({
   alerts,
   communityNotifications,
@@ -446,8 +421,6 @@ export function ResidentHome({
         ) : null}
 
         {!loading && !initialError ? <UpdatePreview update={latestUpdate} /> : null}
-
-        <AssistanceCard />
 
         <View style={[styles.visualGrid, wideLayout && styles.visualGridWide]}>
           <PreparednessSection wideLayout={wideLayout} />
@@ -854,58 +827,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 13,
     fontWeight: '700',
-    lineHeight: 19,
-  },
-  helpCard: {
-    alignItems: 'center',
-    backgroundColor: colors.white,
-    borderColor: colors.redBorder,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.md,
-    padding: spacing.lg,
-    ...shadows.card,
-  },
-  helpIcon: {
-    alignItems: 'center',
-    backgroundColor: colors.redSoft,
-    borderRadius: radius.md,
-    height: 48,
-    justifyContent: 'center',
-    width: 48,
-  },
-  helpCopy: {
-    flex: 1,
-    gap: 2,
-    minWidth: 180,
-  },
-  helpTitle: {
-    color: colors.navy,
-    fontSize: 17,
-    fontWeight: '900',
-    lineHeight: 22,
-  },
-  helpBody: {
-    color: colors.text,
-    fontSize: 13,
-    fontWeight: '600',
-    lineHeight: 19,
-  },
-  helpAction: {
-    alignItems: 'center',
-    backgroundColor: colors.redAction,
-    borderRadius: radius.md,
-    justifyContent: 'center',
-    minHeight: 46,
-    minWidth: 120,
-    paddingHorizontal: spacing.lg,
-  },
-  helpActionText: {
-    color: colors.onPrimary,
-    fontSize: 14,
-    fontWeight: '900',
     lineHeight: 19,
   },
   pressed: {
