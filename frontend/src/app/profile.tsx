@@ -16,7 +16,6 @@ import {
 import { colors, radius, spacing } from '@/constants/design';
 import { useAuth } from '@/context/auth-context';
 import { useCurrentLocation } from '@/hooks/use-current-location';
-import { updateVolunteerStatus as updateVolunteerStatusApi } from '@/services/authService';
 import { updateVolunteerStatus as updateVolunteerStatusApi, API_BASE_URL } from '@/services/authService';
 import { getUserSOSStatus } from '@/services/sosService';
 import { formatRole, initials, isAuthorityRole } from '@/utils/format';
@@ -65,6 +64,8 @@ export default function ProfileScreen() {
   const [mapModalVisible, setMapModalVisible] = useState(false);
   const [selectedRegion, setSelectedRegion] = useState<{ latitude: number; longitude: number; latitudeDelta: number; longitudeDelta: number } | null>(null);
   const [sosRequest, setSosRequest] = useState<SOSRequestWithVolunteer | null>(null);
+  const [volunteerSOSRequest, setVolunteerSOSRequest] = useState<any>(null);
+  const [previousSOSStatus, setPreviousSOSStatus] = useState<string | null>(null);
   const isWeb = Platform.OS === 'web';
 
   if (!isLoading && !user) {
@@ -149,7 +150,46 @@ export default function ProfileScreen() {
     }
   }, [token, isWeb]);
 
+  useEffect(() => {
+    if (token && !isWeb && user?.isVolunteer && user?.isVolunteeringActive) {
+      const checkVolunteerSOSStatus = async () => {
+        try {
+          const response = await fetch(`${API_BASE_URL}/api/sos/volunteer-accepted`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+          });
+          const data = await response.json();
+          const currentSOS = data.request;
+          console.log('Volunteer SOS status:', currentSOS);
+
+          // Check if SOS status changed from accepted to completed
+          if (currentSOS && currentSOS.status === 'completed' && previousSOSStatus === 'accepted') {
+            const statusMessages: Record<string, string> = {
+              'assistant_came': 'Emergency Assistant Came',
+              'rescued': 'Rescued',
+              'safe_shelter': 'Safe Shelter',
+            };
+            const statusMessage = statusMessages[currentSOS.evacuationStatus] || 'Safe';
+            alert(`The disaster victim has been marked as ${statusMessage}. They are safe now.`);
+          }
+
+          setPreviousSOSStatus(currentSOS?.status || null);
+          setVolunteerSOSRequest(currentSOS);
+        } catch (error) {
+          console.error('Failed to check volunteer SOS status:', error);
+        }
+      };
+
+      checkVolunteerSOSStatus();
+      const interval = setInterval(checkVolunteerSOSStatus, 5000);
+
+      return () => clearInterval(interval);
+    }
+  }, [token, isWeb, user?.isVolunteer, user?.isVolunteeringActive]);
+
   const handleRouteToVictim = async () => {
+    console.log('handleRouteToVictim called');
     if (!user?.volunteerAreaLatitude || !user?.volunteerAreaLongitude) {
       alert('Please set your volunteer area first by clicking Volunteer Now.');
       return;
@@ -177,7 +217,19 @@ export default function ProfileScreen() {
       const sosRequest = data.request;
 
       if (!sosRequest) {
-        alert('No active SOS request to respond to. Please wait for an SOS alert and click "Emergency Rescue Team is Ready" to accept it.');
+        alert('No any Victims to rescue');
+        return;
+      }
+
+      // Check if the SOS request is completed (user is safe)
+      if (sosRequest.status === 'completed') {
+        const statusMessages: Record<string, string> = {
+          'assistant_came': 'Emergency Assistant Came',
+          'rescued': 'Rescued',
+          'safe_shelter': 'Safe Shelter',
+        };
+        const statusMessage = statusMessages[sosRequest.evacuationStatus] || 'Safe';
+        alert(`The disaster victim has been marked as ${statusMessage}. They are safe now.`);
         return;
       }
 
@@ -230,7 +282,7 @@ export default function ProfileScreen() {
         </Pressable>
       )}
 
-      {user.isVolunteer && user.isVolunteeringActive && user?.volunteerAreaLatitude && user?.volunteerAreaLongitude ? (
+      {user.isVolunteer && user.isVolunteeringActive && user?.volunteerAreaLatitude && user?.volunteerAreaLongitude && volunteerSOSRequest?.status === 'accepted' ? (
         <PrimaryButton
           onPress={handleRouteToVictim}
           title="Route to Disaster Victim"

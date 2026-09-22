@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS sos_requests (
     latitude DECIMAL(10, 7) NOT NULL,
     longitude DECIMAL(10, 7) NOT NULL,
     status VARCHAR(50) DEFAULT 'pending',
+    evacuation_status VARCHAR(50) DEFAULT 'pending',
     volunteer_id INTEGER REFERENCES users(id),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

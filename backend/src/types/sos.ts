@@ -4,6 +4,7 @@ export interface SOSRequestRow {
   latitude: number;
   longitude: number;
   status: 'pending' | 'accepted' | 'completed';
+  evacuation_status: 'pending' | 'assistant_came' | 'rescued' | 'safe_shelter' | 'still_in_disaster';
   volunteer_id: number | null;
   created_at: Date | string;
   updated_at: Date | string;
@@ -24,6 +25,7 @@ export interface SOSRequest {
   latitude: number;
   longitude: number;
   status: 'pending' | 'accepted' | 'completed';
+  evacuationStatus: 'pending' | 'assistant_came' | 'rescued' | 'safe_shelter' | 'still_in_disaster';
   volunteerId: number | null;
   createdAt: string;
   updatedAt: string;

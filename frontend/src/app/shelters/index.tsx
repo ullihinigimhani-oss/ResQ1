@@ -23,9 +23,10 @@ import { ShelterStatusBadge } from '@/components/shelters/shelter-ui';
 import { BrandColors } from '@/constants/brand';
 import { useAuth } from '@/context/auth-context';
 import { getShelters, isShelterApiError } from '@/services/shelterService';
-import { createSOSRequest, getUserSOSStatus } from '@/services/sosService';
+import { createSOSRequest, getUserSOSStatus, updateEvacuationStatus } from '@/services/sosService';
 import type { Shelter } from '@/types/shelter';
 import type { SOSRequestWithVolunteer } from '@/types/sos';
+import { EvacuationStatusModal } from '@/components/sos/EvacuationStatusModal';
 
 type FilterKey = 'Nearest' | 'Available' | 'Medical Support' | 'Family Friendly' | 'Area';
 
@@ -155,6 +156,7 @@ export default function NearbySheltersScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sosModalVisible, setSosModalVisible] = useState(false);
   const [sosRequest, setSosRequest] = useState<SOSRequestWithVolunteer | null>(null);
+  const [evacuationStatusModalVisible, setEvacuationStatusModalVisible] = useState(false);
 
   // Disable SOS polling on web to prevent network errors
   const isWeb = Platform.OS === 'web';
@@ -198,7 +200,14 @@ export default function NearbySheltersScreen() {
       const checkSOSStatus = async () => {
         try {
           const status = await getUserSOSStatus(token);
-          setSosRequest(status);
+          console.log('User SOS status:', status);
+          // Only set SOS request if it's still active (pending or accepted)
+          // If status is completed, clear it to show SOS button
+          if (status && status.status === 'completed') {
+            setSosRequest(null);
+          } else {
+            setSosRequest(status);
+          }
         } catch (error) {
           console.error('Failed to check SOS status:', error);
         }
@@ -251,6 +260,44 @@ export default function NearbySheltersScreen() {
     }
   };
 
+  const handleUpdateEvacuationStatus = async (status: 'assistant_came' | 'rescued' | 'safe_shelter' | 'still_in_disaster') => {
+    if (!token || !sosRequest) return;
+
+    console.log('handleUpdateEvacuationStatus called with:', status);
+    console.log('Current SOS request:', sosRequest);
+
+    try {
+      if (status === 'still_in_disaster') {
+        // Create a new SOS request
+        const location = await Location.getCurrentPositionAsync({});
+        await createSOSRequest(token, {
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+        });
+        alert('New SOS request has been created. Help is on the way!');
+      } else {
+        // Update the evacuation status - this will mark SOS as completed
+        const updated = await updateEvacuationStatus(token, sosRequest.id, status);
+        console.log('Updated SOS request:', updated);
+        alert('Evacuation status updated successfully. Your rescue team has been notified.');
+        // Clear the SOS request so SOS button reappears
+        setSosRequest(null);
+      }
+    } catch (error) {
+      console.error('Failed to update evacuation status:', error);
+      alert('Failed to update evacuation status. Please try again.');
+    }
+  };
+
+  const handleCallVolunteer = (phoneNumber: string) => {
+    const cleaned = phoneNumber.replace(/[^0-9+]/g, '');
+    if (cleaned) {
+      Linking.openURL(`tel:${cleaned}`).catch(() => {
+        alert(`Could not dial ${phoneNumber} automatically.`);
+      });
+    }
+  };
+
   if (!isLoading && !user) {
     return <Redirect href={'/auth/welcome' as Href} />;
   }
@@ -296,11 +343,18 @@ export default function NearbySheltersScreen() {
               <View style={styles.volunteerContact}>
                 <Text style={styles.volunteerContactLabel}>Rescue Team:</Text>
                 <Text style={styles.volunteerName}>{sosRequest.volunteerName}</Text>
-                <Pressable
-                  onPress={() => Linking.openURL(`tel:${sosRequest.volunteerPhone}`)}
-                  style={({ pressed }) => [styles.callVolunteerButton, pressed && styles.callVolunteerButtonPressed]}>
-                  <Text style={styles.callVolunteerButtonText}>Call</Text>
-                </Pressable>
+                <View style={styles.volunteerButtons}>
+                  <Pressable
+                    onPress={() => handleCallVolunteer(sosRequest.volunteerPhone || '')}
+                    style={({ pressed }) => [styles.callVolunteerButton, pressed && styles.callVolunteerButtonPressed]}>
+                    <Text style={styles.callVolunteerButtonText}>Call</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => setEvacuationStatusModalVisible(true)}
+                    style={({ pressed }) => [styles.updateStatusButton, pressed && styles.updateStatusButtonPressed]}>
+                    <Text style={styles.updateStatusButtonText}>Update</Text>
+                  </Pressable>
+                </View>
               </View>
             ) : (
               <Pressable
@@ -416,6 +470,12 @@ export default function NearbySheltersScreen() {
           </View>
         </View>
       </Modal>
+
+      <EvacuationStatusModal
+        visible={evacuationStatusModalVisible}
+        onClose={() => setEvacuationStatusModalVisible(false)}
+        onUpdateStatus={handleUpdateEvacuationStatus}
+      />
     </SafeAreaView>
   );
 }
@@ -805,6 +865,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     lineHeight: 18,
   },
+  volunteerButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
   callVolunteerButton: {
     backgroundColor: BrandColors.navy,
     borderRadius: 6,
@@ -815,6 +879,21 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
   callVolunteerButtonText: {
+    color: BrandColors.white,
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 18,
+  },
+  updateStatusButton: {
+    backgroundColor: BrandColors.success,
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  updateStatusButtonPressed: {
+    opacity: 0.8,
+  },
+  updateStatusButtonText: {
     color: BrandColors.white,
     fontSize: 14,
     fontWeight: '700',
