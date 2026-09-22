@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS users (
     role VARCHAR(50) DEFAULT 'resident',
     location VARCHAR(150),
     preferred_language VARCHAR(20) DEFAULT 'English',
+    is_volunteer BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

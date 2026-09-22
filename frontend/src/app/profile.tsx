@@ -1,5 +1,6 @@
 import { Redirect, useRouter, type Href } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
 
 import {
   AppIcon,
@@ -45,6 +46,7 @@ function ActionRow({
 export default function ProfileScreen() {
   const router = useRouter();
   const { isLoading, signOut, user } = useAuth();
+  const [isShining, setIsShining] = useState(false);
 
   if (!isLoading && !user) {
     return <Redirect href={'/auth/welcome' as Href} />;
@@ -61,6 +63,11 @@ export default function ProfileScreen() {
   const handleSignOut = async () => {
     await signOut();
     router.replace('/auth/welcome' as Href);
+  };
+
+  const handleVolunteerNow = () => {
+    setIsShining(true);
+    setTimeout(() => setIsShining(false), 500);
   };
 
   return (
@@ -84,6 +91,18 @@ export default function ProfileScreen() {
           </View>
         </View>
       </View>
+
+      {user.isVolunteer && (
+        <Pressable
+          onPress={handleVolunteerNow}
+          style={({ pressed }) => [
+            styles.volunteerNowButton,
+            isShining && styles.volunteerNowButtonShining,
+            pressed && styles.volunteerNowButtonPressed,
+          ]}>
+          <Text style={styles.volunteerNowButtonText}>Volunteer Now</Text>
+        </Pressable>
+      )}
 
       <SectionCard title="Personal Details">
         <InfoRow label="Full Name" value={user.fullName} />
@@ -210,5 +229,35 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.72,
+  },
+  volunteerNowButton: {
+    backgroundColor: '#8B0000',
+    borderRadius: 8,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  volunteerNowButtonShining: {
+    backgroundColor: '#FF0000',
+    shadowColor: '#FF0000',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 10,
+    elevation: 10,
+  },
+  volunteerNowButtonPressed: {
+    opacity: 0.8,
+  },
+  volunteerNowButtonText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '700',
+    lineHeight: 24,
   },
 });
