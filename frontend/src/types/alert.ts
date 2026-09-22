@@ -1,6 +1,17 @@
 export const alertRiskLevels = ['Low', 'Moderate', 'High', 'Critical'] as const;
-export const alertStatuses = ['Active', 'Expired', 'Resolved'] as const;
-export const alertDisasterTypes = ['Flood'] as const;
+export const alertStatuses = ['Active', 'Expired', 'Resolved', 'Cancelled'] as const;
+export const alertDisasterTypes = [
+  'Flood',
+  'Landslide',
+  'Cyclone',
+  'Severe Weather',
+  'Heavy Rain',
+  'Strong Winds / Storm',
+  'Tsunami',
+  'Drought',
+  'Earthquake',
+  'Fire',
+] as const;
 export const alertAuditActions = ['PUBLISHED', 'UPDATED', 'CANCELLED', 'EXPIRED', 'RESOLVED'] as const;
 export const alertAudiences = ['ALL', 'GENERAL_PUBLIC', 'SCHOOL_EMERGENCY'] as const;
 
@@ -47,7 +58,7 @@ export interface SchoolSelectionPayload {
 export interface Alert {
   id: number;
   title: string;
-  disasterType: AlertDisasterType;
+  disasterType: AlertDisasterType | string;
   affectedArea: string;
   alertAudience: AlertAudience;
   riskLevel: AlertRiskLevel;
@@ -69,6 +80,9 @@ export interface AlertAuditEvent {
   title: string;
   disasterType: AlertDisasterType | string;
   affectedArea: string;
+  alertCreatedAt: string;
+  currentStatus: AlertStatus | string | null;
+  expiresAt: string | null;
   previousStatus: AlertStatus | string | null;
   newStatus: AlertStatus | string | null;
   previousRiskLevel: AlertRiskLevel | string | null;
@@ -85,9 +99,36 @@ export interface AlertRiskHistoryPoint {
   timestamp: string;
 }
 
+export interface AlertAcknowledgementStatus {
+  acknowledged: boolean;
+  acknowledgedAt: string | null;
+}
+
+export interface AlertAcknowledgementSummary {
+  acknowledged: number;
+  acknowledgementRate: number | null;
+  lastAcknowledgedAt: string | null;
+  pending: number | null;
+  targetedResidents: number | null;
+}
+
+export interface AlertAcknowledgementResident {
+  acknowledged: boolean;
+  acknowledgedAt: string | null;
+  fullName: string;
+  id: number;
+  location: string | null;
+}
+
+export interface AlertAcknowledgementReport {
+  acknowledgedResidents: AlertAcknowledgementResident[];
+  pendingResidents: AlertAcknowledgementResident[];
+  summary: AlertAcknowledgementSummary;
+}
+
 export interface CreateAlertPayload {
   title: string;
-  disasterType: AlertDisasterType;
+  disasterType: string;
   affectedArea: string;
   alertAudience: AlertAudience;
   riskLevel: AlertRiskLevel;

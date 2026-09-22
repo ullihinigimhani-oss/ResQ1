@@ -132,13 +132,13 @@ const styles = StyleSheet.create({
   photoActionTitle: {
     color: colors.navy,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 20,
   },
   photoActionText: {
     color: colors.muted,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 17,
   },
   photoList: {
@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
   previewText: {
     color: colors.deepBlue,
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 21,
   },
   photoTextBlock: {
@@ -175,19 +175,19 @@ const styles = StyleSheet.create({
   photoTitle: {
     color: colors.navy,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 19,
   },
   photoMeta: {
     color: colors.muted,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 16,
   },
   mutedText: {
     color: colors.muted,
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 20,
   },
   pressed: {

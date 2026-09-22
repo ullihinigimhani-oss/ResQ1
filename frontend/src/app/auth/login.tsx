@@ -23,6 +23,7 @@ import {
 import { BrandColors } from '@/constants/brand';
 import { useAuth } from '@/context/auth-context';
 import { isAuthApiError, loginResident } from '@/services/authService';
+import { prefetchDashboardSummary } from '@/services/dashboardSummaryService';
 import type { FieldErrors } from '@/types/auth';
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -83,6 +84,7 @@ export default function LoginScreen() {
     try {
       const session = await loginResident(validation.payload);
       await completeLogin(session, remember);
+      void prefetchDashboardSummary(session.token, session.user);
       router.replace('/dashboard' as Href);
     } catch (error) {
       if (isAuthApiError(error)) {
@@ -102,7 +104,7 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="dark" />
+      <StatusBar style="auto" />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.keyboardView}>
@@ -209,14 +211,14 @@ const styles = StyleSheet.create({
   eyebrow: {
     color: BrandColors.red,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     textTransform: 'uppercase',
   },
   title: {
     color: BrandColors.navy,
-    fontSize: 36,
-    fontWeight: '900',
-    lineHeight: 42,
+    fontSize: 24,
+    fontWeight: '700',
+    lineHeight: 30,
   },
   subtitle: {
     color: BrandColors.muted,
@@ -236,7 +238,7 @@ const styles = StyleSheet.create({
   rememberText: {
     color: BrandColors.text,
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: '400',
   },
   checkbox: {
     alignItems: 'center',
@@ -248,13 +250,13 @@ const styles = StyleSheet.create({
     width: 22,
   },
   checkboxChecked: {
-    backgroundColor: BrandColors.deepBlue,
-    borderColor: BrandColors.deepBlue,
+    backgroundColor: BrandColors.accentAction,
+    borderColor: BrandColors.accentAction,
   },
   checkboxMark: {
-    color: BrandColors.white,
+    color: BrandColors.onPrimary,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 16,
   },
   actions: {

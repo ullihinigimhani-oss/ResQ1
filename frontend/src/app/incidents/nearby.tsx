@@ -149,14 +149,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.success,
   },
   mapLine: {
-    backgroundColor: colors.deepBlue,
+    backgroundColor: colors.accentAction,
     flex: 1,
     height: 4,
   },
   mapText: {
     color: colors.muted,
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 19,
   },
   filterRow: {
@@ -182,13 +182,13 @@ const styles = StyleSheet.create({
   incidentTitle: {
     color: colors.navy,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 20,
   },
   incidentMeta: {
     color: colors.muted,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 17,
   },
   pressed: {

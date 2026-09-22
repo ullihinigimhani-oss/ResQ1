@@ -2,7 +2,10 @@ import type { Request, Response } from 'express';
 
 import {
   AlertServiceError,
+  acknowledgeAlert,
   createAlert,
+  getAlertAcknowledgementReport,
+  getAlertAcknowledgementStatus,
   getActiveAlerts,
   getAlertHistory,
   getAlertById,
@@ -152,6 +155,67 @@ export async function getEmergencyAlertRiskHistory(req: Request, res: Response) 
     return res.status(200).json({
       success: true,
       riskHistory,
+    });
+  } catch (error) {
+    return sendAlertError(error, res);
+  }
+}
+
+export async function getEmergencyAlertAcknowledgement(req: Request, res: Response) {
+  try {
+    const user = requireAuthenticatedUser(req);
+    const alertId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+
+    if (!alertId) {
+      throw new AlertServiceError(400, 'Invalid alert id.');
+    }
+
+    const acknowledgement = await getAlertAcknowledgementStatus(alertId, user);
+
+    return res.status(200).json({
+      success: true,
+      acknowledgement,
+    });
+  } catch (error) {
+    return sendAlertError(error, res);
+  }
+}
+
+export async function acknowledgeEmergencyAlert(req: Request, res: Response) {
+  try {
+    const user = requireAuthenticatedUser(req);
+    const alertId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+
+    if (!alertId) {
+      throw new AlertServiceError(400, 'Invalid alert id.');
+    }
+
+    const acknowledgement = await acknowledgeAlert(alertId, user);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Emergency alert acknowledged successfully.',
+      acknowledgement,
+    });
+  } catch (error) {
+    return sendAlertError(error, res);
+  }
+}
+
+export async function getEmergencyAlertAcknowledgements(req: Request, res: Response) {
+  try {
+    requireAlertManager(req);
+    const alertId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+
+    if (!alertId) {
+      throw new AlertServiceError(400, 'Invalid alert id.');
+    }
+
+    const report = await getAlertAcknowledgementReport(alertId);
+
+    return res.status(200).json({
+      success: true,
+      report,
     });
   } catch (error) {
     return sendAlertError(error, res);

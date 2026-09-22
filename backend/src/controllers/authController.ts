@@ -4,7 +4,10 @@ import {
   AuthServiceError,
   loginResident,
   registerResident,
+  requestPasswordReset,
+  resetPassword,
   updateResidentProfile,
+  verifyResetOtp,
 } from '../services/authService.js';
 
 function sendErrorResponse(error: unknown, res: Response) {
@@ -47,6 +50,46 @@ export async function login(req: Request, res: Response) {
       message: 'Login successful.',
       user: result.user,
       token: result.token,
+    });
+  } catch (error) {
+    return sendErrorResponse(error, res);
+  }
+}
+
+export async function forgotPassword(req: Request, res: Response) {
+  try {
+    const result = await requestPasswordReset(req.body);
+
+    return res.status(200).json({
+      success: true,
+      message: result.message,
+    });
+  } catch (error) {
+    return sendErrorResponse(error, res);
+  }
+}
+
+export async function verifyPasswordResetOtp(req: Request, res: Response) {
+  try {
+    const result = await verifyResetOtp(req.body);
+
+    return res.status(200).json({
+      success: true,
+      message: result.message,
+      resetToken: result.resetToken,
+    });
+  } catch (error) {
+    return sendErrorResponse(error, res);
+  }
+}
+
+export async function resetAccountPassword(req: Request, res: Response) {
+  try {
+    const result = await resetPassword(req.body);
+
+    return res.status(200).json({
+      success: true,
+      message: result.message,
     });
   } catch (error) {
     return sendErrorResponse(error, res);

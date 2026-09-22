@@ -155,7 +155,7 @@ const styles = StyleSheet.create({
   },
   linkIcon: {
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: '400',
     textTransform: 'uppercase',
   },
   sectionsWrapper: {

@@ -150,7 +150,7 @@ export default function ShelterDetailsScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="dark" />
+      <StatusBar style="auto" />
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={
@@ -279,20 +279,20 @@ const styles = StyleSheet.create({
   eyebrow: {
     color: BrandColors.red,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 16,
     textTransform: 'uppercase',
   },
   title: {
     color: BrandColors.navy,
-    fontSize: 28,
-    fontWeight: '900',
-    lineHeight: 34,
+    fontSize: 24,
+    fontWeight: '700',
+    lineHeight: 30,
   },
   subtitle: {
     color: BrandColors.deepBlue,
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 21,
   },
   editButton: {
@@ -319,13 +319,13 @@ const styles = StyleSheet.create({
   shelterName: {
     color: BrandColors.navy,
     fontSize: 21,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 27,
   },
   shelterArea: {
     color: BrandColors.deepBlue,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 18,
     textTransform: 'uppercase',
   },
@@ -344,14 +344,14 @@ const styles = StyleSheet.create({
   summaryLabel: {
     color: BrandColors.muted,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 15,
     textTransform: 'uppercase',
   },
   summaryValue: {
     color: BrandColors.text,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 20,
     marginTop: 4,
   },
@@ -366,7 +366,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     color: BrandColors.navy,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 24,
   },
   detailRow: {
@@ -378,14 +378,14 @@ const styles = StyleSheet.create({
   detailLabel: {
     color: BrandColors.muted,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 16,
     textTransform: 'uppercase',
   },
   detailValue: {
     color: BrandColors.text,
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 21,
   },
   facilityGrid: {
@@ -404,7 +404,7 @@ const styles = StyleSheet.create({
   facilityText: {
     color: BrandColors.deepBlue,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 18,
   },
   facilityEmpty: {
@@ -417,7 +417,7 @@ const styles = StyleSheet.create({
   facilityEmptyText: {
     color: BrandColors.muted,
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 20,
   },
   centerState: {
@@ -435,7 +435,7 @@ const styles = StyleSheet.create({
   emptyTitle: {
     color: BrandColors.navy,
     fontSize: 20,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 26,
     textAlign: 'center',
   },

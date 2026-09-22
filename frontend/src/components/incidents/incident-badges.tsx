@@ -12,46 +12,56 @@ type TrackerStageState = 'completed' | 'current' | 'pending';
 const severityStyles: Record<IncidentSeverity, { backgroundColor: string; borderColor: string; color: string }> = {
   Low: {
     backgroundColor: BrandColors.lightBlue,
-    borderColor: BrandColors.blue,
+    borderColor: BrandColors.blueBorder,
     color: BrandColors.deepBlue,
   },
   Medium: {
     backgroundColor: BrandColors.warningSoft,
-    borderColor: '#D69E2E',
-    color: '#7A4B00',
+    borderColor: BrandColors.warningBorderStrong,
+    color: BrandColors.warningText,
   },
   High: {
     backgroundColor: BrandColors.redSoft,
-    borderColor: BrandColors.red,
+    borderColor: BrandColors.redBorder,
     color: BrandColors.red,
   },
   Critical: {
-    backgroundColor: BrandColors.red,
-    borderColor: BrandColors.red,
-    color: BrandColors.white,
+    backgroundColor: BrandColors.criticalBackground,
+    borderColor: BrandColors.criticalBorder,
+    color: BrandColors.criticalText,
   },
 };
 
 const statusStyles: Record<IncidentStatus, { backgroundColor: string; borderColor: string; color: string }> = {
   Reported: {
     backgroundColor: BrandColors.lightBlue,
-    borderColor: BrandColors.blue,
+    borderColor: BrandColors.blueBorder,
     color: BrandColors.deepBlue,
   },
   'Under Review': {
     backgroundColor: BrandColors.warningSoft,
-    borderColor: '#D69E2E',
-    color: '#7A4B00',
+    borderColor: BrandColors.warningBorderStrong,
+    color: BrandColors.warningText,
   },
   'In Progress': {
-    backgroundColor: '#E8F1FF',
-    borderColor: BrandColors.deepBlue,
+    backgroundColor: BrandColors.incidentSoft,
+    borderColor: BrandColors.accentAction,
     color: BrandColors.deepBlue,
   },
   Resolved: {
     backgroundColor: BrandColors.successSoft,
-    borderColor: BrandColors.success,
+    borderColor: BrandColors.successBorder,
     color: BrandColors.success,
+  },
+  Verified: {
+    backgroundColor: BrandColors.successSoft,
+    borderColor: BrandColors.successBorder,
+    color: BrandColors.success,
+  },
+  Rejected: {
+    backgroundColor: BrandColors.redSoft,
+    borderColor: BrandColors.redBorder,
+    color: BrandColors.red,
   },
 };
 
@@ -60,6 +70,8 @@ const statusDescriptions: Record<IncidentStatus, string> = {
   'Under Review': 'Authorities are reviewing the submitted information.',
   'In Progress': 'Emergency response action is underway.',
   Resolved: 'The incident has been marked as resolved.',
+  Verified: 'This incident has been verified by an authority.',
+  Rejected: 'This incident report has been rejected.',
 };
 
 export function SeverityBadge({ severity }: { severity: IncidentSeverity }) {
@@ -162,7 +174,7 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 16,
   },
   timeline: {
@@ -187,8 +199,8 @@ const styles = StyleSheet.create({
     width: 18,
   },
   timelineDotCompleted: {
-    backgroundColor: BrandColors.deepBlue,
-    borderColor: BrandColors.deepBlue,
+    backgroundColor: BrandColors.accentAction,
+    borderColor: BrandColors.accentAction,
   },
   timelineDotCurrent: {
     backgroundColor: BrandColors.white,
@@ -211,7 +223,7 @@ const styles = StyleSheet.create({
     width: 2,
   },
   timelineLineActive: {
-    backgroundColor: BrandColors.deepBlue,
+    backgroundColor: BrandColors.accentAction,
   },
   timelineTextBlock: {
     flex: 1,
@@ -226,7 +238,7 @@ const styles = StyleSheet.create({
   timelineTitle: {
     color: BrandColors.muted,
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 20,
   },
   timelineTitleActive: {
@@ -243,7 +255,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   timelineCopyPending: {
-    color: '#7A8798',
+    color: BrandColors.muted,
   },
   stageBadge: {
     borderRadius: 8,
@@ -265,7 +277,7 @@ const styles = StyleSheet.create({
   },
   stageBadgeText: {
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 14,
     textTransform: 'uppercase',
   },

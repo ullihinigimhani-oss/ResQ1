@@ -1,6 +1,8 @@
 import { API_BASE_URL } from '@/services/authService';
 import type {
   Alert,
+  AlertAcknowledgementReport,
+  AlertAcknowledgementStatus,
   AlertAuditEvent,
   AlertFieldErrors,
   AlertRiskHistoryPoint,
@@ -38,6 +40,16 @@ type ApiAlertHistoryResponse = ApiErrorBody & {
 type ApiAlertRiskHistoryResponse = ApiErrorBody & {
   success: boolean;
   riskHistory?: AlertRiskHistoryPoint[];
+};
+
+type ApiAlertAcknowledgementResponse = ApiErrorBody & {
+  acknowledgement?: AlertAcknowledgementStatus;
+  success: boolean;
+};
+
+type ApiAlertAcknowledgementReportResponse = ApiErrorBody & {
+  report?: AlertAcknowledgementReport;
+  success: boolean;
 };
 
 type ApiAlertPreferencesResponse = ApiErrorBody & {
@@ -162,6 +174,41 @@ export async function getAlertRiskHistory(id: string, token: string) {
   const response = await alertRequest<ApiAlertRiskHistoryResponse>(`/api/alerts/${id}/risk-history`, token);
 
   return response.riskHistory ?? [];
+}
+
+export async function getAlertAcknowledgement(id: string, token: string) {
+  const response = await alertRequest<ApiAlertAcknowledgementResponse>(`/api/alerts/${id}/acknowledgement`, token);
+
+  if (!response.acknowledgement) {
+    throw new AlertApiError(500, 'The server returned an unexpected response.');
+  }
+
+  return response.acknowledgement;
+}
+
+export async function acknowledgeAlert(id: string, token: string) {
+  const response = await alertRequest<ApiAlertAcknowledgementResponse>(`/api/alerts/${id}/acknowledge`, token, {
+    method: 'POST',
+  });
+
+  if (!response.acknowledgement) {
+    throw new AlertApiError(500, 'The server returned an unexpected response.');
+  }
+
+  return response.acknowledgement;
+}
+
+export async function getAlertAcknowledgementReport(id: string, token: string) {
+  const response = await alertRequest<ApiAlertAcknowledgementReportResponse>(
+    `/api/alerts/${id}/acknowledgements`,
+    token,
+  );
+
+  if (!response.report) {
+    throw new AlertApiError(500, 'The server returned an unexpected response.');
+  }
+
+  return response.report;
 }
 
 export async function getAlertPreferences(token: string) {

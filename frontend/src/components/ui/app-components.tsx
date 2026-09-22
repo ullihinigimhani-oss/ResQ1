@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import { type Href, usePathname, useRouter } from 'expo-router';
 import type { ReactNode } from 'react';
 import {
@@ -13,7 +14,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 
+import resq1Logo from '@/assets/images/resq1-logo.jfif';
 import { colors, radius, shadows, spacing, typography } from '@/constants/design';
+import { useAuth } from '@/context/auth-context';
+import { useAppTheme } from '@/context/theme-context';
+import { isAuthorityRole } from '@/utils/format';
 
 type SymbolName = string;
 
@@ -21,9 +26,9 @@ type Tone = 'navy' | 'blue' | 'red' | 'green' | 'amber' | 'muted';
 
 const toneStyles: Record<Tone, { backgroundColor: string; borderColor: string; color: string }> = {
   navy: {
-    backgroundColor: colors.navy,
-    borderColor: colors.navy,
-    color: colors.white,
+    backgroundColor: colors.primaryAction,
+    borderColor: colors.primaryAction,
+    color: colors.onPrimary,
   },
   blue: {
     backgroundColor: colors.lightBlue,
@@ -32,18 +37,18 @@ const toneStyles: Record<Tone, { backgroundColor: string; borderColor: string; c
   },
   red: {
     backgroundColor: colors.redSoft,
-    borderColor: colors.red,
+    borderColor: colors.redBorder,
     color: colors.red,
   },
   green: {
     backgroundColor: colors.successSoft,
-    borderColor: colors.success,
+    borderColor: colors.successBorder,
     color: colors.success,
   },
   amber: {
     backgroundColor: colors.amberSoft,
-    borderColor: colors.amber,
-    color: '#7A4B00',
+    borderColor: colors.warningBorder,
+    color: colors.amberText,
   },
   muted: {
     backgroundColor: colors.surfaceMuted,
@@ -77,6 +82,10 @@ export function AppIcon({
     return <ShelterIcon size={size} tintColor={tintColor} />;
   }
 
+  if (iconName.includes('flag')) {
+    return <FlagIcon size={size} tintColor={tintColor} />;
+  }
+
   if (iconName.includes('house')) {
     return <HomeIcon size={size} tintColor={tintColor} />;
   }
@@ -105,8 +114,36 @@ export function AppIcon({
     return <ClockIcon size={size} tintColor={tintColor} />;
   }
 
+  if (iconName.includes('arrow.down')) {
+    return <DownloadIcon size={size} tintColor={tintColor} />;
+  }
+
+  if (iconName.includes('bookmark')) {
+    return <BookmarkIcon size={size} tintColor={tintColor} />;
+  }
+
+  if (iconName.includes('gear')) {
+    return <GearIcon size={size} tintColor={tintColor} />;
+  }
+
+  if (iconName.includes('moon')) {
+    return <MoonIcon size={size} tintColor={tintColor} />;
+  }
+
+  if (iconName.includes('sun')) {
+    return <SunIcon size={size} tintColor={tintColor} />;
+  }
+
   if (iconName.includes('slider')) {
     return <SliderIcon size={size} tintColor={tintColor} />;
+  }
+
+  if (iconName.includes('pencil')) {
+    return <PencilIcon size={size} tintColor={tintColor} />;
+  }
+
+  if (iconName.includes('trash')) {
+    return <TrashIcon size={size} tintColor={tintColor} />;
   }
 
   return (
@@ -162,6 +199,15 @@ function ShelterIcon({ size, tintColor }: { size: number; tintColor: string }) {
       <View style={[styles.homeBase, { borderColor: tintColor }]} />
       <View style={[styles.shelterPole, { backgroundColor: tintColor }]} />
       <View style={[styles.shelterFlag, { borderColor: tintColor }]} />
+    </IconCanvas>
+  );
+}
+
+function FlagIcon({ size, tintColor }: { size: number; tintColor: string }) {
+  return (
+    <IconCanvas size={size}>
+      <View style={[styles.flagPole, { backgroundColor: tintColor }]} />
+      <View style={[styles.flagBanner, { backgroundColor: tintColor }]} />
     </IconCanvas>
   );
 }
@@ -224,6 +270,61 @@ function ClockIcon({ size, tintColor }: { size: number; tintColor: string }) {
   );
 }
 
+function DownloadIcon({ size, tintColor }: { size: number; tintColor: string }) {
+  return (
+    <IconCanvas size={size}>
+      <View style={[styles.downloadCircle, { borderColor: tintColor }]} />
+      <View style={[styles.downloadShaft, { backgroundColor: tintColor }]} />
+      <View style={[styles.downloadArrowLeft, { backgroundColor: tintColor }]} />
+      <View style={[styles.downloadArrowRight, { backgroundColor: tintColor }]} />
+    </IconCanvas>
+  );
+}
+
+function BookmarkIcon({ size, tintColor }: { size: number; tintColor: string }) {
+  return (
+    <IconCanvas size={size}>
+      <View style={[styles.bookmarkBody, { borderColor: tintColor }]} />
+      <View style={[styles.bookmarkPointLeft, { backgroundColor: tintColor }]} />
+      <View style={[styles.bookmarkPointRight, { backgroundColor: tintColor }]} />
+    </IconCanvas>
+  );
+}
+
+function GearIcon({ size, tintColor }: { size: number; tintColor: string }) {
+  return (
+    <IconCanvas size={size}>
+      <View style={[styles.gearToothVertical, { backgroundColor: tintColor }]} />
+      <View style={[styles.gearToothHorizontal, { backgroundColor: tintColor }]} />
+      <View style={[styles.gearToothDiagonalLeft, { backgroundColor: tintColor }]} />
+      <View style={[styles.gearToothDiagonalRight, { backgroundColor: tintColor }]} />
+      <View style={[styles.gearRing, { backgroundColor: colors.white, borderColor: tintColor }]} />
+      <View style={[styles.gearCenter, { borderColor: tintColor }]} />
+    </IconCanvas>
+  );
+}
+
+function MoonIcon({ size, tintColor }: { size: number; tintColor: string }) {
+  return (
+    <IconCanvas size={size}>
+      <View style={[styles.moonDisc, { borderColor: tintColor }]} />
+      <View style={styles.moonCutout} />
+    </IconCanvas>
+  );
+}
+
+function SunIcon({ size, tintColor }: { size: number; tintColor: string }) {
+  return (
+    <IconCanvas size={size}>
+      <View style={[styles.sunDisc, { borderColor: tintColor }]} />
+      <View style={[styles.sunRayVertical, { backgroundColor: tintColor }]} />
+      <View style={[styles.sunRayHorizontal, { backgroundColor: tintColor }]} />
+      <View style={[styles.sunRayDiagonalLeft, { backgroundColor: tintColor }]} />
+      <View style={[styles.sunRayDiagonalRight, { backgroundColor: tintColor }]} />
+    </IconCanvas>
+  );
+}
+
 function SliderIcon({ size, tintColor }: { size: number; tintColor: string }) {
   return (
     <IconCanvas size={size}>
@@ -233,6 +334,29 @@ function SliderIcon({ size, tintColor }: { size: number; tintColor: string }) {
       <View style={[styles.sliderKnobLeft, { borderColor: tintColor }]} />
       <View style={[styles.sliderKnobRight, { borderColor: tintColor }]} />
       <View style={[styles.sliderKnobCenter, { borderColor: tintColor }]} />
+    </IconCanvas>
+  );
+}
+
+function PencilIcon({ size, tintColor }: { size: number; tintColor: string }) {
+  return (
+    <IconCanvas size={size}>
+      <View style={[styles.pencilBody, { backgroundColor: tintColor }]} />
+      <View style={styles.pencilWood} />
+      <View style={styles.pencilLead} />
+      <View style={[styles.pencilEraser, { backgroundColor: tintColor }]} />
+    </IconCanvas>
+  );
+}
+
+function TrashIcon({ size, tintColor }: { size: number; tintColor: string }) {
+  return (
+    <IconCanvas size={size}>
+      <View style={[styles.trashLid, { backgroundColor: tintColor }]} />
+      <View style={[styles.trashHandle, { borderColor: tintColor }]} />
+      <View style={[styles.trashBody, { borderColor: tintColor }]} />
+      <View style={[styles.trashLineLeft, { backgroundColor: tintColor }]} />
+      <View style={[styles.trashLineRight, { backgroundColor: tintColor }]} />
     </IconCanvas>
   );
 }
@@ -248,9 +372,11 @@ export function ScreenContainer({
   scroll?: boolean;
   statusBar?: 'dark' | 'light';
 }) {
+  const { theme } = useAppTheme();
+
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar style={statusBar} />
+      <StatusBar style={statusBar === 'light' || theme === 'dark' ? 'light' : 'dark'} />
       {scroll ? (
         <ScrollView
           contentContainerStyle={[styles.content, bottomNav && styles.contentWithBottomNav]}
@@ -337,19 +463,15 @@ export function AppHeader({
 export function HomeHeader({
   greeting,
   onNotifications,
-  onProfile,
-  userName,
 }: {
   greeting: string;
   onNotifications: () => void;
-  onProfile: () => void;
-  userName: string;
 }) {
   return (
     <View style={styles.homeHeader}>
       <View style={styles.homeBrandBlock}>
         <View style={styles.wordmark}>
-          <Text style={styles.wordmarkText}>R1</Text>
+          <Image contentFit="contain" source={resq1Logo} style={styles.wordmarkLogo} />
         </View>
         <View style={styles.homeGreetingBlock}>
           <Text style={styles.wordmarkName}>ResQ1</Text>
@@ -363,13 +485,6 @@ export function HomeHeader({
           name="bell.fill"
           onPress={onNotifications}
         />
-        <Pressable
-          accessibilityLabel={`Open profile for ${userName}`}
-          accessibilityRole="button"
-          onPress={onProfile}
-          style={({ pressed }) => [styles.avatar, pressed && styles.pressed]}>
-          <AppIcon fallback="P" name="person.fill" size={22} tintColor={colors.navy} />
-        </Pressable>
       </View>
     </View>
   );
@@ -440,7 +555,7 @@ export function PrimaryButton({
         pressed && !inactive && styles.pressed,
       ]}>
       {loading ? (
-        <ActivityIndicator color={colors.white} />
+        <ActivityIndicator color={colors.onPrimary} />
       ) : (
         <Text style={styles.primaryButtonText}>{title}</Text>
       )}
@@ -477,11 +592,13 @@ export function IconButton({
   fallback,
   name,
   onPress,
+  size = 44,
 }: {
   accessibilityLabel: string;
   fallback: string;
   name: SymbolName;
   onPress: () => void;
+  size?: number;
 }) {
   return (
     <Pressable
@@ -489,8 +606,38 @@ export function IconButton({
       accessibilityRole="button"
       hitSlop={8}
       onPress={onPress}
-      style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}>
+      style={({ pressed }) => [
+        styles.iconButton,
+        { borderRadius: Math.min(radius.md, size / 2), height: size, width: size },
+        pressed && styles.pressed,
+      ]}>
       <AppIcon fallback={fallback} name={name} size={20} />
+    </Pressable>
+  );
+}
+
+export function ThemeToggleButton({ size = 44 }: { size?: number }) {
+  const { theme, toggleTheme } = useAppTheme();
+  const isDark = theme === 'dark';
+
+  return (
+    <Pressable
+      accessibilityHint={`Switch to ${isDark ? 'light' : 'dark'} mode`}
+      accessibilityLabel={`${isDark ? 'Light' : 'Dark'} mode`}
+      accessibilityRole="button"
+      hitSlop={8}
+      onPress={toggleTheme}
+      style={({ pressed }) => [
+        styles.iconButton,
+        { borderRadius: Math.min(radius.md, size / 2), height: size, width: size },
+        pressed && styles.pressed,
+      ]}>
+      <AppIcon
+        fallback={isDark ? 'S' : 'M'}
+        name={isDark ? 'sun.max.fill' : 'moon.fill'}
+        size={20}
+        tintColor={colors.deepBlue}
+      />
     </Pressable>
   );
 }
@@ -578,7 +725,7 @@ export function SearchBar({
       <AppIcon fallback="S" name="magnifyingglass" size={18} tintColor={colors.muted} />
       <TextInput
         placeholder={placeholder}
-        placeholderTextColor="#8B98A9"
+        placeholderTextColor={colors.placeholder}
         selectionColor={colors.blue}
         style={styles.searchInput}
         {...props}
@@ -686,7 +833,7 @@ export function DemoNotice({ text }: { text: string }) {
   );
 }
 
-const tabs = [
+const residentTabs = [
   {
     label: 'Home',
     route: '/dashboard' as Href,
@@ -697,7 +844,7 @@ const tabs = [
   {
     label: 'Alerts',
     route: '/alerts' as Href,
-    match: ['/alerts'],
+    match: ['/alerts', '/community-notifications'],
     icon: 'bell.fill' as SymbolName,
     fallback: 'A',
   },
@@ -718,7 +865,45 @@ const tabs = [
   {
     label: 'Profile',
     route: '/profile' as Href,
-    match: ['/profile', '/settings', '/household'],
+    match: ['/profile', '/settings', '/household', '/offline-safety'],
+    icon: 'person.fill' as SymbolName,
+    fallback: 'P',
+  },
+] as const;
+
+const authorityTabs = [
+  {
+    label: 'Dashboard',
+    route: '/dashboard' as Href,
+    match: ['/dashboard'],
+    icon: 'gauge.with.dots.needle.67percent' as SymbolName,
+    fallback: 'D',
+  },
+  {
+    label: 'Incidents',
+    route: '/incidents' as Href,
+    match: ['/incidents'],
+    icon: 'exclamationmark.triangle.fill' as SymbolName,
+    fallback: 'I',
+  },
+  {
+    label: 'Alerts',
+    route: '/alerts' as Href,
+    match: ['/alerts', '/community-notifications'],
+    icon: 'bell.fill' as SymbolName,
+    fallback: 'A',
+  },
+  {
+    label: 'Shelters',
+    route: '/shelters' as Href,
+    match: ['/shelters'],
+    icon: 'house.and.flag.fill' as SymbolName,
+    fallback: 'S',
+  },
+  {
+    label: 'Profile',
+    route: '/profile' as Href,
+    match: ['/profile', '/settings'],
     icon: 'person.fill' as SymbolName,
     fallback: 'P',
   },
@@ -727,6 +912,8 @@ const tabs = [
 export function BottomNavigation() {
   const pathname = usePathname();
   const router = useRouter();
+  const { user } = useAuth();
+  const tabs = isAuthorityRole(user?.role) ? authorityTabs : residentTabs;
 
   return (
     <View style={styles.bottomNav}>
@@ -738,13 +925,21 @@ export function BottomNavigation() {
             accessibilityRole="button"
             accessibilityState={{ selected: active }}
             key={tab.label}
-            onPress={() => router.replace(tab.route)}
-            style={({ pressed }) => [styles.tabButton, pressed && styles.pressed]}>
+            onPress={() => {
+              if (!active) {
+                router.replace(tab.route);
+              }
+            }}
+            style={({ pressed }) => [
+              styles.tabButton,
+              active && styles.tabButtonActive,
+              pressed && styles.pressed,
+            ]}>
             <AppIcon
               fallback={tab.fallback}
               name={tab.icon}
               size={20}
-              tintColor={active ? colors.red : colors.muted}
+              tintColor={active ? colors.navigationActive : colors.subtleText}
             />
             <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>{tab.label}</Text>
           </Pressable>
@@ -864,6 +1059,23 @@ const styles = StyleSheet.create({
     top: '18%',
     width: '26%',
   },
+  flagPole: {
+    borderRadius: 1,
+    height: '78%',
+    left: '20%',
+    position: 'absolute',
+    top: '12%',
+    width: 2,
+  },
+  flagBanner: {
+    borderBottomRightRadius: 3,
+    borderTopRightRadius: 3,
+    height: '46%',
+    left: '28%',
+    position: 'absolute',
+    top: '14%',
+    width: '58%',
+  },
   warningDiamond: {
     borderRadius: 3,
     borderWidth: 2,
@@ -873,7 +1085,7 @@ const styles = StyleSheet.create({
     width: '58%',
   },
   warningMark: {
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 18,
     position: 'absolute',
   },
@@ -988,6 +1200,156 @@ const styles = StyleSheet.create({
     top: '50%',
     width: '24%',
   },
+  downloadCircle: {
+    borderRadius: 999,
+    borderWidth: 2,
+    height: '82%',
+    position: 'absolute',
+    width: '82%',
+  },
+  downloadShaft: {
+    borderRadius: 2,
+    height: '38%',
+    position: 'absolute',
+    top: '20%',
+    width: 2,
+  },
+  downloadArrowLeft: {
+    borderRadius: 2,
+    height: 2,
+    left: '29%',
+    position: 'absolute',
+    top: '54%',
+    transform: [{ rotate: '45deg' }],
+    width: '24%',
+  },
+  downloadArrowRight: {
+    borderRadius: 2,
+    height: 2,
+    position: 'absolute',
+    right: '29%',
+    top: '54%',
+    transform: [{ rotate: '-45deg' }],
+    width: '24%',
+  },
+  bookmarkBody: {
+    borderBottomWidth: 0,
+    borderRadius: 3,
+    borderWidth: 2,
+    height: '70%',
+    position: 'absolute',
+    top: '12%',
+    width: '54%',
+  },
+  bookmarkPointLeft: {
+    borderRadius: 2,
+    bottom: '16%',
+    height: 2,
+    left: '26%',
+    position: 'absolute',
+    transform: [{ rotate: '38deg' }],
+    width: '30%',
+  },
+  bookmarkPointRight: {
+    borderRadius: 2,
+    bottom: '16%',
+    height: 2,
+    position: 'absolute',
+    right: '26%',
+    transform: [{ rotate: '-38deg' }],
+    width: '30%',
+  },
+  gearToothVertical: {
+    borderRadius: 2,
+    height: '100%',
+    position: 'absolute',
+    width: 3,
+  },
+  gearToothHorizontal: {
+    borderRadius: 2,
+    height: 3,
+    position: 'absolute',
+    width: '100%',
+  },
+  gearToothDiagonalLeft: {
+    borderRadius: 2,
+    height: 3,
+    position: 'absolute',
+    transform: [{ rotate: '45deg' }],
+    width: '92%',
+  },
+  gearToothDiagonalRight: {
+    borderRadius: 2,
+    height: 3,
+    position: 'absolute',
+    transform: [{ rotate: '-45deg' }],
+    width: '92%',
+  },
+  gearRing: {
+    borderRadius: 999,
+    borderWidth: 2,
+    height: '62%',
+    position: 'absolute',
+    width: '62%',
+  },
+  gearCenter: {
+    borderRadius: 999,
+    borderWidth: 2,
+    height: '22%',
+    position: 'absolute',
+    width: '22%',
+  },
+  moonDisc: {
+    borderRadius: 999,
+    borderWidth: 2,
+    height: '72%',
+    left: '12%',
+    position: 'absolute',
+    top: '14%',
+    width: '72%',
+  },
+  moonCutout: {
+    backgroundColor: colors.surface,
+    borderRadius: 999,
+    height: '62%',
+    position: 'absolute',
+    right: '2%',
+    top: '4%',
+    width: '62%',
+  },
+  sunDisc: {
+    borderRadius: 999,
+    borderWidth: 2,
+    height: '38%',
+    position: 'absolute',
+    width: '38%',
+  },
+  sunRayVertical: {
+    borderRadius: 2,
+    height: '100%',
+    position: 'absolute',
+    width: 2,
+  },
+  sunRayHorizontal: {
+    borderRadius: 2,
+    height: 2,
+    position: 'absolute',
+    width: '100%',
+  },
+  sunRayDiagonalLeft: {
+    borderRadius: 2,
+    height: 2,
+    position: 'absolute',
+    transform: [{ rotate: '45deg' }],
+    width: '88%',
+  },
+  sunRayDiagonalRight: {
+    borderRadius: 2,
+    height: 2,
+    position: 'absolute',
+    transform: [{ rotate: '-45deg' }],
+    width: '88%',
+  },
   sliderLineTop: {
     borderRadius: 1,
     height: 2,
@@ -1010,7 +1372,7 @@ const styles = StyleSheet.create({
     width: '78%',
   },
   sliderKnobLeft: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.onPrimary,
     borderRadius: 4,
     borderWidth: 2,
     height: 8,
@@ -1020,7 +1382,7 @@ const styles = StyleSheet.create({
     width: 8,
   },
   sliderKnobRight: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.onPrimary,
     borderRadius: 4,
     borderWidth: 2,
     height: 8,
@@ -1030,13 +1392,97 @@ const styles = StyleSheet.create({
     width: 8,
   },
   sliderKnobCenter: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.onPrimary,
     borderRadius: 4,
     borderWidth: 2,
     bottom: '18%',
     height: 8,
     position: 'absolute',
     width: 8,
+  },
+  pencilBody: {
+    borderRadius: 2,
+    height: 5,
+    left: '28%',
+    position: 'absolute',
+    top: '45%',
+    transform: [{ rotate: '-45deg' }],
+    width: '46%',
+  },
+  pencilWood: {
+    borderBottomColor: 'transparent',
+    borderBottomWidth: 3,
+    borderLeftColor: colors.goldAccent,
+    borderLeftWidth: 7,
+    borderTopColor: 'transparent',
+    borderTopWidth: 3,
+    position: 'absolute',
+    right: '18%',
+    top: '32%',
+    transform: [{ rotate: '-45deg' }],
+  },
+  pencilLead: {
+    borderBottomColor: 'transparent',
+    borderBottomWidth: 2,
+    borderLeftColor: colors.navy,
+    borderLeftWidth: 4,
+    borderTopColor: 'transparent',
+    borderTopWidth: 2,
+    position: 'absolute',
+    right: '14%',
+    top: '29%',
+    transform: [{ rotate: '-45deg' }],
+  },
+  pencilEraser: {
+    borderRadius: 1,
+    height: 5,
+    left: '20%',
+    position: 'absolute',
+    top: '62%',
+    transform: [{ rotate: '-45deg' }],
+    width: 6,
+  },
+  trashLid: {
+    borderRadius: 1,
+    height: 2,
+    position: 'absolute',
+    top: '22%',
+    width: '62%',
+  },
+  trashHandle: {
+    borderBottomWidth: 0,
+    borderRadius: 3,
+    borderWidth: 2,
+    height: '18%',
+    position: 'absolute',
+    top: '10%',
+    width: '28%',
+  },
+  trashBody: {
+    borderBottomLeftRadius: 4,
+    borderBottomRightRadius: 4,
+    borderTopWidth: 0,
+    borderWidth: 2,
+    bottom: '16%',
+    height: '54%',
+    position: 'absolute',
+    width: '52%',
+  },
+  trashLineLeft: {
+    borderRadius: 1,
+    height: '34%',
+    left: '40%',
+    position: 'absolute',
+    top: '40%',
+    width: 2,
+  },
+  trashLineRight: {
+    borderRadius: 1,
+    height: '34%',
+    position: 'absolute',
+    right: '40%',
+    top: '40%',
+    width: 2,
   },
   safeArea: {
     backgroundColor: colors.background,
@@ -1073,7 +1519,6 @@ const styles = StyleSheet.create({
   eyebrow: {
     color: colors.red,
     ...typography.label,
-    textTransform: 'uppercase',
   },
   title: {
     color: colors.navy,
@@ -1097,32 +1542,29 @@ const styles = StyleSheet.create({
   },
   wordmark: {
     alignItems: 'center',
-    backgroundColor: colors.navy,
+    backgroundColor: colors.white,
+    borderColor: colors.border,
     borderRadius: radius.md,
-    height: 42,
+    borderWidth: 1,
+    height: 44,
     justifyContent: 'center',
-    width: 42,
+    padding: 4,
+    width: 44,
   },
-  wordmarkText: {
-    color: colors.white,
-    fontSize: 14,
-    fontWeight: '900',
-    lineHeight: 18,
+  wordmarkLogo: {
+    height: '100%',
+    width: '100%',
   },
   wordmarkName: {
     color: colors.navy,
-    fontSize: 19,
-    fontWeight: '900',
-    lineHeight: 24,
+    ...typography.sectionTitle,
   },
   homeGreetingBlock: {
     flex: 1,
   },
   homeGreeting: {
     color: colors.muted,
-    fontSize: 13,
-    fontWeight: '800',
-    lineHeight: 18,
+    ...typography.supporting,
   },
   homeHeaderActions: {
     alignItems: 'center',
@@ -1142,7 +1584,7 @@ const styles = StyleSheet.create({
   avatarText: {
     color: colors.navy,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 18,
   },
   sectionCard: {
@@ -1155,8 +1597,8 @@ const styles = StyleSheet.create({
     ...shadows.card,
   },
   sectionCardNavy: {
-    backgroundColor: colors.navy,
-    borderColor: colors.deepBlue,
+    backgroundColor: colors.identitySurface,
+    borderColor: colors.identityBorder,
   },
   sectionCardBlue: {
     backgroundColor: colors.lightBlue,
@@ -1164,7 +1606,7 @@ const styles = StyleSheet.create({
   },
   sectionCardDanger: {
     backgroundColor: colors.redSoft,
-    borderColor: colors.red,
+    borderColor: colors.redBorder,
   },
   sectionHeader: {
     gap: spacing.xs,
@@ -1174,33 +1616,29 @@ const styles = StyleSheet.create({
     ...typography.sectionTitle,
   },
   sectionTitleOnDark: {
-    color: colors.white,
+    color: colors.onPrimary,
   },
   sectionSubtitle: {
     color: colors.muted,
-    fontSize: 14,
-    fontWeight: '600',
-    lineHeight: 20,
+    ...typography.supporting,
   },
   sectionSubtitleOnDark: {
-    color: colors.sky,
+    color: colors.onPrimaryMuted,
   },
   primaryButton: {
     alignItems: 'center',
-    backgroundColor: colors.navy,
+    backgroundColor: colors.primaryAction,
     borderRadius: radius.md,
     justifyContent: 'center',
-    minHeight: 50,
+    minHeight: 48,
     paddingHorizontal: spacing.lg,
   },
   primaryButtonRed: {
-    backgroundColor: colors.red,
+    backgroundColor: colors.redAction,
   },
   primaryButtonText: {
-    color: colors.white,
-    fontSize: 15,
-    fontWeight: '900',
-    lineHeight: 20,
+    color: colors.onPrimary,
+    ...typography.button,
     textAlign: 'center',
   },
   secondaryButton: {
@@ -1210,14 +1648,12 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     borderWidth: 1,
     justifyContent: 'center',
-    minHeight: 48,
+    minHeight: 46,
     paddingHorizontal: spacing.lg,
   },
   secondaryButtonText: {
     color: colors.deepBlue,
-    fontSize: 14,
-    fontWeight: '900',
-    lineHeight: 19,
+    ...typography.button,
     textAlign: 'center',
   },
   iconButton: {
@@ -1231,9 +1667,8 @@ const styles = StyleSheet.create({
     width: 44,
   },
   iconFallback: {
+    ...typography.label,
     fontSize: 12,
-    fontWeight: '900',
-    lineHeight: 16,
   },
   quickAction: {
     alignItems: 'flex-start',
@@ -1260,14 +1695,12 @@ const styles = StyleSheet.create({
   },
   quickTitle: {
     color: colors.navy,
-    fontSize: 15,
-    fontWeight: '900',
-    lineHeight: 20,
+    ...typography.cardTitle,
   },
   quickBody: {
     color: colors.muted,
+    ...typography.supporting,
     fontSize: 12,
-    fontWeight: '700',
     lineHeight: 17,
   },
   infoRow: {
@@ -1279,30 +1712,29 @@ const styles = StyleSheet.create({
   infoLabel: {
     color: colors.muted,
     ...typography.label,
-    textTransform: 'uppercase',
   },
   infoValue: {
     color: colors.text,
-    fontSize: 15,
-    fontWeight: '800',
-    lineHeight: 21,
+    ...typography.cardTitle,
+    fontSize: 14,
+    lineHeight: 20,
   },
   statusBadge: {
     alignSelf: 'flex-start',
     borderRadius: radius.md,
     borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
   },
   statusBadgeText: {
+    ...typography.label,
     fontSize: 11,
-    fontWeight: '900',
-    lineHeight: 15,
+    lineHeight: 14,
     textTransform: 'uppercase',
   },
   searchShell: {
     alignItems: 'center',
-    backgroundColor: colors.white,
+    backgroundColor: colors.controlSurface,
     borderColor: colors.border,
     borderRadius: radius.md,
     borderWidth: 1,
@@ -1314,8 +1746,7 @@ const styles = StyleSheet.create({
   searchInput: {
     color: colors.text,
     flex: 1,
-    fontSize: 15,
-    fontWeight: '700',
+    ...typography.body,
     minHeight: 46,
   },
   filterChip: {
@@ -1329,17 +1760,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   filterChipSelected: {
-    backgroundColor: colors.navy,
-    borderColor: colors.navy,
+    backgroundColor: colors.primaryAction,
+    borderColor: colors.primaryAction,
   },
   filterChipText: {
     color: colors.deepBlue,
-    fontSize: 13,
-    fontWeight: '900',
-    lineHeight: 17,
+    ...typography.supporting,
+    fontWeight: '600',
   },
   filterChipTextSelected: {
-    color: colors.white,
+    color: colors.onPrimary,
   },
   toggleRow: {
     alignItems: 'center',
@@ -1357,14 +1787,13 @@ const styles = StyleSheet.create({
   },
   toggleTitle: {
     color: colors.text,
-    fontSize: 15,
-    fontWeight: '800',
-    lineHeight: 21,
+    ...typography.cardTitle,
+    fontSize: 14,
   },
   toggleSubtitle: {
     color: colors.muted,
+    ...typography.supporting,
     fontSize: 12,
-    fontWeight: '700',
     lineHeight: 17,
   },
   toggleTrack: {
@@ -1378,14 +1807,14 @@ const styles = StyleSheet.create({
     width: 50,
   },
   toggleTrackOn: {
-    backgroundColor: colors.success,
-    borderColor: colors.success,
+    backgroundColor: colors.successBorder,
+    borderColor: colors.successBorder,
   },
   toggleLocked: {
     opacity: 0.75,
   },
   toggleKnob: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.onPrimary,
     borderRadius: 10,
     height: 20,
     width: 20,
@@ -1405,7 +1834,7 @@ const styles = StyleSheet.create({
   },
   segmentedOption: {
     alignItems: 'center',
-    backgroundColor: colors.lightBlue,
+    backgroundColor: colors.controlSurfaceSubtle,
     borderColor: colors.border,
     borderRadius: radius.md,
     borderWidth: 1,
@@ -1416,21 +1845,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   segmentedOptionSelected: {
-    backgroundColor: colors.navy,
-    borderColor: colors.navy,
+    backgroundColor: colors.primaryAction,
+    borderColor: colors.primaryAction,
   },
   segmentedText: {
     color: colors.deepBlue,
-    fontSize: 13,
-    fontWeight: '900',
-    lineHeight: 17,
+    ...typography.supporting,
+    fontWeight: '600',
   },
   segmentedTextSelected: {
-    color: colors.white,
+    color: colors.onPrimary,
   },
   demoNotice: {
     backgroundColor: colors.amberSoft,
-    borderColor: colors.amber,
+    borderColor: colors.warningBorder,
     borderRadius: radius.md,
     borderWidth: 1,
     gap: spacing.sm,
@@ -1438,9 +1866,7 @@ const styles = StyleSheet.create({
   },
   demoNoticeText: {
     color: colors.text,
-    fontSize: 13,
-    fontWeight: '700',
-    lineHeight: 19,
+    ...typography.supporting,
   },
   centerState: {
     alignItems: 'center',
@@ -1455,9 +1881,7 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     color: colors.navy,
-    fontSize: 20,
-    fontWeight: '900',
-    lineHeight: 26,
+    ...typography.sectionTitle,
     textAlign: 'center',
   },
   stateText: {
@@ -1489,14 +1913,17 @@ const styles = StyleSheet.create({
     minHeight: 54,
     paddingHorizontal: 2,
   },
+  tabButtonActive: {
+    backgroundColor: colors.primaryMuted,
+  },
   tabLabel: {
-    color: colors.muted,
+    color: colors.subtleText,
+    ...typography.label,
     fontSize: 10,
-    fontWeight: '900',
     lineHeight: 13,
   },
   tabLabelActive: {
-    color: colors.red,
+    color: colors.navigationActive,
   },
   disabled: {
     opacity: 0.6,

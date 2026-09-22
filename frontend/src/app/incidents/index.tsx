@@ -134,10 +134,16 @@ export default function MyIncidentsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const submitted = firstParam(params.submitted) === '1';
-  const successMessage = useMemo(
-    () => submitted ? 'Incident report submitted successfully.' : null,
-    [submitted],
-  );
+  const photoUploadFailed = firstParam(params.photoUploadFailed) === '1';
+  const successMessage = useMemo(() => {
+    if (!submitted) {
+      return null;
+    }
+
+    return photoUploadFailed
+      ? 'Incident report submitted, but some photo evidence could not be uploaded.'
+      : 'Incident report submitted successfully.';
+  }, [photoUploadFailed, submitted]);
 
   const loadIncidents = useCallback(async (refresh = false) => {
     if (!token) {
@@ -193,7 +199,7 @@ export default function MyIncidentsScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="dark" />
+      <StatusBar style="auto" />
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={
@@ -209,7 +215,7 @@ export default function MyIncidentsScreen() {
         <View style={styles.header}>
           <Text style={styles.eyebrow}>Resident Response Tracking</Text>
           <Text style={styles.title}>Report Center</Text>
-          <Text style={styles.subtitle}>Submit a new incident or track the response status of your existing reports.</Text>
+          <Text style={styles.subtitle}>Review your submitted reports and response progress.</Text>
         </View>
 
         <View style={styles.reportActions}>
@@ -237,7 +243,7 @@ export default function MyIncidentsScreen() {
           />
         </View>
 
-        {successMessage ? <StatusBanner message={successMessage} type="success" /> : null}
+        {successMessage ? <StatusBanner message={successMessage} type={photoUploadFailed ? 'error' : 'success'} /> : null}
         {errorMessage && incidents.length > 0 ? <StatusBanner message={errorMessage} type="error" /> : null}
 
         {showInitialLoading ? (
@@ -319,14 +325,14 @@ const styles = StyleSheet.create({
   eyebrow: {
     color: BrandColors.red,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     textTransform: 'uppercase',
   },
   title: {
     color: BrandColors.navy,
-    fontSize: 32,
-    fontWeight: '900',
-    lineHeight: 38,
+    fontSize: 24,
+    fontWeight: '700',
+    lineHeight: 30,
   },
   subtitle: {
     color: BrandColors.muted,
@@ -370,19 +376,19 @@ const styles = StyleSheet.create({
   reportActionTitle: {
     color: BrandColors.navy,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 20,
   },
   reportActionBody: {
     color: BrandColors.muted,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 17,
   },
   reportActionArrow: {
     color: BrandColors.deepBlue,
     fontSize: 20,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 24,
   },
   list: {
@@ -395,13 +401,13 @@ const styles = StyleSheet.create({
   listTitle: {
     color: BrandColors.navy,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 24,
   },
   listMeta: {
     color: BrandColors.muted,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 17,
     textTransform: 'uppercase',
   },
@@ -419,13 +425,13 @@ const styles = StyleSheet.create({
   cardTitle: {
     color: BrandColors.navy,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 24,
   },
   cardMeta: {
     color: BrandColors.muted,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 18,
     textTransform: 'uppercase',
   },
@@ -443,13 +449,13 @@ const styles = StyleSheet.create({
   cardLabel: {
     color: BrandColors.muted,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
     textTransform: 'uppercase',
   },
   cardValue: {
     color: BrandColors.text,
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 21,
   },
   badgeSection: {
@@ -464,7 +470,7 @@ const styles = StyleSheet.create({
   badgeLabel: {
     color: BrandColors.muted,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 14,
     textTransform: 'uppercase',
   },
@@ -477,14 +483,14 @@ const styles = StyleSheet.create({
   submittedText: {
     color: BrandColors.text,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 17,
     marginTop: 3,
   },
   cardArrow: {
     color: BrandColors.deepBlue,
     fontSize: 24,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 28,
   },
   centerState: {
@@ -502,7 +508,7 @@ const styles = StyleSheet.create({
   emptyTitle: {
     color: BrandColors.navy,
     fontSize: 20,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 26,
     textAlign: 'center',
   },

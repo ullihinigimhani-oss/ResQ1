@@ -1,6 +1,7 @@
 import { Platform, StyleSheet, Text, type TextProps } from 'react-native';
 
 import { Fonts, ThemeColor } from '@/constants/theme';
+import { BrandColors } from '@/constants/brand';
 import { useTheme } from '@/hooks/use-theme';
 
 export type ThemedTextProps = TextProps & {
@@ -42,18 +43,18 @@ const styles = StyleSheet.create({
     fontWeight: 700,
   },
   default: {
-    fontSize: 16,
-    lineHeight: 24,
-    fontWeight: 500,
+    fontSize: 14,
+    lineHeight: 21,
+    fontWeight: 400,
   },
   title: {
-    fontSize: 48,
-    fontWeight: 600,
-    lineHeight: 52,
+    fontSize: 24,
+    fontWeight: 700,
+    lineHeight: 30,
   },
   subtitle: {
-    fontSize: 32,
-    lineHeight: 44,
+    fontSize: 18,
+    lineHeight: 24,
     fontWeight: 600,
   },
   link: {
@@ -63,7 +64,7 @@ const styles = StyleSheet.create({
   linkPrimary: {
     lineHeight: 30,
     fontSize: 14,
-    color: '#3c87f7',
+    color: BrandColors.blue,
   },
   code: {
     fontFamily: Fonts.mono,

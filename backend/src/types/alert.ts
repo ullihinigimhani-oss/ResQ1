@@ -1,6 +1,17 @@
 export const alertRiskLevels = ['Low', 'Moderate', 'High', 'Critical'] as const;
-export const alertStatuses = ['Active', 'Expired', 'Resolved'] as const;
-export const alertDisasterTypes = ['Flood'] as const;
+export const alertStatuses = ['Active', 'Expired', 'Resolved', 'Cancelled'] as const;
+export const alertDisasterTypes = [
+  'Flood',
+  'Landslide',
+  'Cyclone',
+  'Severe Weather',
+  'Heavy Rain',
+  'Strong Winds / Storm',
+  'Tsunami',
+  'Drought',
+  'Earthquake',
+  'Fire',
+] as const;
 export const alertAuditActions = ['PUBLISHED', 'UPDATED', 'CANCELLED', 'EXPIRED', 'RESOLVED'] as const;
 export const alertAudiences = ['ALL', 'GENERAL_PUBLIC', 'SCHOOL_EMERGENCY'] as const;
 
@@ -95,12 +106,15 @@ export interface AlertAuditRow {
   id: number;
   alert_id: number;
   action: AlertAuditAction | string;
+  alert_created_at: Date | string;
+  alert_status: AlertStatus | string | null;
   previous_status: AlertStatus | string | null;
   new_status: AlertStatus | string | null;
   previous_risk_level: AlertRiskLevel | string | null;
   new_risk_level: AlertRiskLevel | string | null;
   changed_by: number | null;
   created_at: Date | string;
+  expires_at: Date | string | null;
   title: string;
   disaster_type: AlertDisasterType | string;
   affected_area: string;
@@ -113,6 +127,9 @@ export interface AlertAuditEvent {
   title: string;
   disasterType: AlertDisasterType | string;
   affectedArea: string;
+  alertCreatedAt: string;
+  currentStatus: AlertStatus | string | null;
+  expiresAt: string | null;
   previousStatus: AlertStatus | string | null;
   newStatus: AlertStatus | string | null;
   previousRiskLevel: AlertRiskLevel | string | null;
@@ -137,9 +154,44 @@ export interface AlertRiskHistoryPoint {
   timestamp: string;
 }
 
+export interface AlertAcknowledgementRow {
+  acknowledged_at: Date | string;
+  alert_id: number;
+  id: number;
+  user_id: number;
+}
+
+export interface AlertAcknowledgementStatus {
+  acknowledged: boolean;
+  acknowledgedAt: string | null;
+}
+
+export interface AlertAcknowledgementSummary {
+  acknowledged: number;
+  acknowledgementRate: number | null;
+  lastAcknowledgedAt: string | null;
+  pending: number | null;
+  targetedResidents: number | null;
+}
+
+export interface AlertAcknowledgementResident {
+  acknowledged: boolean;
+  acknowledgedAt: string | null;
+  fullName: string;
+  id: number;
+  location: string | null;
+}
+
+export interface AlertAcknowledgementReport {
+  acknowledgedResidents: AlertAcknowledgementResident[];
+  pendingResidents: AlertAcknowledgementResident[];
+  summary: AlertAcknowledgementSummary;
+}
+
 export interface CreateAlertInput {
   title?: unknown;
   disasterType?: unknown;
+  disaster_type?: unknown;
   affectedArea?: unknown;
   alertAudience?: unknown;
   riskLevel?: unknown;
@@ -157,7 +209,7 @@ export interface UpdateAlertInput extends CreateAlertInput {
 
 export interface ValidatedCreateAlertInput {
   title: string;
-  disasterType: AlertDisasterType;
+  disasterType: string;
   affectedArea: string;
   alertAudience: AlertAudience;
   riskLevel: AlertRiskLevel;

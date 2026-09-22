@@ -2,8 +2,8 @@ import { Redirect, useRouter, type Href } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import {
+  AppIcon,
   AppHeader,
-  DemoNotice,
   InfoRow,
   LoadingState,
   PrimaryButton,
@@ -13,13 +13,15 @@ import {
 } from '@/components/ui/app-components';
 import { colors, radius, spacing } from '@/constants/design';
 import { useAuth } from '@/context/auth-context';
-import { formatRole, initials } from '@/utils/format';
+import { formatRole, initials, isAuthorityRole } from '@/utils/format';
 
 function ActionRow({
+  icon,
   label,
   onPress,
   status,
 }: {
+  icon?: string;
   label: string;
   onPress: () => void;
   status?: string;
@@ -29,6 +31,11 @@ function ActionRow({
       accessibilityRole="button"
       onPress={onPress}
       style={({ pressed }) => [styles.actionRow, pressed && styles.pressed]}>
+      {icon ? (
+        <View style={styles.actionIcon}>
+          <AppIcon fallback="D" name={icon} size={18} tintColor={colors.deepBlue} />
+        </View>
+      ) : null}
       <Text style={styles.actionLabel}>{label}</Text>
       {status ? <StatusBadge label={status} tone="amber" /> : <Text style={styles.actionArrow}>{'>'}</Text>}
     </Pressable>
@@ -98,10 +105,20 @@ export default function ProfileScreen() {
         />
         <ActionRow
           label="Household Information"
-          status="Demo"
           onPress={() => router.push('/household' as Href)}
         />
+        <ActionRow
+          label="Emergency Contacts"
+          onPress={() => router.push('/emergency-contacts' as Href)}
+        />
         <ActionRow label="Settings" onPress={() => router.push('/settings' as Href)} />
+        {!isAuthorityRole(user.role) ? (
+          <ActionRow
+            icon="arrow.down.circle.fill"
+            label="Offline Safety Instructions"
+            onPress={() => router.push('/offline-safety' as Href)}
+          />
+        ) : null}
       </SectionCard>
 
       <PrimaryButton title="Sign Out" tone="red" onPress={handleSignOut} />
@@ -112,8 +129,8 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   identityPanel: {
     alignItems: 'center',
-    backgroundColor: colors.navy,
-    borderColor: colors.deepBlue,
+    backgroundColor: colors.identitySurface,
+    borderColor: colors.identityBorder,
     borderRadius: radius.md,
     borderWidth: 1,
     flexDirection: 'row',
@@ -133,7 +150,7 @@ const styles = StyleSheet.create({
   avatarText: {
     color: colors.navy,
     fontSize: 20,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 25,
   },
   identityBlock: {
@@ -141,15 +158,15 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   name: {
-    color: colors.white,
+    color: colors.onPrimary,
     fontSize: 21,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 27,
   },
   email: {
-    color: colors.sky,
+    color: colors.onPrimaryMuted,
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 20,
   },
   identityBadges: {
@@ -172,13 +189,23 @@ const styles = StyleSheet.create({
     color: colors.text,
     flex: 1,
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 21,
+  },
+  actionIcon: {
+    alignItems: 'center',
+    backgroundColor: colors.lightBlue,
+    borderColor: colors.sky,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    height: 36,
+    justifyContent: 'center',
+    width: 36,
   },
   actionArrow: {
     color: colors.deepBlue,
     fontSize: 22,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 26,
   },
   pressed: {

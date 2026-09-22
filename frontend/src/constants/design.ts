@@ -4,16 +4,23 @@ import { BrandColors } from '@/constants/brand';
 
 export const colors = {
   ...BrandColors,
-  amber: '#B7791F',
-  amberSoft: '#FFF7DF',
-  orange: '#EA580C',
-  orangeSoft: '#FFF1E6',
+  amber: BrandColors.warning,
+  amberSoft: Platform.OS === 'web' ? 'var(--resq1-amber-soft, #FFF7DF)' : '#FFF7DF',
+  amberText: BrandColors.warningText,
+  amberStrong: BrandColors.warningStrong,
+  amberEmphasis: BrandColors.warningEmphasis,
+  orange: BrandColors.orange,
+  orangeSoft: BrandColors.orangeSoft,
+  orangeText: BrandColors.orangeText,
+  dangerText: BrandColors.dangerText,
+  cautionSoft: BrandColors.cautionSoft,
+  dangerSoft: BrandColors.dangerSoft,
   green: BrandColors.success,
   greenSoft: BrandColors.successSoft,
-  slate: '#24344D',
-  surface: BrandColors.white,
+  slate: Platform.OS === 'web' ? 'var(--resq1-slate, #24344D)' : '#24344D',
+  surface: BrandColors.surface,
   surfaceBlue: BrandColors.lightBlue,
-  surfaceMuted: '#EEF4FA',
+  surfaceMuted: BrandColors.surfaceMuted,
   line: BrandColors.border,
   textMuted: BrandColors.muted,
   textStrong: BrandColors.text,
@@ -35,30 +42,60 @@ export const radius = {
   md: 8,
 } as const;
 
+export const fontFamilies = {
+  regular: 'Inter_400Regular',
+  medium: 'Inter_500Medium',
+  semibold: 'Inter_600SemiBold',
+  bold: 'Inter_700Bold',
+} as const;
+
 export const typography = {
   hero: {
-    fontSize: 34,
-    fontWeight: '900' as const,
-    lineHeight: 40,
-  },
-  title: {
+    fontFamily: fontFamilies.bold,
     fontSize: 28,
-    fontWeight: '900' as const,
+    fontWeight: '700' as const,
     lineHeight: 34,
   },
+  title: {
+    fontFamily: fontFamilies.bold,
+    fontSize: 24,
+    fontWeight: '700' as const,
+    lineHeight: 30,
+  },
   sectionTitle: {
+    fontFamily: fontFamilies.semibold,
     fontSize: 18,
-    fontWeight: '900' as const,
+    fontWeight: '600' as const,
     lineHeight: 24,
   },
-  body: {
+  cardTitle: {
+    fontFamily: fontFamilies.semibold,
     fontSize: 15,
     fontWeight: '600' as const,
-    lineHeight: 22,
+    lineHeight: 20,
+  },
+  body: {
+    fontFamily: fontFamilies.regular,
+    fontSize: 14,
+    fontWeight: '400' as const,
+    lineHeight: 21,
+  },
+  supporting: {
+    fontFamily: fontFamilies.regular,
+    fontSize: 13,
+    fontWeight: '400' as const,
+    lineHeight: 18,
+  },
+  button: {
+    fontFamily: fontFamilies.semibold,
+    fontSize: 14,
+    fontWeight: '600' as const,
+    lineHeight: 19,
   },
   label: {
+    fontFamily: fontFamilies.semibold,
     fontSize: 12,
-    fontWeight: '900' as const,
+    fontWeight: '600' as const,
     lineHeight: 16,
   },
 } as const;
@@ -66,14 +103,14 @@ export const typography = {
 export const shadows = {
   card: Platform.select({
     web: {
-      boxShadow: '0px 10px 24px rgba(7, 26, 53, 0.08)',
+      boxShadow: `0px 2px 8px ${BrandColors.cardShadow}`,
     },
     default: {
-      elevation: 2,
+      elevation: 1,
       shadowColor: colors.navy,
-      shadowOffset: { width: 0, height: 6 },
-      shadowOpacity: 0.08,
-      shadowRadius: 12,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.05,
+      shadowRadius: 5,
     },
   }),
 } as const;

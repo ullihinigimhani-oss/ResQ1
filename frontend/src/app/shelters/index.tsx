@@ -217,7 +217,7 @@ export default function NearbySheltersScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="dark" />
+      <StatusBar style="auto" />
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={
@@ -252,7 +252,7 @@ export default function NearbySheltersScreen() {
             accessibilityLabel="Search shelters"
             autoCapitalize="words"
             placeholder="Search shelters"
-            placeholderTextColor="#8B98A9"
+            placeholderTextColor={BrandColors.placeholder}
             returnKeyType="search"
             selectionColor={BrandColors.blue}
             style={styles.searchInput}
@@ -344,15 +344,15 @@ const styles = StyleSheet.create({
   eyebrow: {
     color: BrandColors.red,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 16,
     textTransform: 'uppercase',
   },
   title: {
     color: BrandColors.navy,
-    fontSize: 28,
-    fontWeight: '900',
-    lineHeight: 34,
+    fontSize: 24,
+    fontWeight: '700',
+    lineHeight: 30,
   },
   subtitle: {
     color: BrandColors.muted,
@@ -364,7 +364,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   emergencyButton: {
-    backgroundColor: BrandColors.red,
+    backgroundColor: BrandColors.redAction,
     marginTop: 4,
   },
   searchPanel: {
@@ -376,13 +376,13 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   searchInput: {
-    backgroundColor: BrandColors.background,
+    backgroundColor: BrandColors.controlSurfaceSubtle,
     borderColor: BrandColors.border,
     borderRadius: 8,
     borderWidth: 1,
     color: BrandColors.text,
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: '400',
     minHeight: 48,
     paddingHorizontal: 12,
   },
@@ -402,17 +402,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   filterChipSelected: {
-    backgroundColor: BrandColors.navy,
-    borderColor: BrandColors.navy,
+    backgroundColor: BrandColors.primaryAction,
+    borderColor: BrandColors.primaryAction,
   },
   filterText: {
     color: BrandColors.deepBlue,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 17,
   },
   filterTextSelected: {
-    color: BrandColors.white,
+    color: BrandColors.onPrimary,
   },
   list: {
     gap: 14,
@@ -445,27 +445,27 @@ const styles = StyleSheet.create({
   cardTitle: {
     color: BrandColors.navy,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 24,
   },
   cardArea: {
     color: BrandColors.deepBlue,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 18,
     textTransform: 'uppercase',
   },
   areaMatchBadge: {
     alignSelf: 'flex-start',
-    backgroundColor: BrandColors.navy,
+    backgroundColor: BrandColors.primaryAction,
     borderRadius: 8,
     paddingHorizontal: 9,
     paddingVertical: 5,
   },
   areaMatchText: {
-    color: BrandColors.white,
+    color: BrandColors.onPrimary,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 15,
   },
   metricGrid: {
@@ -484,14 +484,14 @@ const styles = StyleSheet.create({
   metricLabel: {
     color: BrandColors.muted,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 15,
     textTransform: 'uppercase',
   },
   metricValue: {
     color: BrandColors.text,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 20,
   },
   cardButtonRow: {
@@ -501,7 +501,7 @@ const styles = StyleSheet.create({
   },
   cardButton: {
     alignItems: 'center',
-    backgroundColor: BrandColors.navy,
+    backgroundColor: BrandColors.primaryAction,
     borderRadius: 8,
     flex: 1,
     justifyContent: 'center',
@@ -509,14 +509,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   cardButtonText: {
-    color: BrandColors.white,
+    color: BrandColors.onPrimary,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 17,
   },
   callButton: {
     alignItems: 'center',
-    backgroundColor: BrandColors.success,
+    backgroundColor: BrandColors.successBorder,
     borderRadius: 20,
     height: 40,
     justifyContent: 'center',
@@ -540,7 +540,7 @@ const styles = StyleSheet.create({
   emptyTitle: {
     color: BrandColors.navy,
     fontSize: 20,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 26,
     textAlign: 'center',
   },

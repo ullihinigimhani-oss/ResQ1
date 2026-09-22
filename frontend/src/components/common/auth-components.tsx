@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -31,6 +32,13 @@ type AuthButtonProps = {
 
 const languageOptions: PreferredLanguage[] = ['English', 'Sinhala', 'Tamil'];
 
+function handlePressBlur(callback?: () => void) {
+  if (Platform.OS === 'web' && typeof document !== 'undefined') {
+    (document.activeElement as HTMLElement)?.blur?.();
+  }
+  callback?.();
+}
+
 export function AuthTextField({
   label,
   error,
@@ -43,7 +51,7 @@ export function AuthTextField({
       <Text style={styles.label}>{label}</Text>
       <View style={[styles.inputShell, error && styles.inputShellError]}>
         <TextInput
-          placeholderTextColor="#8B98A9"
+          placeholderTextColor={BrandColors.placeholder}
           selectionColor={BrandColors.blue}
           style={[styles.input, rightAccessory ? styles.inputWithAccessory : null, style]}
           {...textInputProps}
@@ -69,7 +77,7 @@ export function PasswordField({
           accessibilityLabel={visible ? 'Hide password' : 'Show password'}
           accessibilityRole="button"
           hitSlop={8}
-          onPress={onToggleVisible}
+          onPress={() => handlePressBlur(onToggleVisible)}
           style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}>
           <Text style={styles.iconFallback}>{visible ? 'Hide' : 'Show'}</Text>
         </Pressable>
@@ -94,7 +102,7 @@ export function AuthButton({
     <Pressable
       accessibilityRole="button"
       disabled={inactive}
-      onPress={onPress}
+      onPress={() => handlePressBlur(onPress)}
       style={({ pressed }) => [
         styles.button,
         isSecondary && styles.secondaryButton,
@@ -104,7 +112,7 @@ export function AuthButton({
         style,
       ]}>
       {loading ? (
-        <ActivityIndicator color={isSecondary ? BrandColors.navy : BrandColors.white} />
+        <ActivityIndicator color={isSecondary ? BrandColors.navy : BrandColors.onPrimary} />
       ) : (
         <Text
           style={[
@@ -124,7 +132,7 @@ export function LinkButton({ title, onPress }: Pick<AuthButtonProps, 'title' | '
     <Pressable
       accessibilityRole="button"
       hitSlop={8}
-      onPress={onPress}
+      onPress={() => handlePressBlur(onPress)}
       style={({ pressed }) => pressed && styles.pressed}>
       <Text style={styles.linkText}>{title}</Text>
     </Pressable>
@@ -151,7 +159,7 @@ export function LanguageSelector({
             <Pressable
               accessibilityRole="button"
               key={language}
-              onPress={() => onChange(language)}
+              onPress={() => handlePressBlur(() => onChange(language))}
               style={({ pressed }) => [
                 styles.languageOption,
                 selected && styles.languageOptionSelected,
@@ -195,7 +203,7 @@ export function BackButton({ onPress }: { onPress: () => void }) {
       accessibilityLabel="Back"
       accessibilityRole="button"
       hitSlop={8}
-      onPress={onPress}
+      onPress={() => handlePressBlur(onPress)}
       style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
       <Text style={styles.backFallback}>Back</Text>
     </Pressable>
@@ -209,14 +217,14 @@ const styles = StyleSheet.create({
   label: {
     color: BrandColors.text,
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '600',
   },
   inputShell: {
-    minHeight: 52,
+    minHeight: 48,
     borderColor: BrandColors.border,
     borderRadius: 8,
     borderWidth: 1,
-    backgroundColor: BrandColors.white,
+    backgroundColor: BrandColors.controlSurface,
     flexDirection: 'row',
     alignItems: 'center',
   },
@@ -227,8 +235,8 @@ const styles = StyleSheet.create({
   input: {
     color: BrandColors.text,
     flex: 1,
-    fontSize: 16,
-    minHeight: 50,
+    fontSize: 14,
+    minHeight: 46,
     paddingHorizontal: 14,
   },
   inputWithAccessory: {
@@ -243,7 +251,7 @@ const styles = StyleSheet.create({
   iconFallback: {
     color: BrandColors.deepBlue,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
   },
   errorText: {
     color: BrandColors.red,
@@ -251,16 +259,16 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   button: {
-    minHeight: 52,
+    minHeight: 48,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: BrandColors.navy,
+    backgroundColor: BrandColors.primaryAction,
     paddingHorizontal: 18,
   },
   secondaryButton: {
     backgroundColor: BrandColors.white,
-    borderColor: BrandColors.navy,
+    borderColor: BrandColors.primaryAction,
     borderWidth: 1,
   },
   dangerButton: {
@@ -272,9 +280,9 @@ const styles = StyleSheet.create({
     opacity: 0.65,
   },
   buttonText: {
-    color: BrandColors.white,
-    fontSize: 16,
-    fontWeight: '800',
+    color: BrandColors.onPrimary,
+    fontSize: 14,
+    fontWeight: '600',
   },
   secondaryButtonText: {
     color: BrandColors.navy,
@@ -285,7 +293,7 @@ const styles = StyleSheet.create({
   linkText: {
     color: BrandColors.deepBlue,
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '600',
     textAlign: 'center',
   },
   languageRow: {
@@ -309,16 +317,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
   },
   languageOptionSelected: {
-    backgroundColor: BrandColors.deepBlue,
+    backgroundColor: BrandColors.accentAction,
   },
   languageOptionText: {
     color: BrandColors.muted,
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '400',
     textAlign: 'center',
   },
   languageOptionSelectedText: {
-    color: BrandColors.white,
+    color: BrandColors.onPrimary,
   },
   statusBanner: {
     borderRadius: 8,
@@ -337,7 +345,7 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 20,
   },
   successText: {
@@ -359,7 +367,7 @@ const styles = StyleSheet.create({
   backFallback: {
     color: BrandColors.navy,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   pressed: {
     opacity: 0.72,

@@ -17,22 +17,22 @@ const neutralTone: BadgeTone = {
 const shelterStatusTones: Record<string, BadgeTone> = {
   open: {
     backgroundColor: BrandColors.successSoft,
-    borderColor: BrandColors.success,
+    borderColor: BrandColors.successBorder,
     color: BrandColors.success,
   },
   limited: {
     backgroundColor: BrandColors.warningSoft,
-    borderColor: '#D69E2E',
-    color: '#7A4B00',
+    borderColor: BrandColors.warningBorderStrong,
+    color: BrandColors.warningText,
   },
   full: {
-    backgroundColor: '#EEF2F7',
+    backgroundColor: BrandColors.neutralSoft,
     borderColor: BrandColors.muted,
     color: BrandColors.navy,
   },
   closed: {
     backgroundColor: BrandColors.redSoft,
-    borderColor: BrandColors.red,
+    borderColor: BrandColors.redBorder,
     color: BrandColors.red,
   },
 };
@@ -40,18 +40,18 @@ const shelterStatusTones: Record<string, BadgeTone> = {
 const roadStatusTones: Record<string, BadgeTone> = {
   safe: {
     backgroundColor: BrandColors.successSoft,
-    borderColor: BrandColors.success,
+    borderColor: BrandColors.successBorder,
     color: BrandColors.success,
   },
   caution: {
     backgroundColor: BrandColors.warningSoft,
-    borderColor: '#D69E2E',
-    color: '#7A4B00',
+    borderColor: BrandColors.warningBorderStrong,
+    color: BrandColors.warningText,
   },
   blocked: {
-    backgroundColor: BrandColors.red,
-    borderColor: BrandColors.red,
-    color: BrandColors.white,
+    backgroundColor: BrandColors.criticalBackground,
+    borderColor: BrandColors.criticalBorder,
+    color: BrandColors.criticalText,
   },
 };
 
@@ -129,7 +129,7 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 16,
   },
   capacityShell: {
@@ -146,19 +146,19 @@ const styles = StyleSheet.create({
   capacityTitle: {
     color: BrandColors.navy,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 20,
   },
   capacityMeta: {
     color: BrandColors.muted,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 16,
   },
   capacityUnavailable: {
     color: BrandColors.muted,
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 20,
   },
   progressTrack: {
@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   progressFill: {
-    backgroundColor: BrandColors.deepBlue,
+    backgroundColor: BrandColors.accentAction,
     borderRadius: 8,
     height: '100%',
   },

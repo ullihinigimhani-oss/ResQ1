@@ -27,7 +27,7 @@ export default function LaunchScreen() {
           <Text style={styles.appName}>ResQ1</Text>
           <Text style={styles.tagline}>Early Alert • Quick Response • Safer Community</Text>
         </View>
-        <ActivityIndicator color={BrandColors.white} size="small" />
+        <ActivityIndicator color={BrandColors.onPrimary} size="small" />
       </View>
     );
   }
@@ -38,7 +38,7 @@ export default function LaunchScreen() {
 const styles = StyleSheet.create({
   splashContainer: {
     alignItems: 'center',
-    backgroundColor: BrandColors.navy,
+    backgroundColor: BrandColors.primaryAction,
     flex: 1,
     gap: 18,
     justifyContent: 'center',
@@ -62,15 +62,15 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   appName: {
-    color: BrandColors.white,
+    color: BrandColors.onPrimary,
     fontSize: 36,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 42,
   },
   tagline: {
-    color: BrandColors.sky,
+    color: BrandColors.onPrimaryMuted,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 18,
     textAlign: 'center',
   },

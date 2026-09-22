@@ -95,13 +95,13 @@ const styles = StyleSheet.create({
   contactLabel: {
     color: colors.navy,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 20,
   },
   contactValue: {
     color: colors.muted,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 17,
   },
   actions: {
@@ -121,7 +121,7 @@ const styles = StyleSheet.create({
   actionText: {
     color: colors.deepBlue,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 17,
   },
   pressed: {

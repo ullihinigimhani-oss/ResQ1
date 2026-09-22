@@ -15,7 +15,6 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 
 import {
   AuthButton,
@@ -23,6 +22,7 @@ import {
   BackButton,
   StatusBanner,
 } from '@/components/common/auth-components';
+import MapView, { Marker, PROVIDER_GOOGLE } from '@/components/shelters/native-map';
 import { BrandColors } from '@/constants/brand';
 import { useAuth } from '@/context/auth-context';
 import { createShelter, isShelterApiError } from '@/services/shelterService';
@@ -240,7 +240,7 @@ export default function CreateShelterScreen() {
   if (!user || !canCreateShelters(user.role)) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <StatusBar style="dark" />
+        <StatusBar style="auto" />
         <View style={styles.centerState}>
           <Text style={styles.errorTitle}>Access Denied</Text>
           <Text style={styles.errorText}>
@@ -269,7 +269,7 @@ export default function CreateShelterScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="dark" />
+      <StatusBar style="auto" />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}>
@@ -425,7 +425,7 @@ export default function CreateShelterScreen() {
                 multiline
                 numberOfLines={4}
                 placeholder="Enter facilities separated by commas (e.g., Medical, Food, Water)"
-                placeholderTextColor="#8B98A9"
+                placeholderTextColor={BrandColors.placeholder}
                 selectionColor={BrandColors.blue}
                 style={styles.textArea}
                 value={form.facilities}
@@ -443,7 +443,7 @@ export default function CreateShelterScreen() {
 
             {isSubmitting ? (
               <View style={styles.loadingOverlay}>
-                <ActivityIndicator color={BrandColors.white} size="large" />
+                <ActivityIndicator color={BrandColors.onPrimary} size="large" />
               </View>
             ) : null}
           </View>
@@ -479,15 +479,15 @@ const styles = StyleSheet.create({
   eyebrow: {
     color: BrandColors.red,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 16,
     textTransform: 'uppercase',
   },
   title: {
     color: BrandColors.navy,
-    fontSize: 28,
-    fontWeight: '900',
-    lineHeight: 34,
+    fontSize: 24,
+    fontWeight: '700',
+    lineHeight: 30,
   },
   subtitle: {
     color: BrandColors.muted,
@@ -516,7 +516,7 @@ const styles = StyleSheet.create({
   label: {
     color: BrandColors.navy,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 17,
   },
   helperText: {
@@ -539,19 +539,19 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 12,
     right: 12,
-    backgroundColor: BrandColors.navy,
+    backgroundColor: BrandColors.primaryAction,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
   currentLocationButtonText: {
-    color: BrandColors.white,
+    color: BrandColors.onPrimary,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 16,
   },
   readOnlyField: {
-    backgroundColor: BrandColors.background,
+    backgroundColor: BrandColors.controlSurfaceSubtle,
   },
   statusRow: {
     flexDirection: 'row',
@@ -560,7 +560,7 @@ const styles = StyleSheet.create({
   },
   statusChip: {
     alignItems: 'center',
-    backgroundColor: BrandColors.background,
+    backgroundColor: BrandColors.controlSurfaceSubtle,
     borderColor: BrandColors.border,
     borderRadius: 8,
     borderWidth: 1,
@@ -569,26 +569,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   statusChipSelected: {
-    backgroundColor: BrandColors.navy,
-    borderColor: BrandColors.navy,
+    backgroundColor: BrandColors.primaryAction,
+    borderColor: BrandColors.primaryAction,
   },
   statusText: {
     color: BrandColors.deepBlue,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 17,
   },
   statusTextSelected: {
-    color: BrandColors.white,
+    color: BrandColors.onPrimary,
   },
   textArea: {
-    backgroundColor: BrandColors.background,
+    backgroundColor: BrandColors.controlSurfaceSubtle,
     borderColor: BrandColors.border,
     borderRadius: 8,
     borderWidth: 1,
     color: BrandColors.text,
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: '400',
     minHeight: 100,
     paddingHorizontal: 12,
     paddingVertical: 12,
@@ -600,7 +600,7 @@ const styles = StyleSheet.create({
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: BrandColors.modalBackdrop,
     borderRadius: 8,
     justifyContent: 'center',
   },
@@ -619,7 +619,7 @@ const styles = StyleSheet.create({
   errorTitle: {
     color: BrandColors.navy,
     fontSize: 20,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 26,
     textAlign: 'center',
   },

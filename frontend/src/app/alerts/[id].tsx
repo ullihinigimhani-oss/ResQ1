@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
-import { Redirect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
-import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
+import { Redirect, useFocusEffect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
+import { type ReactNode, useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -17,14 +17,31 @@ import { AuthButton, StatusBanner } from '@/components/common/auth-components';
 import { AppIcon } from '@/components/ui/app-components';
 import { BrandColors } from '@/constants/brand';
 import { useAuth } from '@/context/auth-context';
-import { getAlertById, getAlertRiskHistory, isAlertApiError } from '@/services/alertService';
-import type { Alert, AlertRiskHistoryPoint } from '@/types/alert';
+import {
+  acknowledgeAlert as acknowledgeAlertRequest,
+  getAlertAcknowledgement,
+  getAlertAcknowledgementReport,
+  getAlertById,
+  getAlertRiskHistory,
+  isAlertApiError,
+} from '@/services/alertService';
+import {
+  isOfflineSafetyInstructionSaved,
+  saveOfflineSafetyInstruction,
+} from '@/services/offlineSafetyService';
+import type {
+  Alert,
+  AlertAcknowledgementReport,
+  AlertAcknowledgementStatus,
+  AlertRiskHistoryPoint,
+} from '@/types/alert';
 import {
   alertDisplayThemeOrNull,
   alertDisplayThemeStyles,
   getResidentAlertDisplayTheme,
+  type AlertDisplayTheme,
 } from '@/utils/alert-display';
-import { isAuthorityRole } from '@/utils/format';
+import { formatDateTime as formatApiDateTime, isAuthorityRole } from '@/utils/format';
 import {
   alertDetailUiText,
   fallbackSafetyInstruction,
@@ -50,19 +67,7 @@ function formatDateTime(value: string | null) {
     return null;
   }
 
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return date.toLocaleString(undefined, {
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
+  return formatApiDateTime(value);
 }
 
 function safetyInstructionLines(value: string, fallback: string) {
@@ -93,13 +98,13 @@ function alertToneForRisk(riskLevel: Alert['riskLevel'] | undefined) {
 
   if (riskLevel === 'Moderate') {
     return {
-      accent: '#B7791F',
+      accent: BrandColors.warning,
       backgroundColor: BrandColors.warningSoft,
-      borderColor: '#D69E2E',
+      borderColor: BrandColors.warningBorderStrong,
       pillBackground: BrandColors.warningSoft,
-      pillBorder: '#D69E2E',
-      pillText: '#7A4B00',
-      titleColor: '#8A4B00',
+      pillBorder: BrandColors.warningBorderStrong,
+      pillText: BrandColors.warningText,
+      titleColor: BrandColors.warningStrong,
     };
   }
 
@@ -112,6 +117,28 @@ function alertToneForRisk(riskLevel: Alert['riskLevel'] | undefined) {
     pillText: BrandColors.deepBlue,
     titleColor: BrandColors.deepBlue,
   };
+}
+
+function DetailAreaRelevanceBadge({
+  label,
+  theme,
+}: {
+  label: string;
+  theme: (typeof alertDisplayThemeStyles)[AlertDisplayTheme];
+}) {
+  return (
+    <View
+      style={[
+        styles.detailAreaBadge,
+        {
+          backgroundColor: theme.pillBackground,
+          borderColor: theme.pillBorder,
+        },
+      ]}>
+      <AppIcon fallback="F" name="flag.fill" size={12} tintColor={theme.pillText} />
+      <Text style={[styles.detailAreaBadgeText, { color: theme.pillText }]}>{label}</Text>
+    </View>
+  );
 }
 
 function DetailPill({
@@ -177,6 +204,137 @@ function DetailInfoRow({
   );
 }
 
+function metricText(value: number | null | undefined, fallback: string) {
+  return value === null || value === undefined ? fallback : String(value);
+}
+
+function AcknowledgementPanel({
+  acknowledgement,
+  detailCopy,
+  errorMessage,
+  loading,
+  onAcknowledge,
+  submitting,
+}: {
+  acknowledgement: AlertAcknowledgementStatus | null;
+  detailCopy: typeof alertDetailUiText.English;
+  errorMessage: string | null;
+  loading: boolean;
+  onAcknowledge: () => void;
+  submitting: boolean;
+}) {
+  const acknowledged = acknowledgement?.acknowledged ?? false;
+  const acknowledgedAt = formatDateTime(acknowledgement?.acknowledgedAt ?? null);
+
+  return (
+    <View style={styles.panel}>
+      <Text style={styles.sectionTitle}>{detailCopy.acknowledgement}</Text>
+      {loading ? (
+        <View style={styles.inlineLoadingRow}>
+          <ActivityIndicator color={BrandColors.red} />
+          <Text style={styles.sectionCopy}>{detailCopy.acknowledgementLoading}</Text>
+        </View>
+      ) : acknowledged ? (
+        <View style={styles.acknowledgedCard}>
+          <Text style={styles.acknowledgedTitle}>✓ {detailCopy.alertAcknowledged}</Text>
+          <Text style={styles.acknowledgedText}>{detailCopy.acknowledgedMessage}</Text>
+          {acknowledgedAt ? (
+            <View style={styles.acknowledgedTimeBlock}>
+              <Text style={styles.acknowledgedTimeLabel}>{detailCopy.acknowledgedAt}</Text>
+              <Text style={styles.acknowledgedTimeText}>{acknowledgedAt}</Text>
+            </View>
+          ) : null}
+        </View>
+      ) : (
+        <>
+          <Text style={styles.sectionCopy}>{detailCopy.acknowledgementQuestion}</Text>
+          {errorMessage ? <StatusBanner message={errorMessage} type="error" /> : null}
+          {errorMessage && !acknowledgement ? null : (
+            <AuthButton
+              disabled={submitting}
+              loading={submitting}
+              title={`✓ ${detailCopy.acknowledgeAlert}`}
+              onPress={onAcknowledge}
+            />
+          )}
+        </>
+      )}
+    </View>
+  );
+}
+
+function AuthorityAcknowledgementPanel({
+  detailCopy,
+  errorMessage,
+  loading,
+  onViewAcknowledgements,
+  report,
+}: {
+  detailCopy: typeof alertDetailUiText.English;
+  errorMessage: string | null;
+  loading: boolean;
+  onViewAcknowledgements: () => void;
+  report: AlertAcknowledgementReport | null;
+}) {
+  const summary = report?.summary ?? null;
+  const targetedResidents = summary?.targetedResidents ?? null;
+  const acknowledged = summary?.acknowledged ?? 0;
+  const pending = summary?.pending ?? null;
+  const rate = summary?.acknowledgementRate ?? null;
+  const progressWidth = `${Math.max(0, Math.min(100, rate ?? 0))}%` as `${number}%`;
+
+  return (
+    <View style={styles.panel}>
+      <Text style={styles.sectionTitle}>{detailCopy.acknowledgementStatus}</Text>
+      {loading ? (
+        <View style={styles.inlineLoadingRow}>
+          <ActivityIndicator color={BrandColors.red} />
+          <Text style={styles.sectionCopy}>{detailCopy.acknowledgementMetricsLoading}</Text>
+        </View>
+      ) : errorMessage ? (
+        <StatusBanner message={errorMessage} type="error" />
+      ) : (
+        <>
+          <View style={styles.ackMetricGrid}>
+            <View style={styles.ackMetricCard}>
+              <Text style={styles.ackMetricLabel}>{detailCopy.targetedResidents}</Text>
+              <Text style={styles.ackMetricValue}>{metricText(targetedResidents, detailCopy.notAvailable)}</Text>
+            </View>
+            <View style={styles.ackMetricCard}>
+              <Text style={styles.ackMetricLabel}>{detailCopy.acknowledged}</Text>
+              <Text style={styles.ackMetricValue}>{acknowledged}</Text>
+            </View>
+            <View style={styles.ackMetricCard}>
+              <Text style={styles.ackMetricLabel}>{detailCopy.pending}</Text>
+              <Text style={styles.ackMetricValue}>{metricText(pending, detailCopy.notAvailable)}</Text>
+            </View>
+          </View>
+          <View style={styles.ackRateBlock}>
+            <View style={styles.ackRateTopRow}>
+              <Text style={styles.ackMetricLabel}>{detailCopy.acknowledgementRate}</Text>
+              <Text style={styles.ackRateText}>{rate === null ? detailCopy.notAvailable : `${rate}%`}</Text>
+            </View>
+            <View style={styles.progressTrack}>
+              <View style={[styles.progressFill, { width: progressWidth }]} />
+            </View>
+          </View>
+          <View style={styles.lastAcknowledgedRow}>
+            <Text style={styles.ackMetricLabel}>{detailCopy.lastAcknowledged}</Text>
+            <Text style={styles.lastAcknowledgedText}>
+              {summary?.lastAcknowledgedAt ? formatDateTime(summary.lastAcknowledgedAt) : detailCopy.notAvailable}
+            </Text>
+          </View>
+          <AuthButton
+            title={detailCopy.viewAcknowledgements}
+            variant="secondary"
+            onPress={onViewAcknowledgements}
+          />
+        </>
+      )}
+    </View>
+  );
+}
+
 export default function AlertDetailsScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -192,7 +350,16 @@ export default function AlertDetailsScreen() {
   const [loadingAlert, setLoadingAlert] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [acknowledged, setAcknowledged] = useState(false);
+  const [acknowledgement, setAcknowledgement] = useState<AlertAcknowledgementStatus | null>(null);
+  const [loadingAcknowledgement, setLoadingAcknowledgement] = useState(false);
+  const [acknowledgementError, setAcknowledgementError] = useState<string | null>(null);
+  const [submittingAcknowledgement, setSubmittingAcknowledgement] = useState(false);
+  const [acknowledgementReport, setAcknowledgementReport] = useState<AlertAcknowledgementReport | null>(null);
+  const [loadingAcknowledgementReport, setLoadingAcknowledgementReport] = useState(false);
+  const [acknowledgementReportError, setAcknowledgementReportError] = useState<string | null>(null);
+  const [savedOffline, setSavedOffline] = useState(false);
+  const [savingOffline, setSavingOffline] = useState(false);
+  const [offlineSaveError, setOfflineSaveError] = useState<string | null>(null);
   const userLanguage = toPreferredLanguage(user?.preferredLanguage);
   const selectedLanguage = routeLanguage ?? userLanguage;
   const showResidentLanguage = user ? !isAuthorityRole(user.role) : true;
@@ -214,6 +381,10 @@ export default function AlertDetailsScreen() {
     setErrorMessage(null);
     setRiskHistoryError(false);
     setLoadingRiskHistory(true);
+    setAcknowledgementError(null);
+    setAcknowledgementReportError(null);
+    setLoadingAcknowledgement(false);
+    setLoadingAcknowledgementReport(!showResidentLanguage);
 
     try {
       const alertDetails = await getAlertById(alertId, token);
@@ -229,6 +400,37 @@ export default function AlertDetailsScreen() {
         setRiskHistory([]);
         setRiskHistoryError(true);
       }
+
+      const canAcknowledgeResidentAlert = showResidentLanguage
+        && getResidentAlertDisplayTheme(alertDetails, user?.location) === 'danger';
+
+      if (canAcknowledgeResidentAlert) {
+        try {
+          setLoadingAcknowledgement(true);
+          setAcknowledgement(await getAlertAcknowledgement(alertId, token));
+        } catch (acknowledgementLoadError) {
+          if (__DEV__ && !isAlertApiError(acknowledgementLoadError)) {
+            console.warn('Unexpected acknowledgement status error:', acknowledgementLoadError);
+          }
+
+          setAcknowledgement(null);
+          setAcknowledgementError(detailCopy.unableAcknowledge);
+        }
+      } else if (showResidentLanguage) {
+        setAcknowledgement(null);
+        setAcknowledgementError(null);
+      } else {
+        try {
+          setAcknowledgementReport(await getAlertAcknowledgementReport(alertId, token));
+        } catch (reportError) {
+          if (__DEV__ && !isAlertApiError(reportError)) {
+            console.warn('Unexpected acknowledgement report error:', reportError);
+          }
+
+          setAcknowledgementReport(null);
+          setAcknowledgementReportError(detailCopy.acknowledgementMetricsError);
+        }
+      }
     } catch (error) {
       if (__DEV__ && !isAlertApiError(error)) {
         console.warn('Unexpected alert detail error:', error);
@@ -238,18 +440,61 @@ export default function AlertDetailsScreen() {
     } finally {
       setLoadingAlert(false);
       setLoadingRiskHistory(false);
+      setLoadingAcknowledgement(false);
+      setLoadingAcknowledgementReport(false);
       setRefreshing(false);
     }
-  }, [alertId, token]);
+  }, [
+    alertId,
+    detailCopy.acknowledgementMetricsError,
+    detailCopy.unableAcknowledge,
+    showResidentLanguage,
+    token,
+    user?.location,
+  ]);
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     if (token && alertId) {
       void loadAlert();
     } else if (!alertId) {
       setLoadingAlert(false);
       setErrorMessage('Unable to load this emergency alert.');
     }
-  }, [alertId, loadAlert, token]);
+  }, [alertId, loadAlert, token]));
+
+  useFocusEffect(useCallback(() => {
+    let active = true;
+
+    if (!user || !showResidentLanguage || !alert?.id) {
+      setSavedOffline(false);
+      setOfflineSaveError(null);
+      return () => {
+        active = false;
+      };
+    }
+
+    setOfflineSaveError(null);
+    void isOfflineSafetyInstructionSaved(user.id, alert.id)
+      .then((saved) => {
+        if (active) {
+          setSavedOffline(saved);
+        }
+      })
+      .catch((error) => {
+        if (__DEV__) {
+          console.warn('Unable to read saved offline instructions:', error);
+        }
+
+        if (active) {
+          setSavedOffline(false);
+          setOfflineSaveError('Unable to check offline storage on this device.');
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [alert?.id, showResidentLanguage, user]));
 
   const safetyInstructions = useMemo(
     () => safetyInstructionLines(
@@ -283,6 +528,9 @@ export default function AlertDetailsScreen() {
   const alertTone = showResidentLanguage
     ? alertDisplayThemeStyles[residentAlertDisplayTheme]
     : alertToneForRisk(alert?.riskLevel);
+  const residentCanAcknowledgeAlert = showResidentLanguage && alert
+    ? getResidentAlertDisplayTheme(alert, user.location) === 'danger'
+    : false;
   const handleBackToAlerts = () => {
     if (showResidentLanguage) {
       router.replace({
@@ -295,9 +543,85 @@ export default function AlertDetailsScreen() {
     router.replace('/alerts' as Href);
   };
 
+  const handleViewRiskAssessment = () => {
+    if (!alert) {
+      return;
+    }
+
+    const riskAssessmentDisplayTheme: AlertDisplayTheme = showResidentLanguage
+      ? residentAlertDisplayTheme
+      : alert.riskLevel === 'Critical' || alert.riskLevel === 'High' ? 'danger' : 'warning';
+
+    router.push({
+      pathname: '/alerts/[id]/risk-assessment',
+      params: {
+        id: String(alert.id),
+        language: selectedLanguage,
+        alertDisplayTheme: riskAssessmentDisplayTheme,
+      },
+    } as unknown as Href);
+  };
+
+  const handleSaveOffline = async () => {
+    if (!alert || !user || !showResidentLanguage || savedOffline || savingOffline) {
+      return;
+    }
+
+    setSavingOffline(true);
+    setOfflineSaveError(null);
+
+    try {
+      await saveOfflineSafetyInstruction(user.id, {
+        alertId: alert.id,
+        disasterType: translateDisasterType(alert.disasterType, displayLanguage),
+        title: translateAlertTitle(alert, displayLanguage),
+        riskLevel: alert.riskLevel,
+        affectedArea: alert.affectedArea,
+        safetyInstructions,
+        language: displayLanguage,
+      });
+      setSavedOffline(true);
+    } catch (error) {
+      if (__DEV__) {
+        console.warn('Unable to save offline safety instructions:', error);
+      }
+
+      setOfflineSaveError('Unable to save instructions offline. Please try again.');
+    } finally {
+      setSavingOffline(false);
+    }
+  };
+
+  const handleAcknowledge = async () => {
+    if (
+      !token
+      || !alertId
+      || !residentCanAcknowledgeAlert
+      || acknowledgement?.acknowledged
+      || submittingAcknowledgement
+    ) {
+      return;
+    }
+
+    setSubmittingAcknowledgement(true);
+    setAcknowledgementError(null);
+
+    try {
+      setAcknowledgement(await acknowledgeAlertRequest(alertId, token));
+    } catch (error) {
+      if (__DEV__ && !isAlertApiError(error)) {
+        console.warn('Unexpected acknowledge alert error:', error);
+      }
+
+      setAcknowledgementError(detailCopy.unableAcknowledge);
+    } finally {
+      setSubmittingAcknowledgement(false);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="dark" />
+      <StatusBar style="auto" />
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={
@@ -352,7 +676,7 @@ export default function AlertDetailsScreen() {
                 <View style={styles.detailHeroTopRow}>
                   <View style={styles.detailHeroTitleRow}>
                     <View style={[styles.detailHeroIcon, { backgroundColor: alertTone.accent }]}>
-                      <AppIcon fallback="!" name="exclamationmark.triangle.fill" size={30} tintColor={BrandColors.white} />
+                      <AppIcon fallback="!" name="exclamationmark.triangle.fill" size={30} tintColor={BrandColors.onPrimary} />
                     </View>
                     <Text style={[styles.detailHeroTitle, { color: alertTone.titleColor }]}>
                       {translateAlertTitle(alert, displayLanguage)}
@@ -367,9 +691,10 @@ export default function AlertDetailsScreen() {
                 </View>
                 {showResidentLanguage ? (
                   <View style={styles.detailHeroMetaRow}>
-                    <Text style={[styles.detailDisplayBadge, { backgroundColor: alertTone.accent }]}>
-                      {residentAlertDisplayTheme === 'danger' ? residentListCopy.yourArea : residentListCopy.warning}
-                    </Text>
+                    <DetailAreaRelevanceBadge
+                      label={residentAlertDisplayTheme === 'danger' ? residentListCopy.yourArea : residentListCopy.warning}
+                      theme={alertDisplayThemeStyles[residentAlertDisplayTheme]}
+                    />
                     <Text style={[styles.detailHeroRiskText, { color: alertTone.titleColor }]}>
                       {residentListCopy.risk}: {translateRiskLevel(alert.riskLevel, displayLanguage)}
                     </Text>
@@ -385,6 +710,20 @@ export default function AlertDetailsScreen() {
                   loading={loadingRiskHistory}
                   riskLevel={alert.riskLevel}
                 />
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={handleViewRiskAssessment}
+                  style={({ pressed }) => [
+                    styles.riskAssessmentButton,
+                    { backgroundColor: alertTone.accent },
+                    pressed && styles.pressed,
+                  ]}>
+                  <View style={styles.riskAssessmentButtonTextBlock}>
+                    <AppIcon fallback="R" name="gauge.fill" size={18} tintColor={BrandColors.onPrimary} />
+                    <Text style={styles.riskAssessmentButtonText}>{detailCopy.viewRiskAssessment}</Text>
+                  </View>
+                  <Text style={styles.riskAssessmentArrow}>-&gt;</Text>
+                </Pressable>
               </View>
 
               <View style={styles.detailInfoList}>
@@ -436,28 +775,78 @@ export default function AlertDetailsScreen() {
                   />
                 </DetailInfoRow>
                 <DetailInfoRow fallback="!" label={detailCopy.safetyInstructions} name="cross.case.fill">
-                  <View style={styles.safetyBulletList}>
-                    {safetyInstructions.map((instruction, index) => (
-                      <Text key={`${instruction}-${index}`} style={styles.safetyBulletText}>
-                        - {instruction}
-                      </Text>
-                    ))}
+                  <View style={styles.safetyContent}>
+                    <View style={styles.safetyBulletList}>
+                      {safetyInstructions.map((instruction, index) => (
+                        <Text key={`${instruction}-${index}`} style={styles.safetyBulletText}>
+                          - {instruction}
+                        </Text>
+                      ))}
+                    </View>
+                    {showResidentLanguage ? (
+                      <Pressable
+                        accessibilityLabel={savedOffline ? 'Saved Offline' : 'Save Offline'}
+                        accessibilityRole="button"
+                        accessibilityState={{ disabled: savedOffline || savingOffline }}
+                        disabled={savedOffline || savingOffline}
+                        onPress={() => void handleSaveOffline()}
+                        style={({ pressed }) => [
+                          styles.offlineSaveButton,
+                          savedOffline && styles.offlineSaveButtonSaved,
+                          pressed && !savedOffline && !savingOffline && styles.pressed,
+                        ]}>
+                        {savingOffline ? (
+                          <ActivityIndicator color={BrandColors.deepBlue} size="small" />
+                        ) : (
+                          <AppIcon
+                            fallback={savedOffline ? 'OK' : 'D'}
+                            name={savedOffline ? 'bookmark.fill' : 'arrow.down.circle.fill'}
+                            size={18}
+                            tintColor={savedOffline ? BrandColors.success : BrandColors.deepBlue}
+                          />
+                        )}
+                        <Text
+                          style={[
+                            styles.offlineSaveButtonText,
+                            savedOffline && styles.offlineSaveButtonTextSaved,
+                          ]}>
+                          {savedOffline ? 'Saved Offline ✓' : savingOffline ? 'Saving...' : 'Save Offline'}
+                        </Text>
+                      </Pressable>
+                    ) : null}
+                    {offlineSaveError ? <Text style={styles.offlineSaveError}>{offlineSaveError}</Text> : null}
                   </View>
                 </DetailInfoRow>
               </View>
             </View>
+
+            {residentCanAcknowledgeAlert ? (
+              <AcknowledgementPanel
+                acknowledgement={acknowledgement}
+                detailCopy={detailCopy}
+                errorMessage={acknowledgementError}
+                loading={loadingAcknowledgement}
+                onAcknowledge={handleAcknowledge}
+                submitting={submittingAcknowledgement}
+              />
+            ) : !showResidentLanguage ? (
+              <AuthorityAcknowledgementPanel
+                detailCopy={detailCopy}
+                errorMessage={acknowledgementReportError}
+                loading={loadingAcknowledgementReport}
+                onViewAcknowledgements={() => router.push({
+                  pathname: '/alerts/[id]/acknowledgements',
+                  params: { id: String(alert.id) },
+                } as unknown as Href)}
+                report={acknowledgementReport}
+              />
+            ) : null}
 
             <View style={styles.panel}>
               <Text style={styles.sectionTitle}>{detailCopy.emergencyActions}</Text>
               <Text style={styles.sectionCopy}>
                 {detailCopy.emergencyActionsCopy}
               </Text>
-              {acknowledged ? (
-                <StatusBanner
-                  message={detailCopy.acknowledgedMessage}
-                  type="success"
-                />
-              ) : null}
               <View style={styles.actionButtons}>
                 <AuthButton
                   title={detailCopy.viewSafeEvacuationRoute}
@@ -472,11 +861,6 @@ export default function AlertDetailsScreen() {
                 <AuthButton
                   title={detailCopy.reportIncident}
                   onPress={() => router.push('/incidents/report' as Href)}
-                />
-                <AuthButton
-                  title={acknowledged ? detailCopy.acknowledged : detailCopy.acknowledgeAlert}
-                  variant="secondary"
-                  onPress={() => setAcknowledged(true)}
                 />
               </View>
             </View>
@@ -512,7 +896,7 @@ const styles = StyleSheet.create({
     color: BrandColors.navy,
     flex: 1,
     fontSize: 17,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 23,
   },
   backButton: {
@@ -529,7 +913,7 @@ const styles = StyleSheet.create({
   backButtonText: {
     color: BrandColors.navy,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 16,
   },
   languageContext: {
@@ -547,14 +931,14 @@ const styles = StyleSheet.create({
   languageContextLabel: {
     color: BrandColors.muted,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 15,
     textTransform: 'uppercase',
   },
   languageContextValue: {
     color: BrandColors.navy,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 18,
   },
   detailCard: {
@@ -600,22 +984,26 @@ const styles = StyleSheet.create({
   detailHeroTitle: {
     flex: 1,
     fontSize: 22,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 28,
   },
-  detailDisplayBadge: {
+  detailAreaBadge: {
+    alignItems: 'center',
     borderRadius: 4,
-    color: BrandColors.white,
-    fontSize: 11,
-    fontWeight: '900',
-    lineHeight: 15,
-    overflow: 'hidden',
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 5,
     paddingHorizontal: 8,
     paddingVertical: 5,
   },
+  detailAreaBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    lineHeight: 15,
+  },
   detailHeroRiskText: {
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 18,
   },
   detailPill: {
@@ -627,7 +1015,7 @@ const styles = StyleSheet.create({
   },
   detailPillText: {
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 15,
   },
   detailInfoList: {
@@ -655,36 +1043,101 @@ const styles = StyleSheet.create({
   sectionTitle: {
     color: BrandColors.navy,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 24,
   },
   detailInfoLabel: {
     color: BrandColors.muted,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 18,
   },
   detailInfoValue: {
     color: BrandColors.text,
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 21,
   },
   riskTrendTopSection: {
     backgroundColor: BrandColors.background,
     borderBottomColor: BrandColors.border,
     borderBottomWidth: 1,
+    gap: 10,
     paddingHorizontal: 16,
     paddingVertical: 14,
+  },
+  riskAssessmentButton: {
+    alignItems: 'center',
+    borderRadius: 8,
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'space-between',
+    minHeight: 46,
+    paddingHorizontal: 14,
+  },
+  riskAssessmentButtonTextBlock: {
+    alignItems: 'center',
+    flex: 1,
+    flexDirection: 'row',
+    gap: 8,
+    minWidth: 0,
+  },
+  riskAssessmentButtonText: {
+    color: BrandColors.onPrimary,
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 19,
+  },
+  riskAssessmentArrow: {
+    color: BrandColors.onPrimary,
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 18,
   },
   safetyBulletList: {
     gap: 4,
   },
+  safetyContent: {
+    gap: 12,
+  },
   safetyBulletText: {
     color: BrandColors.text,
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 20,
+  },
+  offlineSaveButton: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: BrandColors.lightBlue,
+    borderColor: BrandColors.blueBorder,
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 8,
+    minHeight: 40,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  offlineSaveButtonSaved: {
+    backgroundColor: BrandColors.successSoft,
+    borderColor: BrandColors.successBorder,
+  },
+  offlineSaveButtonText: {
+    color: BrandColors.deepBlue,
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 18,
+  },
+  offlineSaveButtonTextSaved: {
+    color: BrandColors.success,
+  },
+  offlineSaveError: {
+    color: BrandColors.red,
+    fontSize: 12,
+    fontWeight: '400',
+    lineHeight: 17,
   },
   schoolList: {
     gap: 4,
@@ -692,7 +1145,7 @@ const styles = StyleSheet.create({
   schoolListText: {
     color: BrandColors.text,
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 20,
   },
   sectionCopy: {
@@ -708,6 +1161,123 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: 14,
     padding: 16,
+  },
+  inlineLoadingRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 10,
+    minHeight: 42,
+  },
+  acknowledgedCard: {
+    backgroundColor: BrandColors.successSoft,
+    borderColor: BrandColors.success,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 8,
+    padding: 14,
+  },
+  acknowledgedTitle: {
+    color: BrandColors.success,
+    fontSize: 15,
+    fontWeight: '700',
+    lineHeight: 20,
+  },
+  acknowledgedText: {
+    color: BrandColors.text,
+    fontSize: 14,
+    fontWeight: '400',
+    lineHeight: 20,
+  },
+  acknowledgedTimeBlock: {
+    backgroundColor: BrandColors.white,
+    borderColor: BrandColors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 2,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  acknowledgedTimeLabel: {
+    color: BrandColors.muted,
+    fontSize: 11,
+    fontWeight: '700',
+    lineHeight: 15,
+    textTransform: 'uppercase',
+  },
+  acknowledgedTimeText: {
+    color: BrandColors.navy,
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 18,
+  },
+  ackMetricGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  ackMetricCard: {
+    backgroundColor: BrandColors.lightBlue,
+    borderColor: BrandColors.sky,
+    borderRadius: 8,
+    borderWidth: 1,
+    flexGrow: 1,
+    gap: 4,
+    minWidth: '30%',
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+  },
+  ackMetricLabel: {
+    color: BrandColors.muted,
+    fontSize: 11,
+    fontWeight: '700',
+    lineHeight: 15,
+    textTransform: 'uppercase',
+  },
+  ackMetricValue: {
+    color: BrandColors.navy,
+    fontSize: 20,
+    fontWeight: '700',
+    lineHeight: 25,
+  },
+  ackRateBlock: {
+    gap: 8,
+  },
+  ackRateTopRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'space-between',
+  },
+  ackRateText: {
+    color: BrandColors.navy,
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 19,
+  },
+  progressTrack: {
+    backgroundColor: BrandColors.lightBlue,
+    borderRadius: 999,
+    height: 8,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    backgroundColor: BrandColors.success,
+    borderRadius: 999,
+    height: '100%',
+  },
+  lastAcknowledgedRow: {
+    backgroundColor: BrandColors.white,
+    borderColor: BrandColors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 4,
+    padding: 12,
+  },
+  lastAcknowledgedText: {
+    color: BrandColors.text,
+    fontSize: 13,
+    fontWeight: '600',
+    lineHeight: 18,
   },
   actionButtons: {
     gap: 10,
@@ -727,14 +1297,14 @@ const styles = StyleSheet.create({
   stateTitle: {
     color: BrandColors.navy,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 24,
     textAlign: 'center',
   },
   emptyTitle: {
     color: BrandColors.navy,
     fontSize: 20,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 26,
     textAlign: 'center',
   },

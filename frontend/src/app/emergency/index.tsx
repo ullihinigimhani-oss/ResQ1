@@ -85,7 +85,7 @@ function EmergencyContactCard({ contact }: { contact: EmergencyContact }) {
       case 'fire':
         return BrandColors.red;
       case 'disaster':
-        return '#FF9500';
+        return BrandColors.emergencyOrange;
       default:
         return BrandColors.blue;
     }
@@ -129,7 +129,7 @@ export default function EmergencyScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="dark" />
+      <StatusBar style="auto" />
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}>
@@ -177,15 +177,15 @@ const styles = StyleSheet.create({
   eyebrow: {
     color: BrandColors.red,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 16,
     textTransform: 'uppercase',
   },
   title: {
     color: BrandColors.navy,
-    fontSize: 28,
-    fontWeight: '900',
-    lineHeight: 34,
+    fontSize: 24,
+    fontWeight: '700',
+    lineHeight: 30,
   },
   subtitle: {
     color: BrandColors.muted,
@@ -223,7 +223,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     color: BrandColors.navy,
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 22,
   },
   cardDescription: {
@@ -235,7 +235,7 @@ const styles = StyleSheet.create({
   cardNumber: {
     color: BrandColors.red,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 24,
   },
   callButton: {
@@ -247,9 +247,9 @@ const styles = StyleSheet.create({
     width: 80,
   },
   callButtonText: {
-    color: BrandColors.white,
+    color: BrandColors.onPrimary,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 17,
   },
   pressed: {

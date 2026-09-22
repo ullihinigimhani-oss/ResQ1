@@ -25,14 +25,14 @@ const riskTone: Record<AlertRiskLevel, { accent: string; backgroundColor: string
     textColor: BrandColors.success,
   },
   Moderate: {
-    accent: '#D69E2E',
+    accent: BrandColors.warningBorderStrong,
     backgroundColor: BrandColors.warningSoft,
-    textColor: '#7A4B00',
+    textColor: BrandColors.warningText,
   },
   High: {
-    accent: '#EA580C',
-    backgroundColor: '#FFF1E6',
-    textColor: '#9A3412',
+    accent: BrandColors.orange,
+    backgroundColor: BrandColors.orangeSoft,
+    textColor: BrandColors.orangeText,
   },
   Critical: {
     accent: BrandColors.red,
@@ -284,7 +284,7 @@ export function FloodRiskTrendChart({
                         styles.point,
                         {
                           backgroundColor: tone.accent,
-                          borderColor: BrandColors.white,
+                          borderColor: BrandColors.onPrimary,
                           left: point.x - (latest ? 7 : 5),
                           top: point.y - (latest ? 7 : 5),
                         },
@@ -339,19 +339,19 @@ const styles = StyleSheet.create({
   title: {
     color: BrandColors.navy,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 20,
   },
   subtitle: {
     color: BrandColors.muted,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 17,
   },
   currentBadge: {
     borderRadius: 6,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 15,
     overflow: 'hidden',
     paddingHorizontal: 8,
@@ -367,13 +367,13 @@ const styles = StyleSheet.create({
   axisTitle: {
     color: BrandColors.muted,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 15,
     textTransform: 'uppercase',
   },
   currentRiskText: {
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 17,
   },
   chartBody: {
@@ -389,7 +389,7 @@ const styles = StyleSheet.create({
   yAxisLabel: {
     color: BrandColors.muted,
     fontSize: 9,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 12,
     textAlign: 'right',
   },
@@ -399,7 +399,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   plotArea: {
-    backgroundColor: '#FAFCFF',
+    backgroundColor: BrandColors.chartSurface,
     borderColor: BrandColors.border,
     borderRadius: 8,
     borderWidth: 1,
@@ -442,13 +442,13 @@ const styles = StyleSheet.create({
     color: BrandColors.muted,
     flex: 1,
     fontSize: 10,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 13,
   },
   xAxisTitle: {
     color: BrandColors.navy,
     fontSize: 10,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 13,
     textAlign: 'center',
   },
@@ -466,14 +466,14 @@ const styles = StyleSheet.create({
   stateTitle: {
     color: BrandColors.navy,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 18,
     textAlign: 'center',
   },
   stateText: {
     color: BrandColors.muted,
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 16,
     textAlign: 'center',
   },

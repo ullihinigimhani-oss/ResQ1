@@ -15,20 +15,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-let MapView: any = null;
-let Marker: any = null;
-let Polyline: any = null;
-let PROVIDER_GOOGLE: any = null;
-
-if (Platform.OS !== 'web') {
-  const Maps = require('react-native-maps');
-  MapView = Maps.default;
-  Marker = Maps.Marker;
-  Polyline = Maps.Polyline;
-  PROVIDER_GOOGLE = Maps.PROVIDER_GOOGLE;
-}
-
 import { AuthButton, BackButton, StatusBanner } from '@/components/common/auth-components';
+import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from '@/components/shelters/native-map';
 import { ShelterStatusBadge } from '@/components/shelters/shelter-ui';
 import { BrandColors } from '@/constants/brand';
 import { useAuth } from '@/context/auth-context';
@@ -454,7 +442,7 @@ export default function ShelterRouteScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <StatusBar style="dark" />
+        <StatusBar style="auto" />
         <View style={styles.loadingContainer}>
           <ActivityIndicator color={BrandColors.red} size="large" />
           <Text style={styles.loadingText}>Loading evacuation map...</Text>
@@ -465,7 +453,7 @@ export default function ShelterRouteScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="dark" />
+      <StatusBar style="auto" />
       <View style={styles.container}>
         <BackButton
           onPress={() => router.replace({
@@ -541,7 +529,7 @@ export default function ShelterRouteScreen() {
                 <Polyline
                   key={route.id}
                   coordinates={route.points}
-                  strokeColor={route.isSafest ? '#22C55E' : '#000000'}
+                  strokeColor={route.isSafest ? BrandColors.routeSafe : BrandColors.routeAlternate}
                   strokeWidth={route.isSafest ? 5 : 3}
                   lineDashPattern={route.isSafest ? undefined : [10, 5]}
                 />
@@ -563,11 +551,11 @@ export default function ShelterRouteScreen() {
                   <Text style={styles.legendText}>Incident</Text>
                 </View>
                 <View style={styles.legendItem}>
-                  <View style={[styles.legendLine, { backgroundColor: '#22C55E' }]} />
+                  <View style={[styles.legendLine, { backgroundColor: BrandColors.routeSafe }]} />
                   <Text style={styles.legendText}>Safest Route</Text>
                 </View>
                 <View style={styles.legendItem}>
-                  <View style={[styles.legendLine, { backgroundColor: '#000000', borderStyle: 'dashed' }]} />
+                  <View style={[styles.legendLine, { backgroundColor: BrandColors.routeAlternate, borderStyle: 'dashed' }]} />
                   <Text style={styles.legendText}>Alternative Routes</Text>
                 </View>
               </View>
@@ -635,7 +623,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   legend: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backgroundColor: BrandColors.mapOverlay,
     borderRadius: 8,
     padding: 12,
     gap: 8,
@@ -658,18 +646,18 @@ const styles = StyleSheet.create({
   legendText: {
     color: BrandColors.text,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 16,
   },
   openMapButton: {
-    backgroundColor: BrandColors.navy,
+    backgroundColor: BrandColors.primaryAction,
     borderRadius: 8,
     padding: 14,
   },
   openMapButtonText: {
-    color: BrandColors.white,
+    color: BrandColors.onPrimary,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 20,
     textAlign: 'center',
   },
@@ -685,15 +673,15 @@ const styles = StyleSheet.create({
   eyebrow: {
     color: BrandColors.red,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 16,
     textTransform: 'uppercase',
   },
   title: {
     color: BrandColors.navy,
-    fontSize: 28,
-    fontWeight: '900',
-    lineHeight: 34,
+    fontSize: 24,
+    fontWeight: '700',
+    lineHeight: 30,
   },
   subtitle: {
     color: BrandColors.muted,
@@ -716,7 +704,7 @@ const styles = StyleSheet.create({
   emptyTitle: {
     color: BrandColors.navy,
     fontSize: 20,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 26,
     textAlign: 'center',
   },

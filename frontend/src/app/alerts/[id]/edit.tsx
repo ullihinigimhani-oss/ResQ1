@@ -23,6 +23,14 @@ import {
   audienceLabel,
 } from '@/components/alerts/alert-audience-controls';
 import {
+  DisasterTypeSelector,
+  OTHER_DISASTER_TYPE_OPTION,
+  disasterTypeSelectionFromValue,
+  disasterTypeSummary,
+  submittedDisasterType,
+  type DisasterTypeSelection,
+} from '@/components/alerts/disaster-type-selector';
+import {
   AuthButton,
   AuthTextField,
   BackButton,
@@ -46,6 +54,8 @@ import { formatDateTime, isAuthorityRole } from '@/utils/format';
 
 type AlertForm = {
   title: string;
+  disasterType: DisasterTypeSelection;
+  otherDisasterType: string;
   affectedArea: string;
   alertAudience: AlertAudience;
   riskLevel: AlertRiskLevel | '';
@@ -72,6 +82,8 @@ type BannerState = {
 
 const initialForm: AlertForm = {
   title: '',
+  disasterType: '',
+  otherDisasterType: '',
   affectedArea: '',
   alertAudience: 'GENERAL_PUBLIC',
   riskLevel: '',
@@ -87,8 +99,11 @@ function firstParam(value: string | string[] | undefined) {
 }
 
 function formFromAlert(alert: Alert): AlertForm {
+  const disasterType = disasterTypeSelectionFromValue(alert.disasterType);
+
   return {
     title: alert.title,
+    ...disasterType,
     affectedArea: alert.affectedArea,
     alertAudience: alert.alertAudience,
     riskLevel: alert.riskLevel,
@@ -142,6 +157,7 @@ function previewText(value: string) {
 function validateForm(form: AlertForm) {
   const errors: AlertFieldErrors = {};
   const title = form.title.trim();
+  const disasterType = submittedDisasterType(form.disasterType, form.otherDisasterType);
   const affectedArea = form.affectedArea.trim();
   const message = form.message.trim();
   const safetyInstructions = form.safetyInstructions.trim();
@@ -154,6 +170,14 @@ function validateForm(form: AlertForm) {
 
   if (!affectedArea) {
     errors.affectedArea = 'Please enter the affected area.';
+  }
+
+  if (!form.disasterType) {
+    errors.disasterType = 'Please select a disaster type.';
+  } else if (form.disasterType === OTHER_DISASTER_TYPE_OPTION && !disasterType) {
+    errors.disasterType = 'Please enter the disaster type.';
+  } else if (disasterType.length > 100) {
+    errors.disasterType = 'Disaster type must be 100 characters or fewer.';
   }
 
   if (!form.riskLevel) {
@@ -191,7 +215,7 @@ function validateForm(form: AlertForm) {
 
   const payload: UpdateAlertPayload = {
     title,
-    disasterType: 'Flood',
+    disasterType,
     affectedArea,
     alertAudience: form.alertAudience,
     riskLevel: form.riskLevel as AlertRiskLevel,
@@ -266,6 +290,7 @@ function EditSummary({ alert, form }: { alert: Alert; form: AlertForm }) {
     <View style={styles.reviewCard}>
       <Text style={styles.reviewEyebrow}>Selected Alert #{alert.id}</Text>
       <SummaryRow label="Title" value={form.title.trim() || 'Not entered'} />
+      <SummaryRow label="Disaster Type" value={disasterTypeSummary(form.disasterType, form.otherDisasterType)} />
       <SummaryRow label="Affected Area" value={form.affectedArea.trim() || 'Not entered'} />
       <SummaryRow label="Alert Audience" value={audienceLabel(form.alertAudience)} />
       {form.alertAudience === 'SCHOOL_EMERGENCY' ? (
@@ -374,7 +399,7 @@ export default function EditAlertScreen() {
   if (!isAuthorityRole(user.role)) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <StatusBar style="dark" />
+        <StatusBar style="auto" />
         <View style={styles.restrictedContent}>
           <BackButton onPress={() => router.replace('/alerts' as Href)} />
           <View style={styles.restrictedPanel}>
@@ -405,6 +430,28 @@ export default function EditAlertScreen() {
       [field]: undefined,
       ...(field === 'affectedArea' ? { schoolIds: undefined } : {}),
     }));
+
+    if (banner?.type === 'success') {
+      setBanner(null);
+    }
+  };
+
+  const updateDisasterType = (disasterType: DisasterTypeSelection) => {
+    setForm((current) => ({
+      ...current,
+      disasterType,
+      otherDisasterType: disasterType === OTHER_DISASTER_TYPE_OPTION ? current.otherDisasterType : '',
+    }));
+    setFieldErrors((current) => ({ ...current, disasterType: undefined }));
+
+    if (banner?.type === 'success') {
+      setBanner(null);
+    }
+  };
+
+  const updateOtherDisasterType = (otherDisasterType: string) => {
+    setForm((current) => ({ ...current, otherDisasterType }));
+    setFieldErrors((current) => ({ ...current, disasterType: undefined }));
 
     if (banner?.type === 'success') {
       setBanner(null);
@@ -501,7 +548,7 @@ export default function EditAlertScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="dark" />
+      <StatusBar style="auto" />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.keyboardView}>
@@ -575,12 +622,13 @@ export default function EditAlertScreen() {
                     value={form.title}
                   />
 
-                  <View style={styles.fieldGroup}>
-                    <Text style={styles.label}>Disaster Type</Text>
-                    <View style={styles.fixedField}>
-                      <Text style={styles.fixedFieldText}>Flood</Text>
-                    </View>
-                  </View>
+                  <DisasterTypeSelector
+                    customValue={form.otherDisasterType}
+                    error={fieldErrors.disasterType}
+                    onChange={updateDisasterType}
+                    onCustomChange={updateOtherDisasterType}
+                    value={form.disasterType}
+                  />
                 </FormSection>
 
                 <FormSection helper="Match the warning to a resident area where possible." title="Affected Area">
@@ -647,7 +695,7 @@ export default function EditAlertScreen() {
                   </View>
                 </FormSection>
 
-                <FormSection helper="Use Resolved only when this warning should leave the active alert list." title="Alert Status">
+                <FormSection helper="Use Resolved or Cancelled when this warning should leave the active alert list." title="Alert Status">
                   <View style={styles.fieldGroup}>
                     <Text style={styles.label}>Status</Text>
                     <View style={[styles.optionGrid, fieldErrors.status && styles.selectorError]}>
@@ -793,14 +841,14 @@ const styles = StyleSheet.create({
   restrictedEyebrow: {
     color: BrandColors.red,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 16,
     textTransform: 'uppercase',
   },
   restrictedTitle: {
     color: BrandColors.navy,
     fontSize: 22,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 28,
   },
   restrictedText: {
@@ -818,7 +866,7 @@ const styles = StyleSheet.create({
     color: BrandColors.navy,
     flex: 1,
     fontSize: 17,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 23,
   },
   header: {
@@ -827,15 +875,15 @@ const styles = StyleSheet.create({
   eyebrow: {
     color: BrandColors.red,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 16,
     textTransform: 'uppercase',
   },
   title: {
     color: BrandColors.navy,
-    fontSize: 28,
-    fontWeight: '900',
-    lineHeight: 34,
+    fontSize: 24,
+    fontWeight: '700',
+    lineHeight: 30,
   },
   subtitle: {
     color: BrandColors.muted,
@@ -860,13 +908,13 @@ const styles = StyleSheet.create({
   alertTitle: {
     color: BrandColors.navy,
     fontSize: 22,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 28,
   },
   alertMeta: {
     color: BrandColors.muted,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 16,
     textTransform: 'uppercase',
   },
@@ -893,7 +941,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     color: BrandColors.navy,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 24,
   },
   sectionHelper: {
@@ -908,7 +956,7 @@ const styles = StyleSheet.create({
   label: {
     color: BrandColors.text,
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '400',
   },
   fixedField: {
     backgroundColor: BrandColors.lightBlue,
@@ -922,7 +970,7 @@ const styles = StyleSheet.create({
   fixedFieldText: {
     color: BrandColors.navy,
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   optionGrid: {
     backgroundColor: BrandColors.white,
@@ -951,25 +999,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   optionButtonSelected: {
-    backgroundColor: BrandColors.deepBlue,
-    borderColor: BrandColors.deepBlue,
+    backgroundColor: BrandColors.accentAction,
+    borderColor: BrandColors.accentAction,
   },
   criticalOption: {
     backgroundColor: BrandColors.redSoft,
     borderColor: BrandColors.red,
   },
   criticalOptionSelected: {
-    backgroundColor: BrandColors.red,
+    backgroundColor: BrandColors.criticalBackground,
   },
   optionButtonText: {
     color: BrandColors.deepBlue,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 19,
     textAlign: 'center',
   },
   optionButtonTextSelected: {
-    color: BrandColors.white,
+    color: BrandColors.onPrimary,
   },
   errorText: {
     color: BrandColors.red,
@@ -981,23 +1029,23 @@ const styles = StyleSheet.create({
     paddingTop: 13,
   },
   savePanel: {
-    backgroundColor: BrandColors.navy,
-    borderColor: BrandColors.deepBlue,
+    backgroundColor: BrandColors.primaryAction,
+    borderColor: BrandColors.accentAction,
     borderRadius: 8,
     borderWidth: 1,
     gap: 12,
     padding: 16,
   },
   saveTitle: {
-    color: BrandColors.white,
+    color: BrandColors.onPrimary,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 24,
   },
   saveCopy: {
-    color: BrandColors.sky,
+    color: BrandColors.onPrimaryMuted,
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 20,
   },
   reviewCard: {
@@ -1011,7 +1059,7 @@ const styles = StyleSheet.create({
   reviewEyebrow: {
     color: BrandColors.red,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 16,
     textTransform: 'uppercase',
   },
@@ -1024,18 +1072,18 @@ const styles = StyleSheet.create({
   summaryLabel: {
     color: BrandColors.muted,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 15,
     textTransform: 'uppercase',
   },
   summaryValue: {
     color: BrandColors.text,
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 20,
   },
   saveButton: {
-    backgroundColor: BrandColors.red,
+    backgroundColor: BrandColors.redAction,
   },
   centerState: {
     alignItems: 'center',
@@ -1051,14 +1099,14 @@ const styles = StyleSheet.create({
   stateTitle: {
     color: BrandColors.navy,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 24,
     textAlign: 'center',
   },
   emptyTitle: {
     color: BrandColors.navy,
     fontSize: 20,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 26,
     textAlign: 'center',
   },

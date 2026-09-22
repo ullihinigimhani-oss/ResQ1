@@ -11,20 +11,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-let MapView: any = null;
-let Marker: any = null;
-let Polyline: any = null;
-let PROVIDER_DEFAULT: any = null;
-
-if (Platform.OS !== 'web') {
-  const Maps = require('react-native-maps');
-  MapView = Maps.default;
-  Marker = Maps.Marker;
-  Polyline = Maps.Polyline;
-  PROVIDER_DEFAULT = Maps.PROVIDER_DEFAULT;
-}
-
 import { BackButton } from '@/components/common/auth-components';
+import MapView, { Marker, Polyline, PROVIDER_DEFAULT } from '@/components/shelters/native-map';
 import { BrandColors } from '@/constants/brand';
 import { useAuth } from '@/context/auth-context';
 import type { Incident } from '@/types/incident';
@@ -89,7 +77,7 @@ export default function RouteMapScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="dark" />
+      <StatusBar style="auto" />
       <View style={styles.container}>
         <MapView
           provider={PROVIDER_DEFAULT}
@@ -223,7 +211,7 @@ const styles = StyleSheet.create({
   emptyTitle: {
     color: BrandColors.navy,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 24,
     textAlign: 'center',
   },
@@ -243,7 +231,7 @@ const styles = StyleSheet.create({
   },
   topBar: {
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backgroundColor: BrandColors.mapOverlay,
     flexDirection: 'row',
     gap: 12,
     padding: 12,
@@ -251,11 +239,16 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 5,
+    ...Platform.select({
+      web: { boxShadow: '0 2px 6px rgba(8, 29, 56, 0.08)' },
+      default: {
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 4,
+      },
+    }),
   },
   titleContainer: {
     flex: 1,
@@ -263,17 +256,17 @@ const styles = StyleSheet.create({
   title: {
     color: BrandColors.navy,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 24,
   },
   subtitle: {
     color: BrandColors.muted,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 16,
   },
   bottomBar: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backgroundColor: BrandColors.mapOverlay,
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     gap: 12,
@@ -282,11 +275,16 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 5,
+    ...Platform.select({
+      web: { boxShadow: '0 -2px 6px rgba(8, 29, 56, 0.08)' },
+      default: {
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 4,
+      },
+    }),
   },
   routeSelector: {
     flexDirection: 'row',
@@ -302,17 +300,17 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   routeButtonSelected: {
-    backgroundColor: BrandColors.navy,
-    borderColor: BrandColors.navy,
+    backgroundColor: BrandColors.primaryAction,
+    borderColor: BrandColors.primaryAction,
   },
   routeButtonText: {
     color: BrandColors.text,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 17,
   },
   routeButtonTextSelected: {
-    color: BrandColors.white,
+    color: BrandColors.onPrimary,
   },
   legend: {
     flexDirection: 'row',
@@ -332,7 +330,7 @@ const styles = StyleSheet.create({
   legendText: {
     color: BrandColors.text,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 16,
   },
   pressed: {

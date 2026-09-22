@@ -4,6 +4,9 @@ import dotenv from 'dotenv';
 import { sql } from './config/database.js';
 import alertRoutes from './routes/alertRoutes.js';
 import authRoutes from './routes/authRoutes.js';
+import communityNotificationRoutes from './routes/communityNotificationRoutes.js';
+import emergencyContactRoutes from './routes/emergencyContactRoutes.js';
+import familyMemberRoutes from './routes/familyMemberRoutes.js';
 import incidentRoutes from './routes/incidentRoutes.js';
 import shelterRoutes from './routes/shelterRoutes.js';
 
@@ -19,6 +22,9 @@ app.use(express.json());
 
 app.use('/api/auth', authRoutes);
 app.use('/api/alerts', alertRoutes);
+app.use('/api/community-notifications', communityNotificationRoutes);
+app.use('/api/emergency-contacts', emergencyContactRoutes);
+app.use('/api/family-members', familyMemberRoutes);
 app.use('/api/incidents', incidentRoutes);
 app.use('/api/shelters', shelterRoutes);
 

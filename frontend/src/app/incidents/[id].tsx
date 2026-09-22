@@ -3,12 +3,16 @@ import { Redirect, useLocalSearchParams, useRouter, type Href } from 'expo-route
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
   View,
+  Modal,
+  Alert,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -20,8 +24,9 @@ import {
 } from '@/components/incidents/incident-badges';
 import { BrandColors } from '@/constants/brand';
 import { useAuth } from '@/context/auth-context';
-import { getIncidentById, isIncidentApiError } from '@/services/incidentService';
-import type { Incident } from '@/types/incident';
+import { getIncidentById, isIncidentApiError, updateIncidentStatus } from '@/services/incidentService';
+import { API_BASE_URL } from '@/services/authService';
+import type { Incident, IncidentStatus } from '@/types/incident';
 
 function firstParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
@@ -69,6 +74,10 @@ function coordinatesText(incident: Incident) {
   return `${incident.latitude}, ${incident.longitude}`;
 }
 
+function photoUrl(path: string) {
+  return path.startsWith('http') ? path : `${API_BASE_URL}${path}`;
+}
+
 export default function IncidentDetailsScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -78,6 +87,47 @@ export default function IncidentDetailsScreen() {
   const [loadingIncident, setLoadingIncident] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [viewingPhotoIndex, setViewingPhotoIndex] = useState<number | null>(null);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+
+  const handleUpdateStatus = useCallback(async (newStatus: IncidentStatus) => {
+    if (!token || !incident || !incidentId) return;
+
+    const performUpdate = async () => {
+      setUpdatingStatus(true);
+      try {
+        const updatedIncident = await updateIncidentStatus(Number(incidentId), newStatus, token);
+        setIncident(updatedIncident);
+        if (Platform.OS === 'web') {
+          window.alert(`Status updated to ${newStatus}.`);
+        }
+      } catch (error) {
+        const message = isIncidentApiError(error) ? error.message : 'Unable to update status.';
+        if (Platform.OS === 'web') {
+          window.alert(message);
+        } else {
+          Alert.alert('Error', message);
+        }
+      } finally {
+        setUpdatingStatus(false);
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm(`Are you sure you want to change this incident's status to ${newStatus}?`)) {
+        void performUpdate();
+      }
+    } else {
+      Alert.alert(
+        'Confirm Status Update',
+        `Are you sure you want to change this incident's status to ${newStatus}?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Update', onPress: performUpdate },
+        ]
+      );
+    }
+  }, [incident, incidentId, token]);
 
   const loadIncident = useCallback(async (refresh = false) => {
     if (!token || !incidentId) {
@@ -136,7 +186,7 @@ export default function IncidentDetailsScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="dark" />
+      <StatusBar style="auto" />
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={
@@ -200,6 +250,39 @@ export default function IncidentDetailsScreen() {
               </View>
             </View>
 
+            {incident.status === 'Reported' && (
+              <View style={styles.editActionContainer}>
+                <AuthButton
+                  title="Edit Report"
+                  variant="secondary"
+                  onPress={() => router.push(`/incidents/edit?id=${incident.id}` as Href)}
+                />
+              </View>
+            )}
+
+            {user?.role === 'authority' && (
+              <View style={styles.panel}>
+                <Text style={styles.sectionTitle}>Authority Actions</Text>
+                <Text style={styles.sectionCopy}>Review and update the status of this incident.</Text>
+                <View style={{ flexDirection: 'row', gap: 10, marginTop: 10, flexWrap: 'wrap' }}>
+                  <AuthButton
+                    title={updatingStatus ? "Updating..." : "Verify"}
+                    variant={incident.status === 'Verified' ? 'primary' : 'secondary'}
+                    onPress={() => void handleUpdateStatus('Verified')}
+                    disabled={updatingStatus}
+                    style={{ flex: 1, minWidth: '45%' }}
+                  />
+                  <AuthButton
+                    title={updatingStatus ? "Updating..." : "Reject"}
+                    variant={incident.status === 'Rejected' ? 'primary' : 'secondary'}
+                    onPress={() => void handleUpdateStatus('Rejected')}
+                    disabled={updatingStatus}
+                    style={{ flex: 1, minWidth: '45%' }}
+                  />
+                </View>
+              </View>
+            )}
+
             <View style={styles.panel}>
               <View style={styles.panelHeader}>
                 <View style={styles.panelTitleBlock}>
@@ -238,9 +321,51 @@ export default function IncidentDetailsScreen() {
               <DetailRow label="Submitted Date" value={formatDateTime(incident.createdAt)} />
               <DetailRow label="Last Updated" value={formatDateTime(incident.updatedAt)} />
             </View>
+
+            {incident.photos.length > 0 ? (
+              <View style={styles.panel}>
+                <Text style={styles.sectionTitle}>Photo Evidence</Text>
+                <Text style={styles.sectionCopy}>{incident.photos.length} photo{incident.photos.length === 1 ? '' : 's'} attached to this report.</Text>
+                <View style={styles.photoGrid}>
+                  {incident.photos.map((photo, index) => (
+                    <Pressable
+                      key={photo.id}
+                      onPress={() => setViewingPhotoIndex(index)}
+                      style={({ pressed }) => [pressed && styles.pressed]}
+                    >
+                      <Image
+                        accessibilityLabel={`Incident evidence photo ${index + 1}`}
+                        source={{ uri: photoUrl(photo.url), headers: { Authorization: `Bearer ${token}` } }}
+                        style={styles.photo}
+                      />
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            ) : null}
           </>
         ) : null}
       </ScrollView>
+
+      {incident && viewingPhotoIndex !== null && incident.photos[viewingPhotoIndex] ? (
+        <Modal
+          animationType="fade"
+          transparent={true}
+          visible={true}
+          onRequestClose={() => setViewingPhotoIndex(null)}
+        >
+          <View style={styles.fullScreenModal}>
+            <Pressable style={styles.fullScreenClose} onPress={() => setViewingPhotoIndex(null)}>
+              <Text style={styles.fullScreenCloseText}>×</Text>
+            </Pressable>
+            <Image
+              source={{ uri: photoUrl(incident.photos[viewingPhotoIndex].url), headers: { Authorization: `Bearer ${token}` } }}
+              style={styles.fullScreenImage}
+              resizeMode="contain"
+            />
+          </View>
+        </Modal>
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -267,19 +392,19 @@ const styles = StyleSheet.create({
   eyebrow: {
     color: BrandColors.red,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
     textTransform: 'uppercase',
   },
   title: {
     color: BrandColors.navy,
-    fontSize: 28,
-    fontWeight: '900',
-    lineHeight: 34,
+    fontSize: 24,
+    fontWeight: '700',
+    lineHeight: 30,
   },
   subtitle: {
     color: BrandColors.deepBlue,
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 21,
   },
   summaryPanel: {
@@ -296,7 +421,7 @@ const styles = StyleSheet.create({
   incidentTitle: {
     color: BrandColors.navy,
     fontSize: 21,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 27,
   },
   badgeRow: {
@@ -320,16 +445,20 @@ const styles = StyleSheet.create({
   summaryLabel: {
     color: BrandColors.muted,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 15,
     textTransform: 'uppercase',
   },
   summaryValue: {
     color: BrandColors.text,
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 20,
     marginTop: 4,
+  },
+  editActionContainer: {
+    paddingHorizontal: 20,
+    marginBottom: 20,
   },
   panel: {
     backgroundColor: BrandColors.white,
@@ -352,7 +481,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     color: BrandColors.navy,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 24,
   },
   sectionCopy: {
@@ -378,7 +507,7 @@ const styles = StyleSheet.create({
   refreshButtonText: {
     color: BrandColors.deepBlue,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 16,
   },
   descriptionBlock: {
@@ -402,14 +531,14 @@ const styles = StyleSheet.create({
   detailLabel: {
     color: BrandColors.muted,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 16,
     textTransform: 'uppercase',
   },
   detailValue: {
     color: BrandColors.text,
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 21,
   },
   centerState: {
@@ -427,7 +556,7 @@ const styles = StyleSheet.create({
   emptyTitle: {
     color: BrandColors.navy,
     fontSize: 20,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 26,
     textAlign: 'center',
   },
@@ -453,10 +582,44 @@ const styles = StyleSheet.create({
   inlineErrorText: {
     color: BrandColors.red,
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '400',
     lineHeight: 20,
+  },
+  photoGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  photo: {
+    borderColor: BrandColors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    height: 120,
+    width: 120,
   },
   pressed: {
     opacity: 0.72,
+  },
+  fullScreenModal: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullScreenClose: {
+    position: 'absolute',
+    top: 40,
+    right: 20,
+    zIndex: 1,
+    padding: 10,
+  },
+  fullScreenCloseText: {
+    color: '#fff',
+    fontSize: 40,
+    lineHeight: 40,
+  },
+  fullScreenImage: {
+    width: '100%',
+    height: '100%',
   },
 });
