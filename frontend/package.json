@@ -43,7 +43,7 @@
     "typescript": "~5.9.2"
   },
   "scripts": {
-    "start": "expo start --offline --max-workers 1 --go",
+    "start": "expo start --max-workers 1 --go",
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo run:android",
     "ios": "expo run:ios",

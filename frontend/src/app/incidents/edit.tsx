@@ -25,6 +25,7 @@ import {
   StatusBanner,
 } from '@/components/common/auth-components';
 import { BottomNavigation } from '@/components/ui/app-components';
+import { IncidentLocationPicker } from '@/components/incidents/incident-location-picker';
 import { BrandColors } from '@/constants/brand';
 import { useAuth } from '@/context/auth-context';
 import { API_BASE_URL } from '@/services/authService';
@@ -453,13 +454,27 @@ export default function EditIncidentScreen() {
               value={form.description}
             />
 
-            <AuthTextField
-              autoCapitalize="words"
-              error={fieldErrors.location}
-              label="Location / Area"
-              onChangeText={(value) => updateField('location', value)}
-              placeholder="Panadura"
-              value={form.location}
+            <IncidentLocationPicker
+              locationError={fieldErrors.location}
+              locationText={form.location}
+              latitudeText={form.latitudeText}
+              longitudeText={form.longitudeText}
+              onLocationChange={(value) => {
+                setForm((current) => ({ ...current, location: value }));
+                setFieldErrors((current) => ({ ...current, location: undefined }));
+              }}
+              onCoordinatesChange={(latitude, longitude) => {
+                setForm((current) => ({
+                  ...current,
+                  latitudeText: latitude,
+                  longitudeText: longitude,
+                }));
+                setFieldErrors((current) => ({
+                  ...current,
+                  latitudeText: undefined,
+                  longitudeText: undefined,
+                }));
+              }}
             />
 
             <View style={styles.fieldGroup}>
@@ -499,29 +514,6 @@ export default function EditIncidentScreen() {
               {fieldErrors.severity ? <Text style={styles.errorText}>{fieldErrors.severity}</Text> : null}
             </View>
 
-
-            <View style={styles.coordinateGrid}>
-              <View style={styles.coordinateField}>
-                <AuthTextField
-                  error={fieldErrors.latitudeText}
-                  keyboardType="decimal-pad"
-                  label="Latitude (Optional)"
-                  onChangeText={(value) => updateField('latitudeText', value)}
-                  placeholder="6.713"
-                  value={form.latitudeText}
-                />
-              </View>
-              <View style={styles.coordinateField}>
-                <AuthTextField
-                  error={fieldErrors.longitudeText}
-                  keyboardType="decimal-pad"
-                  label="Longitude (Optional)"
-                  onChangeText={(value) => updateField('longitudeText', value)}
-                  placeholder="79.907"
-                  value={form.longitudeText}
-                />
-              </View>
-            </View>
 
             <View style={styles.photoSection}>
               <Text style={styles.photoTitle}>Photo Evidence (Optional)</Text>
@@ -824,13 +816,6 @@ const styles = StyleSheet.create({
   dropdownItemTextSelected: {
     color: BrandColors.deepBlue,
     fontWeight: '700',
-  },
-  coordinateGrid: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  coordinateField: {
-    flex: 1,
   },
   photoSection: {
     backgroundColor: BrandColors.white,

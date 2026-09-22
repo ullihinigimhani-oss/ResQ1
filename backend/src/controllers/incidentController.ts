@@ -4,6 +4,7 @@ import { cloudinary } from "../config/cloudinary.js";
 import {
   createIncident,
   getAllIncidents,
+  getNearbyIncidents,
   addIncidentPhoto,
   getIncidentById,
   getIncidentPhotoFile,
@@ -12,6 +13,8 @@ import {
   updateIncidentStatus as updateIncidentStatusService,
   updateIncident,
   removeIncidentPhoto,
+  geocodeLocation,
+  reverseGeocodeLocation,
 } from '../services/incidentService.js';
 
 function sendIncidentError(error: unknown, res: Response) {
@@ -54,6 +57,14 @@ function requireIncidentManager(req: Request) {
 
 function firstParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
+}
+
+function firstQueryParam(value: unknown) {
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  return Array.isArray(value) && typeof value[0] === 'string' ? value[0] : '';
 }
 
 export async function createIncidentReport(req: Request, res: Response) {
@@ -130,6 +141,34 @@ export async function listAllIncidents(req: Request, res: Response) {
   try {
     const user = requireAuthenticatedUser(req);
     const incidents = await getAllIncidents(user.role);
+
+    return res.status(200).json({
+      success: true,
+      incidents,
+    });
+  } catch (error) {
+    return sendIncidentError(error, res);
+  }
+}
+
+export async function listNearbyIncidents(req: Request, res: Response) {
+  try {
+    const user = requireAuthenticatedUser(req);
+    const latParam = firstQueryParam(req.query.lat);
+    const lngParam = firstQueryParam(req.query.lng);
+    const radiusParam = firstQueryParam(req.query.radius);
+
+    if (!latParam || !lngParam || !radiusParam) {
+      throw new IncidentServiceError(
+        400,
+        "Please provide 'lat', 'lng', and 'radius' query parameters.",
+      );
+    }
+
+    const latitude = Number(latParam);
+    const longitude = Number(lngParam);
+    const radiusKm = Number(radiusParam);
+    const incidents = await getNearbyIncidents(latitude, longitude, radiusKm, user.role);
 
     return res.status(200).json({
       success: true,
@@ -260,6 +299,50 @@ export async function deleteIncidentPhoto(req: Request, res: Response) {
     return res.status(200).json({
       success: true,
       message: "Photo evidence removed successfully.",
+    });
+  } catch (error) {
+    return sendIncidentError(error, res);
+  }
+}
+
+export async function reverseGeocodeIncidentLocation(req: Request, res: Response) {
+  try {
+    requireAuthenticatedUser(req);
+    const rawLat = req.query.lat;
+    const rawLon = req.query.lon;
+    const latitude = typeof rawLat === 'string' ? Number(rawLat) : Number.NaN;
+    const longitude = typeof rawLon === 'string' ? Number(rawLon) : Number.NaN;
+
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      throw new IncidentServiceError(400, "Please provide valid latitude and longitude.");
+    }
+
+    const result = await reverseGeocodeLocation(latitude, longitude);
+
+    return res.status(200).json({
+      success: true,
+      result,
+    });
+  } catch (error) {
+    return sendIncidentError(error, res);
+  }
+}
+
+export async function geocodeIncidentLocation(req: Request, res: Response) {
+  try {
+    requireAuthenticatedUser(req);
+    const rawQuery = req.query.q;
+    const query = typeof rawQuery === 'string' ? rawQuery : undefined;
+
+    if (!query) {
+      throw new IncidentServiceError(400, "Please provide a location to search.");
+    }
+
+    const results = await geocodeLocation(query);
+
+    return res.status(200).json({
+      success: true,
+      results,
     });
   } catch (error) {
     return sendIncidentError(error, res);

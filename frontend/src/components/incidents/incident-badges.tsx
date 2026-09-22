@@ -1,10 +1,9 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import { BrandColors } from '@/constants/brand';
-import {
-  incidentStatusWorkflow,
-  type IncidentSeverity,
-  type IncidentStatus,
+import type {
+  IncidentSeverity,
+  IncidentStatus,
 } from '@/types/incident';
 
 type TrackerStageState = 'completed' | 'current' | 'pending';
@@ -43,16 +42,6 @@ const statusStyles: Record<IncidentStatus, { backgroundColor: string; borderColo
     borderColor: BrandColors.warningBorderStrong,
     color: BrandColors.warningText,
   },
-  'In Progress': {
-    backgroundColor: BrandColors.incidentSoft,
-    borderColor: BrandColors.accentAction,
-    color: BrandColors.deepBlue,
-  },
-  Resolved: {
-    backgroundColor: BrandColors.successSoft,
-    borderColor: BrandColors.successBorder,
-    color: BrandColors.success,
-  },
   Verified: {
     backgroundColor: BrandColors.successSoft,
     borderColor: BrandColors.successBorder,
@@ -65,14 +54,70 @@ const statusStyles: Record<IncidentStatus, { backgroundColor: string; borderColo
   },
 };
 
-const statusDescriptions: Record<IncidentStatus, string> = {
-  Reported: 'Your incident report has been received.',
-  'Under Review': 'Authorities are reviewing the submitted information.',
-  'In Progress': 'Emergency response action is underway.',
-  Resolved: 'The incident has been marked as resolved.',
-  Verified: 'This incident has been verified by an authority.',
-  Rejected: 'This incident report has been rejected.',
+const fallbackStatusTone = {
+  backgroundColor: BrandColors.incidentSoft,
+  borderColor: BrandColors.border,
+  color: BrandColors.muted,
 };
+
+const currentStageAccent: Record<IncidentStatus, {
+  dot: string;
+  title: string;
+  badgeBackground: string;
+  badgeBorder: string;
+  badgeText: string;
+}> = {
+  Reported: {
+    dot: BrandColors.blueBorder,
+    title: BrandColors.deepBlue,
+    badgeBackground: BrandColors.lightBlue,
+    badgeBorder: BrandColors.blueBorder,
+    badgeText: BrandColors.deepBlue,
+  },
+  'Under Review': {
+    dot: BrandColors.warningBorderStrong,
+    title: BrandColors.warningText,
+    badgeBackground: BrandColors.warningSoft,
+    badgeBorder: BrandColors.warningBorderStrong,
+    badgeText: BrandColors.warningText,
+  },
+  Verified: {
+    dot: BrandColors.successBorder,
+    title: BrandColors.success,
+    badgeBackground: BrandColors.successSoft,
+    badgeBorder: BrandColors.successBorder,
+    badgeText: BrandColors.success,
+  },
+  Rejected: {
+    dot: BrandColors.redBorder,
+    title: BrandColors.red,
+    badgeBackground: BrandColors.redSoft,
+    badgeBorder: BrandColors.redBorder,
+    badgeText: BrandColors.red,
+  },
+};
+
+const timelineStages: {
+  label: string;
+  statuses: IncidentStatus[];
+  description: string;
+}[] = [
+  {
+    label: 'Reported',
+    statuses: ['Reported'],
+    description: 'Your incident report has been received.',
+  },
+  {
+    label: 'Under Review',
+    statuses: ['Under Review'],
+    description: 'Authorities are reviewing the submitted information.',
+  },
+  {
+    label: 'Resolution',
+    statuses: ['Verified', 'Rejected'],
+    description: 'Your report will be given a final outcome once reviewed.',
+  },
+];
 
 export function SeverityBadge({ severity }: { severity: IncidentSeverity }) {
   const tone = severityStyles[severity];
@@ -85,7 +130,7 @@ export function SeverityBadge({ severity }: { severity: IncidentSeverity }) {
 }
 
 export function StatusBadge({ status }: { status: IncidentStatus }) {
-  const tone = statusStyles[status];
+  const tone = statusStyles[status] ?? fallbackStatusTone;
 
   return (
     <View style={[styles.badge, { backgroundColor: tone.backgroundColor, borderColor: tone.borderColor }]}>
@@ -95,11 +140,22 @@ export function StatusBadge({ status }: { status: IncidentStatus }) {
 }
 
 export function StatusTimeline({ currentStatus }: { currentStatus: IncidentStatus }) {
-  const currentIndex = Math.max(0, incidentStatusWorkflow.indexOf(currentStatus));
+  const currentIndex = Math.max(0, timelineStages.findIndex((stage) => stage.statuses.includes(currentStatus)));
+  const terminalReached = currentIndex === timelineStages.length - 1;
+  const terminalStage = terminalReached && currentStatus === 'Rejected'
+    ? { label: 'Rejected', description: 'Your report has been reviewed and rejected as invalid.' }
+    : terminalReached
+      ? { label: 'Verified', description: 'Your report has been verified as a confirmed incident.' }
+      : { label: 'Resolution', description: 'Your report will be given a final outcome once reviewed.' };
+  const stages = timelineStages.map((stage, index) =>
+    index < timelineStages.length - 1
+      ? stage
+      : { ...stage, label: terminalStage.label, description: terminalStage.description },
+  );
 
   return (
     <View style={styles.timeline}>
-      {incidentStatusWorkflow.map((status, index) => {
+      {stages.map((stage, index) => {
         const state: TrackerStageState = index < currentIndex
           ? 'completed'
           : index === currentIndex
@@ -108,20 +164,21 @@ export function StatusTimeline({ currentStatus }: { currentStatus: IncidentStatu
         const completed = state === 'completed';
         const current = index === currentIndex;
         const pending = state === 'pending';
+        const accent = currentStageAccent[currentStatus];
 
         return (
-          <View key={status} style={styles.timelineRow}>
+          <View key={stage.label} style={styles.timelineRow}>
             <View style={styles.timelineRail}>
               <View
                 style={[
                   styles.timelineDot,
                   completed && styles.timelineDotCompleted,
-                  current && styles.timelineDotCurrent,
+                  current && [styles.timelineDotCurrent, { borderColor: accent.dot }],
                   pending && styles.timelineDotPending,
                 ]}>
                 {completed ? <View style={styles.timelineDotCenter} /> : null}
               </View>
-              {index < incidentStatusWorkflow.length - 1 ? (
+              {index < timelineStages.length - 1 ? (
                 <View style={[styles.timelineLine, index < currentIndex && styles.timelineLineActive]} />
               ) : null}
             </View>
@@ -131,22 +188,30 @@ export function StatusTimeline({ currentStatus }: { currentStatus: IncidentStatu
                   style={[
                     styles.timelineTitle,
                     !pending && styles.timelineTitleActive,
-                    current && styles.timelineTitleCurrent,
+                    current && [styles.timelineTitleCurrent, { color: accent.title }],
                   ]}>
-                  {status}
+                  {stage.label}
                 </Text>
                 <View
                   style={[
                     styles.stageBadge,
                     completed && styles.stageBadgeCompleted,
-                    current && styles.stageBadgeCurrent,
+                    current
+                      ? [
+                          styles.stageBadgeCurrent,
+                          {
+                            backgroundColor: accent.badgeBackground,
+                            borderColor: accent.badgeBorder,
+                          },
+                        ]
+                      : null,
                     pending && styles.stageBadgePending,
                   ]}>
                   <Text
                     style={[
                       styles.stageBadgeText,
                       completed && styles.stageBadgeTextCompleted,
-                      current && styles.stageBadgeTextCurrent,
+                      current && [styles.stageBadgeTextCurrent, { color: accent.badgeText }],
                       pending && styles.stageBadgeTextPending,
                     ]}>
                     {completed ? 'Completed' : current ? 'Current' : 'Pending'}
@@ -154,7 +219,7 @@ export function StatusTimeline({ currentStatus }: { currentStatus: IncidentStatu
                 </View>
               </View>
               <Text style={[styles.timelineCopy, pending && styles.timelineCopyPending]}>
-                {statusDescriptions[status]}
+                {stage.description}
               </Text>
             </View>
           </View>
