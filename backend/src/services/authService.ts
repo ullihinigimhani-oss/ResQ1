@@ -80,6 +80,7 @@ function toSafeUser(row: UserRow): SafeUser {
     role: row.role,
     location: row.location,
     preferredLanguage: row.preferred_language,
+    isVolunteer: row.is_volunteer,
     createdAt: formatTimestamp(row.created_at),
     updatedAt: formatTimestamp(row.updated_at),
   };
@@ -91,6 +92,7 @@ function validateRegistrationInput(input: RegisterResidentInput) {
   const password = passwordText(input.password);
   const location = trimmedText(input.location);
   const preferredLanguage = trimmedText(input.preferredLanguage);
+  const isVolunteer = input.isVolunteer === true;
   const fieldErrors: Record<string, string> = {};
 
   if (!fullName) {
@@ -129,6 +131,7 @@ function validateRegistrationInput(input: RegisterResidentInput) {
     password,
     location,
     preferredLanguage: preferredLanguage as PreferredLanguage,
+    isVolunteer,
   };
 }
 
@@ -358,16 +361,17 @@ export async function registerResident(input: RegisterResidentInput): Promise<Au
   const passwordHash = await bcrypt.hash(resident.password, PASSWORD_SALT_ROUNDS);
 
   const rows = await sql`
-    INSERT INTO users (full_name, email, password_hash, role, location, preferred_language)
+    INSERT INTO users (full_name, email, password_hash, role, location, preferred_language, is_volunteer)
     VALUES (
       ${resident.fullName},
       ${resident.email},
       ${passwordHash},
       'resident',
       ${resident.location},
-      ${resident.preferredLanguage}
+      ${resident.preferredLanguage},
+      ${resident.isVolunteer}
     )
-    RETURNING id, full_name, email, role, location, preferred_language, created_at, updated_at
+    RETURNING id, full_name, email, role, location, preferred_language, is_volunteer, created_at, updated_at
   `;
 
   const createdUser = rows[0] as UserRow | undefined;
@@ -383,7 +387,7 @@ export async function loginResident(input: LoginResidentInput): Promise<AuthResu
   const credentials = validateLoginInput(input);
 
   const rows = await sql`
-    SELECT id, full_name, email, password_hash, role, location, preferred_language, created_at, updated_at
+    SELECT id, full_name, email, password_hash, role, location, preferred_language, is_volunteer, created_at, updated_at
     FROM users
     WHERE email = ${credentials.email}
     LIMIT 1
@@ -718,7 +722,7 @@ export async function updateResidentProfile(
       preferred_language = ${profile.preferredLanguage},
       updated_at = CURRENT_TIMESTAMP
     WHERE id = ${userId}
-    RETURNING id, full_name, email, role, location, preferred_language, created_at, updated_at
+    RETURNING id, full_name, email, role, location, preferred_language, is_volunteer, created_at, updated_at
   `;
 
   const updatedUser = rows[0] as UserRow | undefined;

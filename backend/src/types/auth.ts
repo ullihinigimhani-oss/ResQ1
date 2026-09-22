@@ -10,6 +10,7 @@ export interface UserRow {
   role: UserRole;
   location: string | null;
   preferred_language: PreferredLanguage | string;
+  is_volunteer: boolean;
   created_at: Date | string;
   updated_at: Date | string;
 }
@@ -21,6 +22,7 @@ export interface SafeUser {
   role: UserRole;
   location: string | null;
   preferredLanguage: string;
+  isVolunteer: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -39,6 +41,7 @@ export interface RegisterResidentInput {
   password?: unknown;
   location?: unknown;
   preferredLanguage?: unknown;
+  isVolunteer?: unknown;
 }
 
 export interface LoginResidentInput {
