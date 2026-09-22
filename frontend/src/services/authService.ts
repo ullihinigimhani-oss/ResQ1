@@ -5,12 +5,14 @@ import { Platform } from 'react-native';
 import type {
   AuthSession,
   AuthUser,
+  ChangePasswordPayload,
   FieldErrors,
   ForgotPasswordPayload,
   LoginResidentPayload,
   RegisterResidentPayload,
   ResetPasswordPayload,
   UpdateProfilePayload,
+  VerifyPasswordPayload,
   VerifyResetOtpPayload,
   VerifyResetOtpResponse,
 } from '@/types/auth';
@@ -356,3 +358,68 @@ export async function verifyResetOtp(payload: VerifyResetOtpPayload) {
 export async function resetAccountPassword(payload: ResetPasswordPayload) {
   return postJson<{ success: boolean; message: string }>('/api/auth/reset-password', payload);
 }
+
+async function authenticatedRequest<T = { success: boolean; message: string }>(
+  path: string,
+  token: string,
+  options: { method?: 'GET' | 'POST' | 'PUT' | 'DELETE'; body?: unknown } = {},
+): Promise<T> {
+  let response: Response;
+  const url = `${API_BASE_URL}${path}`;
+
+  if (__DEV__) {
+    console.log(`Auth authenticated request: ${options.method || 'GET'} ${url}`);
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+  try {
+    response = await fetch(url, {
+      method: options.method || 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: options.body ? JSON.stringify(options.body) : undefined,
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (__DEV__) {
+      console.warn(`Auth request failed: ${url}`, error);
+    }
+    throw new AuthApiError(0, 'Unable to connect to the server. Please check your network connection.');
+  } finally {
+    clearTimeout(timeoutId);
+  }
+
+  const data = await parseJson(response);
+
+  if (!response.ok) {
+    throw new AuthApiError(
+      response.status,
+      data?.message || 'The request could not be completed.',
+      data?.errors,
+    );
+  }
+
+  return (data || { success: true, message: 'Success' }) as unknown as T;
+}
+
+export async function verifyCurrentPassword(token: string, payload: VerifyPasswordPayload) {
+  return authenticatedRequest<{ success: boolean; message: string }>('/api/auth/verify-password', token, {
+    method: 'POST',
+    body: payload,
+  });
+}
+
+export async function changeAccountPassword(token: string, payload: ChangePasswordPayload) {
+  return authenticatedRequest<{ success: boolean; message: string }>('/api/auth/change-password', token, {
+    method: 'PUT',
+    body: {
+      currentPassword: payload.currentPassword,
+      newPassword: payload.newPassword,
+    },
+  });
+}
+

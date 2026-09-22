@@ -7,6 +7,7 @@ import { sql } from '../config/database.js';
 import { sendPasswordResetOtpEmail } from './emailService.js';
 import type {
   AuthResult,
+  ChangePasswordInput,
   ForgotPasswordInput,
   LoginResidentInput,
   PreferredLanguage,
@@ -16,6 +17,7 @@ import type {
   UpdateProfileInput,
   UpdateVolunteerStatusInput,
   UserRow,
+  VerifyPasswordInput,
   VerifyResetOtpInput,
 } from '../types/auth.js';
 
@@ -772,3 +774,111 @@ export async function updateVolunteerStatus(
 
   return { user: toSafeUser(updatedUser) };
 }
+
+export async function verifyCurrentPassword(
+  userId: number,
+  input: VerifyPasswordInput,
+): Promise<{ verified: boolean; message: string }> {
+  const currentPassword = passwordText(input?.currentPassword);
+
+  if (!currentPassword) {
+    throw new AuthServiceError(400, 'Current password is required.', {
+      currentPassword: 'Current password is required.',
+    });
+  }
+
+  const rows = await sql`
+    SELECT id, password_hash
+    FROM users
+    WHERE id = ${userId}
+    LIMIT 1
+  `;
+  const user = rows[0] as { id: number; password_hash: string } | undefined;
+
+  if (!user || !user.password_hash) {
+    throw new AuthServiceError(404, 'Resident account was not found.');
+  }
+
+  const matches = await bcrypt.compare(currentPassword, user.password_hash);
+
+  if (!matches) {
+    throw new AuthServiceError(400, 'Current password is incorrect.', {
+      currentPassword: 'Current password is incorrect.',
+    });
+  }
+
+  return {
+    verified: true,
+    message: 'Current password verified successfully.',
+  };
+}
+
+export async function changeAccountPassword(
+  userId: number,
+  input: ChangePasswordInput,
+): Promise<{ success: boolean; message: string }> {
+  const currentPassword = passwordText(input?.currentPassword);
+  const newPassword = passwordText(input?.newPassword);
+  const fieldErrors: Record<string, string> = {};
+
+  if (!currentPassword) {
+    fieldErrors.currentPassword = 'Current password is required.';
+  }
+
+  const passwordError = validateNewPassword(newPassword);
+
+  if (passwordError) {
+    fieldErrors.newPassword = passwordError;
+  }
+
+  if (currentPassword && newPassword && currentPassword === newPassword) {
+    fieldErrors.newPassword = 'New password cannot be the same as your current password.';
+  }
+
+  if (Object.keys(fieldErrors).length > 0) {
+    throw new AuthServiceError(400, 'Please correct the highlighted fields.', fieldErrors);
+  }
+
+  const rows = await sql`
+    SELECT id, password_hash
+    FROM users
+    WHERE id = ${userId}
+    LIMIT 1
+  `;
+  const user = rows[0] as { id: number; password_hash: string } | undefined;
+
+  if (!user || !user.password_hash) {
+    throw new AuthServiceError(404, 'Resident account was not found.');
+  }
+
+  const matches = await bcrypt.compare(currentPassword, user.password_hash);
+
+  if (!matches) {
+    throw new AuthServiceError(400, 'Current password is incorrect.', {
+      currentPassword: 'Current password is incorrect.',
+    });
+  }
+
+  const passwordHash = await bcrypt.hash(newPassword, PASSWORD_SALT_ROUNDS);
+
+  await sql`
+    UPDATE users
+    SET
+      password_hash = ${passwordHash},
+      updated_at = CURRENT_TIMESTAMP
+    WHERE id = ${userId}
+  `;
+
+  // Invalidate any active password reset sessions for this user
+  await sql`
+    UPDATE password_reset_tokens
+    SET used = TRUE
+    WHERE user_id = ${userId}
+  `;
+
+  return {
+    success: true,
+    message: 'Password changed successfully. Please log in with your new password.',
+  };
+}
+
