@@ -86,41 +86,103 @@ export async function getActiveSOSRequests(): Promise<SOSRequestWithUser[]> {
   }));
 }
 
+export async function getActiveSOSRequestsForVolunteer(volunteerId: number): Promise<SOSRequestWithUser[]> {
+  const rows = await sql`
+    SELECT 
+      sr.id, sr.user_id, sr.latitude, sr.longitude, sr.status, sr.volunteer_id, sr.created_at, sr.updated_at,
+      u.full_name as user_name, u.location as user_location
+    FROM sos_requests sr
+    JOIN users u ON sr.user_id = u.id
+    WHERE sr.status = 'pending'
+    AND NOT EXISTS (
+      SELECT 1 FROM sos_declines sd
+      WHERE sd.sos_request_id = sr.id AND sd.volunteer_id = ${volunteerId}
+    )
+    ORDER BY sr.created_at DESC
+  `;
+
+  return rows.map((row) => ({
+    ...toSOSRequest(row as SOSRequestRow),
+    userName: row.user_name,
+    userLocation: row.user_location,
+  }));
+}
+
 export async function respondToSOSRequest(
   requestId: number,
   volunteerId: number,
   input: RespondSOSRequestInput,
 ): Promise<SOSRequestWithVolunteer> {
-  const rows = await sql`
-    UPDATE sos_requests
-    SET 
-      status = 'accepted',
-      volunteer_id = ${volunteerId},
-      updated_at = CURRENT_TIMESTAMP
-    WHERE id = ${requestId} AND status = 'pending'
-    RETURNING id, user_id, latitude, longitude, status, volunteer_id, created_at, updated_at
-  `;
+  const accept = input.accept === true;
 
-  const updatedRequest = rows[0] as SOSRequestRow | undefined;
+  if (accept) {
+    const rows = await sql`
+      UPDATE sos_requests
+      SET 
+        status = 'accepted',
+        volunteer_id = ${volunteerId},
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ${requestId} AND status = 'pending'
+      RETURNING id, user_id, latitude, longitude, status, volunteer_id, created_at, updated_at
+    `;
 
-  if (!updatedRequest) {
-    throw new SOSServiceError(404, 'SOS request not found or already accepted.');
+    const updatedRequest = rows[0] as SOSRequestRow | undefined;
+
+    if (!updatedRequest) {
+      throw new SOSServiceError(404, 'SOS request not found or already accepted.');
+    }
+
+    const volunteerRows = await sql`
+      SELECT full_name, email
+      FROM users
+      WHERE id = ${volunteerId}
+      LIMIT 1
+    `;
+
+    const volunteer = volunteerRows[0] as { full_name: string; email: string } | undefined;
+
+    return {
+      ...toSOSRequest(updatedRequest),
+      volunteerName: volunteer?.full_name || null,
+      volunteerPhone: volunteer?.email || null,
+    };
+  } else {
+    // Record the decline
+    await sql`
+      INSERT INTO sos_declines (sos_request_id, volunteer_id)
+      VALUES (${requestId}, ${volunteerId})
+      ON CONFLICT (sos_request_id, volunteer_id) DO NOTHING
+    `;
+
+    // Return the original request unchanged
+    const rows = await sql`
+      SELECT id, user_id, latitude, longitude, status, volunteer_id, created_at, updated_at
+      FROM sos_requests
+      WHERE id = ${requestId}
+      LIMIT 1
+    `;
+
+    const request = rows[0] as SOSRequestRow | undefined;
+
+    if (!request) {
+      throw new SOSServiceError(404, 'SOS request not found.');
+    }
+
+    const volunteerRows = await sql`
+      SELECT full_name, email
+      FROM users
+      WHERE id = ${volunteerId}
+      LIMIT 1
+    `;
+
+    const volunteer = volunteerRows[0] as { full_name: string; email: string } | undefined;
+
+    return {
+      ...toSOSRequest(request),
+      volunteerName: volunteer?.full_name || null,
+      volunteerPhone: volunteer?.email || null,
+    };
   }
-
-  const volunteerRows = await sql`
-    SELECT full_name, email
-    FROM users
-    WHERE id = ${volunteerId}
-    LIMIT 1
-  `;
-
-  const volunteer = volunteerRows[0] as { full_name: string; email: string } | undefined;
-
-  return {
-    ...toSOSRequest(updatedRequest),
-    volunteerName: volunteer?.full_name || null,
-    volunteerPhone: volunteer?.email || null,
-  };
 }
 
 export async function getUserActiveSOSRequest(userId: number): Promise<SOSRequestWithVolunteer | null> {
@@ -145,5 +207,29 @@ export async function getUserActiveSOSRequest(userId: number): Promise<SOSReques
     ...toSOSRequest(row as SOSRequestRow),
     volunteerName: row.volunteer_name,
     volunteerPhone: row.volunteer_phone,
+  };
+}
+
+export async function getVolunteerAcceptedSOSRequest(volunteerId: number): Promise<SOSRequestWithUser | null> {
+  const rows = await sql`
+    SELECT sr.id, sr.user_id, sr.latitude, sr.longitude, sr.status, sr.volunteer_id, sr.created_at, sr.updated_at,
+      u.full_name as user_name, u.location as user_location
+    FROM sos_requests sr
+    LEFT JOIN users u ON sr.user_id = u.id
+    WHERE sr.volunteer_id = ${volunteerId} AND sr.status = 'accepted'
+    ORDER BY sr.created_at DESC
+    LIMIT 1
+  `;
+
+  if (rows.length === 0) {
+    return null;
+  }
+
+  const row = rows[0];
+
+  return {
+    ...toSOSRequest(row as SOSRequestRow),
+    userName: row.user_name,
+    userLocation: row.user_location,
   };
 }

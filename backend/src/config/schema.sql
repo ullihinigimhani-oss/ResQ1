@@ -3,6 +3,7 @@ CREATE TABLE IF NOT EXISTS users (
     full_name VARCHAR(100) NOT NULL,
     email VARCHAR(150) UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
+    phone_number VARCHAR(20),
     role VARCHAR(50) DEFAULT 'resident',
     location VARCHAR(150),
     preferred_language VARCHAR(20) DEFAULT 'English',
@@ -24,6 +25,20 @@ CREATE TABLE IF NOT EXISTS sos_requests (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS sos_declines (
+    id SERIAL PRIMARY KEY,
+    sos_request_id INTEGER NOT NULL REFERENCES sos_requests(id) ON DELETE CASCADE,
+    volunteer_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    declined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(sos_request_id, volunteer_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_sos_declines_volunteer_id
+    ON sos_declines(volunteer_id);
+
+CREATE INDEX IF NOT EXISTS idx_sos_declines_sos_request_id
+    ON sos_declines(sos_request_id);
 
 CREATE TABLE IF NOT EXISTS alerts (
     id SERIAL PRIMARY KEY,

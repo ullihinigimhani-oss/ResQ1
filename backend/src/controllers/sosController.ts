@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 
-import { SOSServiceError, createSOSRequest, getActiveSOSRequests, respondToSOSRequest, getUserActiveSOSRequest } from '../services/sosService.js';
+import { SOSServiceError, createSOSRequest, getActiveSOSRequests, getActiveSOSRequestsForVolunteer, respondToSOSRequest, getUserActiveSOSRequest, getVolunteerAcceptedSOSRequest } from '../services/sosService.js';
 
 function sendErrorResponse(error: unknown, res: Response) {
   if (error instanceof SOSServiceError) {
@@ -58,6 +58,26 @@ export async function getActiveSOS(req: Request, res: Response): Promise<Respons
   }
 }
 
+export async function getActiveSOSForVolunteer(req: Request, res: Response): Promise<Response> {
+  if (!req.authUser) {
+    return res.status(401).json({
+      success: false,
+      message: 'Authentication is required.',
+    });
+  }
+
+  try {
+    const requests = await getActiveSOSRequestsForVolunteer(req.authUser.id);
+
+    return res.status(200).json({
+      success: true,
+      requests,
+    });
+  } catch (error) {
+    return sendErrorResponse(error, res);
+  }
+}
+
 export async function respondToSOS(req: Request, res: Response): Promise<Response> {
   if (!req.authUser) {
     return res.status(401).json({
@@ -91,6 +111,26 @@ export async function getUserSOSStatus(req: Request, res: Response): Promise<Res
 
   try {
     const request = await getUserActiveSOSRequest(req.authUser.id);
+
+    return res.status(200).json({
+      success: true,
+      request,
+    });
+  } catch (error) {
+    return sendErrorResponse(error, res);
+  }
+}
+
+export async function getVolunteerAcceptedSOS(req: Request, res: Response): Promise<Response> {
+  if (!req.authUser) {
+    return res.status(401).json({
+      success: false,
+      message: 'Authentication is required.',
+    });
+  }
+
+  try {
+    const request = await getVolunteerAcceptedSOSRequest(req.authUser.id);
 
     return res.status(200).json({
       success: true,

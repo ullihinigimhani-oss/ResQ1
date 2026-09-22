@@ -78,6 +78,7 @@ function toSafeUser(row: UserRow): SafeUser {
     id: row.id,
     fullName: row.full_name,
     email: row.email,
+    phoneNumber: row.phone_number,
     role: row.role,
     location: row.location,
     preferredLanguage: row.preferred_language,
@@ -94,6 +95,7 @@ function validateRegistrationInput(input: RegisterResidentInput) {
   const fullName = trimmedText(input.fullName);
   const email = normalizeEmail(input.email);
   const password = passwordText(input.password);
+  const phoneNumber = trimmedText(input.phoneNumber);
   const location = trimmedText(input.location);
   const preferredLanguage = trimmedText(input.preferredLanguage);
   const isVolunteer = input.isVolunteer === true;
@@ -133,6 +135,7 @@ function validateRegistrationInput(input: RegisterResidentInput) {
     fullName,
     email,
     password,
+    phoneNumber,
     location,
     preferredLanguage: preferredLanguage as PreferredLanguage,
     isVolunteer,
@@ -253,6 +256,7 @@ function validateResetPasswordInput(input: ResetPasswordInput) {
 function validateProfileInput(input: UpdateProfileInput) {
   const fullName = trimmedText(input.fullName);
   const email = normalizeEmail(input.email);
+  const phoneNumber = trimmedText(input.phoneNumber);
   const location = trimmedText(input.location);
   const preferredLanguage = trimmedText(input.preferredLanguage);
   const fieldErrors: Record<string, string> = {};
@@ -284,6 +288,7 @@ function validateProfileInput(input: UpdateProfileInput) {
   return {
     fullName,
     email,
+    phoneNumber,
     location,
     preferredLanguage: preferredLanguage as PreferredLanguage,
   };
@@ -365,17 +370,18 @@ export async function registerResident(input: RegisterResidentInput): Promise<Au
   const passwordHash = await bcrypt.hash(resident.password, PASSWORD_SALT_ROUNDS);
 
   const rows = await sql`
-    INSERT INTO users (full_name, email, password_hash, role, location, preferred_language, is_volunteer)
+    INSERT INTO users (full_name, email, password_hash, phone_number, role, location, preferred_language, is_volunteer)
     VALUES (
       ${resident.fullName},
       ${resident.email},
       ${passwordHash},
+      ${resident.phoneNumber || null},
       'resident',
       ${resident.location},
       ${resident.preferredLanguage},
       ${resident.isVolunteer}
     )
-    RETURNING id, full_name, email, role, location, preferred_language, is_volunteer, created_at, updated_at
+    RETURNING id, full_name, email, phone_number, role, location, preferred_language, is_volunteer, created_at, updated_at
   `;
 
   const createdUser = rows[0] as UserRow | undefined;
@@ -391,7 +397,7 @@ export async function loginResident(input: LoginResidentInput): Promise<AuthResu
   const credentials = validateLoginInput(input);
 
   const rows = await sql`
-    SELECT id, full_name, email, password_hash, role, location, preferred_language, is_volunteer, volunteer_area_latitude, volunteer_area_longitude, is_volunteering_active, created_at, updated_at
+    SELECT id, full_name, email, password_hash, phone_number, role, location, preferred_language, is_volunteer, volunteer_area_latitude, volunteer_area_longitude, is_volunteering_active, created_at, updated_at
     FROM users
     WHERE email = ${credentials.email}
     LIMIT 1
@@ -722,11 +728,12 @@ export async function updateResidentProfile(
     SET
       full_name = ${profile.fullName},
       email = ${profile.email},
+      phone_number = ${profile.phoneNumber || null},
       location = ${profile.location},
       preferred_language = ${profile.preferredLanguage},
       updated_at = CURRENT_TIMESTAMP
     WHERE id = ${userId}
-    RETURNING id, full_name, email, role, location, preferred_language, is_volunteer, volunteer_area_latitude, volunteer_area_longitude, is_volunteering_active, created_at, updated_at
+    RETURNING id, full_name, email, phone_number, role, location, preferred_language, is_volunteer, volunteer_area_latitude, volunteer_area_longitude, is_volunteering_active, created_at, updated_at
   `;
 
   const updatedUser = rows[0] as UserRow | undefined;

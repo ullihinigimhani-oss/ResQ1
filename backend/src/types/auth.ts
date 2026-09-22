@@ -7,6 +7,7 @@ export interface UserRow {
   full_name: string;
   email: string;
   password_hash?: string;
+  phone_number: string | null;
   role: UserRole;
   location: string | null;
   preferred_language: PreferredLanguage | string;
@@ -22,6 +23,7 @@ export interface SafeUser {
   id: number;
   fullName: string;
   email: string;
+  phoneNumber: string | null;
   role: UserRole;
   location: string | null;
   preferredLanguage: string;
@@ -45,6 +47,7 @@ export interface RegisterResidentInput {
   fullName?: unknown;
   email?: unknown;
   password?: unknown;
+  phoneNumber?: unknown;
   location?: unknown;
   preferredLanguage?: unknown;
   isVolunteer?: unknown;
@@ -72,6 +75,7 @@ export interface ResetPasswordInput {
 export interface UpdateProfileInput {
   fullName?: unknown;
   email?: unknown;
+  phoneNumber?: unknown;
   location?: unknown;
   preferredLanguage?: unknown;
 }

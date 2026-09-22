@@ -50,10 +50,19 @@ export async function getActiveSOSRequests(token: string): Promise<SOSRequestWit
   return response.requests;
 }
 
-export async function respondToSOSRequest(token: string, requestId: number): Promise<SOSRequestWithVolunteer> {
+export async function getActiveSOSRequestsForVolunteer(token: string): Promise<SOSRequestWithUser[]> {
+  const response = await sosRequest<{ success: boolean; requests: SOSRequestWithUser[] }>(
+    '/api/sos/active-for-volunteer',
+    null,
+    { method: 'GET', token },
+  );
+  return response.requests;
+}
+
+export async function respondToSOSRequest(token: string, requestId: number, accept: boolean): Promise<SOSRequestWithVolunteer> {
   const response = await sosRequest<{ success: boolean; message: string; request: SOSRequestWithVolunteer }>(
     `/api/sos/${requestId}/respond`,
-    {},
+    { accept },
     { method: 'PUT', token },
   );
   return response.request;

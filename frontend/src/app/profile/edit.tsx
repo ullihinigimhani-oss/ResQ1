@@ -28,6 +28,7 @@ export default function EditProfileScreen() {
   const { isLoading, token, updateCurrentUser, user } = useAuth();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [location, setLocation] = useState('');
   const [preferredLanguage, setPreferredLanguage] = useState<PreferredLanguage>('English');
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
@@ -41,6 +42,7 @@ export default function EditProfileScreen() {
 
     setFullName(user.fullName);
     setEmail(user.email);
+    setPhoneNumber(user.phoneNumber || '');
     setLocation(user.location || '');
     setPreferredLanguage(toPreferredLanguage(user.preferredLanguage));
     setFieldErrors({});
@@ -51,16 +53,18 @@ export default function EditProfileScreen() {
     () => ({
       fullName: fullName.trim(),
       email: email.trim().toLowerCase(),
+      phoneNumber: phoneNumber.trim(),
       location: location.trim(),
       preferredLanguage,
     }),
-    [email, fullName, location, preferredLanguage],
+    [email, fullName, location, phoneNumber, preferredLanguage],
   );
 
   const hasChanges = Boolean(
     user &&
       (payload.fullName !== user.fullName ||
         payload.email !== user.email ||
+        payload.phoneNumber !== (user.phoneNumber || '') ||
         payload.location !== (user.location || '') ||
         payload.preferredLanguage !== user.preferredLanguage),
   );
@@ -153,6 +157,16 @@ export default function EditProfileScreen() {
             onChangeText={setEmail}
             placeholder="Enter your email address"
             value={email}
+          />
+          <AuthTextField
+            autoCapitalize="none"
+            autoCorrect={false}
+            error={fieldErrors.phoneNumber}
+            keyboardType="phone-pad"
+            label="Phone Number (Optional)"
+            onChangeText={setPhoneNumber}
+            placeholder="+94 7X XXX XXXX"
+            value={phoneNumber}
           />
           <AuthTextField
             autoCapitalize="words"
