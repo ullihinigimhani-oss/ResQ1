@@ -1,23 +1,43 @@
 import { Redirect, useRouter, type Href } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import MapView, { Circle, Marker, PROVIDER_GOOGLE } from '@/components/shelters/native-map';
 import {
   AppHeader,
-  DemoNotice,
   EmptyState,
   FilterChip,
   LoadingState,
   ScreenContainer,
   SearchBar,
   SectionCard,
-  StatusBadge,
 } from '@/components/ui/app-components';
+import { SeverityBadge } from '@/components/incidents/incident-badges';
 import { colors, radius, spacing } from '@/constants/design';
 import { useAuth } from '@/context/auth-context';
-import { getMyIncidents } from '@/services/incidentService';
-import type { Incident } from '@/types/incident';
+import { getAllIncidents } from '@/services/incidentService';
+import type { Incident, IncidentSeverity } from '@/types/incident';
 import { formatDateTime, normalize } from '@/utils/format';
+
+const SEVERITY_ORDER: IncidentSeverity[] = ['Low', 'Medium', 'High', 'Critical'];
+
+const severityPinColor: Record<IncidentSeverity, string> = {
+  Low: colors.blueBorder,
+  Medium: colors.warningBorderStrong,
+  High: colors.red,
+  Critical: colors.criticalBorder,
+};
+
+const severityAreaRadius: Record<IncidentSeverity, number> = {
+  Low: 200,
+  Medium: 350,
+  High: 500,
+  Critical: 700,
+};
+
+function withAlpha(hex: string) {
+  return `${hex}66`;
+}
 
 export default function NearbyIncidentsScreen() {
   const router = useRouter();
@@ -26,6 +46,9 @@ export default function NearbyIncidentsScreen() {
   const [loadingIncidents, setLoadingIncidents] = useState(true);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<'All' | 'Flood' | 'Landslide' | 'Road Block'>('All');
+  const mapRef = useRef<React.ElementRef<typeof MapView>>(null);
+  const mapReadyRef = useRef(false);
+  const fittedOnceRef = useRef(false);
 
   const loadIncidents = useCallback(async () => {
     if (!token) {
@@ -35,7 +58,7 @@ export default function NearbyIncidentsScreen() {
     setLoadingIncidents(true);
 
     try {
-      setIncidents(await getMyIncidents(token));
+      setIncidents(await getAllIncidents(token));
     } finally {
       setLoadingIncidents(false);
     }
@@ -46,6 +69,37 @@ export default function NearbyIncidentsScreen() {
       void loadIncidents();
     }
   }, [loadIncidents, token]);
+
+  const locatedIncidents = useMemo(
+    () => incidents.filter((incident) => incident.latitude !== null && incident.longitude !== null),
+    [incidents],
+  );
+
+  const fitMapToIncidents = useCallback(() => {
+    if (!mapReadyRef.current || locatedIncidents.length === 0) {
+      return;
+    }
+
+    requestAnimationFrame(() => {
+      mapRef.current?.fitToCoordinates(
+        locatedIncidents.map((incident) => ({
+          latitude: incident.latitude as number,
+          longitude: incident.longitude as number,
+        })),
+        {
+          animated: true,
+          edgePadding: { top: 80, right: 80, bottom: 80, left: 80 },
+        },
+      );
+    });
+  }, [locatedIncidents]);
+
+  useEffect(() => {
+    if (mapReadyRef.current && !fittedOnceRef.current && locatedIncidents.length > 0) {
+      fittedOnceRef.current = true;
+      fitMapToIncidents();
+    }
+  }, [fitMapToIncidents, locatedIncidents.length]);
 
   const filteredIncidents = useMemo(() => {
     const normalizedQuery = normalize(query);
@@ -68,29 +122,105 @@ export default function NearbyIncidentsScreen() {
   if (isLoading || !user) {
     return (
       <ScreenContainer bottomNav={false}>
-        <LoadingState message="Loading nearby incidents..." />
+        <LoadingState message="Loading verified incidents..." />
       </ScreenContainer>
     );
   }
 
+  const openIncident = (incident: Incident) => {
+    router.push({
+      pathname: '/incidents/[id]',
+      params: { id: String(incident.id) },
+    } as unknown as Href);
+  };
+
   return (
     <ScreenContainer>
       <AppHeader
-        eyebrow="Nearby Incidents"
-        title="Community Incident View"
-        subtitle="Map-ready UI using only available resident incident data for now."
+        eyebrow="Verified Incidents"
+        title="Incident Map"
+        subtitle="Verified incident reports around your area, with severity-colored markers."
         onBack={() => router.replace('/incidents' as Href)}
       />
 
-      <DemoNotice text="The backend exposes the current resident's reports, not a public GIS incident feed. This screen avoids fake live map data." />
-
-      <SectionCard title="Map Summary">
-        <View style={styles.mapBox}>
-          <View style={styles.mapPoint} />
-          <View style={styles.mapLine} />
-          <View style={[styles.mapPoint, styles.mapPointEnd]} />
+      <SectionCard title="Incident Map">
+        <View style={styles.legendRow}>
+          {SEVERITY_ORDER.map((severity) => (
+            <View key={severity} style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: severityPinColor[severity] }]} />
+              <Text style={styles.legendText}>{severity}</Text>
+            </View>
+          ))}
         </View>
-        <Text style={styles.mapText}>Static map summary placeholder. Real map/GIS integration is a Sprint 2 gap.</Text>
+        <Text style={styles.mapHint}>Colored circles show the affected area of each verified incident. Larger circles mean higher severity.</Text>
+
+        {loadingIncidents ? <LoadingState message="Loading map markers..." /> : null}
+
+        {!loadingIncidents && locatedIncidents.length === 0 ? (
+          <EmptyState title="No verified incidents" body="No verified incidents with a location are available to show on the map." />
+        ) : null}
+
+        {!loadingIncidents && locatedIncidents.length > 0 ? (
+          Platform.OS === 'web' ? (
+            <View style={styles.mapFallbackCard}>
+              <Text style={styles.mapFallbackTitle}>Interactive map unavailable on web</Text>
+              <Text style={styles.mapFallbackText}>
+                {locatedIncidents.length} verified incident{locatedIncidents.length === 1 ? '' : 's'} with locations are listed below.
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.mapContainer}>
+              <MapView
+                provider={PROVIDER_GOOGLE}
+                ref={mapRef}
+                style={styles.map}
+                onMapReady={() => {
+                  mapReadyRef.current = true;
+                  if (!fittedOnceRef.current && locatedIncidents.length > 0) {
+                    fittedOnceRef.current = true;
+                    fitMapToIncidents();
+                  }
+                }}>
+                {locatedIncidents.map((incident) => {
+                  const severityColor = severityPinColor[incident.severity];
+
+                  return (
+                    <Circle
+                      key={incident.id}
+                      center={{
+                        latitude: incident.latitude as number,
+                        longitude: incident.longitude as number,
+                      }}
+                      fillColor={withAlpha(severityColor)}
+                      radius={severityAreaRadius[incident.severity]}
+                      strokeColor={severityColor}
+                      strokeWidth={2}
+                    />
+                  );
+                })}
+                {locatedIncidents.map((incident) => {
+                  const severityColor = severityPinColor[incident.severity];
+
+                  return (
+                    <Marker
+                      key={`center-${incident.id}`}
+                      coordinate={{
+                        latitude: incident.latitude as number,
+                        longitude: incident.longitude as number,
+                      }}
+                      onPress={() => openIncident(incident)}
+                      stopPropagation
+                      tracksViewChanges={false}>
+                      <View style={styles.centerDotOuter}>
+                        <View style={[styles.centerDot, { backgroundColor: severityColor }]} />
+                      </View>
+                    </Marker>
+                  );
+                })}
+              </MapView>
+            </View>
+          )
+        ) : null}
       </SectionCard>
 
       <SectionCard>
@@ -102,25 +232,22 @@ export default function NearbyIncidentsScreen() {
         </View>
       </SectionCard>
 
-      <SectionCard title="Incident Cards">
-        {loadingIncidents ? <LoadingState message="Loading available incident records..." /> : null}
+      <SectionCard title="Verified Incident Cards">
+        {loadingIncidents ? <LoadingState message="Loading verified incident records..." /> : null}
         {!loadingIncidents && filteredIncidents.length === 0 ? (
-          <EmptyState title="No incidents found" body="No available incident records match this view." />
+          <EmptyState title="No incidents found" body="No verified incident records match this view." />
         ) : null}
         {filteredIncidents.map((incident) => (
           <Pressable
             accessibilityRole="button"
             key={incident.id}
-            onPress={() => router.push({
-              pathname: '/incidents/[id]',
-              params: { id: String(incident.id) },
-            } as unknown as Href)}
+            onPress={() => openIncident(incident)}
             style={({ pressed }) => [styles.incidentRow, pressed && styles.pressed]}>
             <View style={styles.incidentTextBlock}>
               <Text style={styles.incidentTitle}>{incident.title}</Text>
               <Text style={styles.incidentMeta}>{incident.location} | {formatDateTime(incident.createdAt)}</Text>
             </View>
-            <StatusBadge label={incident.status} tone={incident.status === 'Verified' ? 'green' : incident.status === 'Rejected' ? 'red' : 'blue'} />
+            <SeverityBadge severity={incident.severity} />
           </Pressable>
         ))}
       </SectionCard>
@@ -129,31 +256,75 @@ export default function NearbyIncidentsScreen() {
 }
 
 const styles = StyleSheet.create({
-  mapBox: {
+  legendRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.md,
+  },
+  legendItem: {
     alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.xs,
+  },
+  legendDot: {
+    borderRadius: radius.sm,
+    height: 12,
+    width: 12,
+  },
+  legendText: {
+    color: colors.textStrong,
+    fontSize: 13,
+    fontWeight: '600',
+    lineHeight: 18,
+  },
+  mapHint: {
+    color: colors.muted,
+    fontSize: 13,
+    fontWeight: '400',
+    lineHeight: 19,
+  },
+  mapContainer: {
+    borderRadius: radius.md,
+    overflow: 'hidden',
+  },
+  map: {
+    height: 360,
+    width: '100%',
+  },
+  centerDotOuter: {
+    alignItems: 'center',
+    backgroundColor: colors.white,
+    borderColor: colors.white,
+    borderRadius: 11,
+    borderWidth: 2,
+    height: 22,
+    justifyContent: 'center',
+    shadowColor: colors.navy,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    width: 22,
+  },
+  centerDot: {
+    borderRadius: 7,
+    height: 14,
+    width: 14,
+  },
+  mapFallbackCard: {
     backgroundColor: colors.lightBlue,
-    borderColor: colors.sky,
+    borderColor: colors.border,
     borderRadius: radius.md,
     borderWidth: 1,
-    flexDirection: 'row',
-    height: 140,
-    paddingHorizontal: spacing.xl,
+    gap: spacing.xs,
+    padding: spacing.lg,
   },
-  mapPoint: {
-    backgroundColor: colors.red,
-    borderRadius: 8,
-    height: 16,
-    width: 16,
+  mapFallbackTitle: {
+    color: colors.navy,
+    fontSize: 15,
+    fontWeight: '700',
+    lineHeight: 20,
   },
-  mapPointEnd: {
-    backgroundColor: colors.success,
-  },
-  mapLine: {
-    backgroundColor: colors.accentAction,
-    flex: 1,
-    height: 4,
-  },
-  mapText: {
+  mapFallbackText: {
     color: colors.muted,
     fontSize: 13,
     fontWeight: '400',
