@@ -12,6 +12,8 @@ import {
   updateIncidentStatus as updateIncidentStatusService,
   updateIncident,
   removeIncidentPhoto,
+  geocodeLocation,
+  reverseGeocodeLocation,
 } from '../services/incidentService.js';
 
 function sendIncidentError(error: unknown, res: Response) {
@@ -260,6 +262,50 @@ export async function deleteIncidentPhoto(req: Request, res: Response) {
     return res.status(200).json({
       success: true,
       message: "Photo evidence removed successfully.",
+    });
+  } catch (error) {
+    return sendIncidentError(error, res);
+  }
+}
+
+export async function reverseGeocodeIncidentLocation(req: Request, res: Response) {
+  try {
+    requireAuthenticatedUser(req);
+    const rawLat = req.query.lat;
+    const rawLon = req.query.lon;
+    const latitude = typeof rawLat === 'string' ? Number(rawLat) : Number.NaN;
+    const longitude = typeof rawLon === 'string' ? Number(rawLon) : Number.NaN;
+
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      throw new IncidentServiceError(400, "Please provide valid latitude and longitude.");
+    }
+
+    const result = await reverseGeocodeLocation(latitude, longitude);
+
+    return res.status(200).json({
+      success: true,
+      result,
+    });
+  } catch (error) {
+    return sendIncidentError(error, res);
+  }
+}
+
+export async function geocodeIncidentLocation(req: Request, res: Response) {
+  try {
+    requireAuthenticatedUser(req);
+    const rawQuery = req.query.q;
+    const query = typeof rawQuery === 'string' ? rawQuery : undefined;
+
+    if (!query) {
+      throw new IncidentServiceError(400, "Please provide a location to search.");
+    }
+
+    const results = await geocodeLocation(query);
+
+    return res.status(200).json({
+      success: true,
+      results,
     });
   } catch (error) {
     return sendIncidentError(error, res);

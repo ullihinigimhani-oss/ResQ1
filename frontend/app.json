@@ -57,6 +57,12 @@
           "recordAudioAndroid": false,
           "barcodeScannerEnabled": false
         }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow ResQ1 to use your location to attach GPS coordinates to an incident report."
+        }
       ]
     ],
     "experiments": {

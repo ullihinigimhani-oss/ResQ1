@@ -2,6 +2,7 @@ import { sql } from '../config/database.js';
 import { cloudinary } from '../config/cloudinary.js';
 import type {
   CreateIncidentInput,
+  GeocodeResult,
   Incident,
   IncidentPhoto,
   IncidentPhotoRow,
@@ -9,6 +10,7 @@ import type {
   IncidentSeverity,
   IncidentStatus,
   IncidentType,
+  ReverseGeocodeResult,
   UpdateIncidentInput,
   UpdateIncidentStatusInput,
   ValidatedIncidentInput,
@@ -469,4 +471,240 @@ export async function getAllIncidents(role: string) {
   `;
 
   return (rows as IncidentRow[]).map(row => toIncident(row));
+}
+
+const NOMINATIM_SEARCH_URL = 'https://nominatim.openstreetmap.org/search';
+const GEOCODE_CACHE_DURATION_MS = 10 * 60 * 1000;
+const GEOCODE_LIMIT = 5;
+const geocodeCache = new Map<string, { expiresAt: number; results: GeocodeResult[] }>();
+
+type NominatimResult = {
+  display_name: string;
+  lat: string;
+  lon: string;
+};
+
+function geocodeUserAgent() {
+  return trimmedText(process.env.RESQ1_OSM_USER_AGENT)
+    || 'ResQ1/1.0 incident-location-search (local development)';
+}
+
+export async function geocodeLocation(query: string) {
+  const searchText = trimmedText(query);
+
+  if (!searchText) {
+    throw new IncidentServiceError(400, 'Please provide a location to search.');
+  }
+
+  if (searchText.length > 150) {
+    throw new IncidentServiceError(400, 'Location search must be 150 characters or fewer.');
+  }
+
+  const cacheKey = searchText.toLowerCase();
+  const cached = geocodeCache.get(cacheKey);
+
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.results;
+  }
+
+  const url = new URL(NOMINATIM_SEARCH_URL);
+  url.searchParams.set('format', 'jsonv2');
+  url.searchParams.set('limit', String(GEOCODE_LIMIT));
+  url.searchParams.set('q', searchText);
+
+  let response: Response;
+
+  try {
+    response = await fetch(url, {
+      headers: {
+        Accept: 'application/json',
+        'User-Agent': geocodeUserAgent(),
+      },
+    });
+  } catch (error) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn('Nominatim geocoding failed:', error);
+    }
+
+    throw new IncidentServiceError(502, 'Unable to search locations. Please try again.');
+  }
+
+  if (!response.ok) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn('Nominatim geocoding error:', response.status);
+    }
+
+    throw new IncidentServiceError(502, 'Unable to search locations. Please try again.');
+  }
+
+  let rawResults: NominatimResult[] = [];
+
+  try {
+    rawResults = await response.json() as NominatimResult[];
+  } catch {
+    rawResults = [];
+  }
+
+  const results = rawResults
+    .map((result) => ({
+      displayName: result.display_name,
+      latitude: Number(result.lat),
+      longitude: Number(result.lon),
+    }))
+    .filter((result) =>
+      Number.isFinite(result.latitude) &&
+      Number.isFinite(result.longitude),
+    );
+
+  geocodeCache.set(cacheKey, {
+    expiresAt: Date.now() + GEOCODE_CACHE_DURATION_MS,
+    results,
+  });
+
+  return results;
+}
+
+const NOMINATIM_REVERSE_URL = 'https://nominatim.openstreetmap.org/reverse';
+const reverseGeocodeCache = new Map<
+  string,
+  { expiresAt: number; result: ReverseGeocodeResult | null }
+>();
+
+type NominatimReverseResult = {
+  name?: string;
+  display_name: string;
+  lat?: string;
+  lon?: string;
+  address?: {
+    road?: string;
+    neighbourhood?: string;
+    suburb?: string;
+    city?: string;
+    town?: string;
+    village?: string;
+    municipality?: string;
+    county?: string;
+    state?: string;
+  };
+};
+
+function reverseGeocodeShortName(result: NominatimReverseResult) {
+  const address = result.address ?? {};
+  const preferred =
+    address.town ??
+    address.city ??
+    address.village ??
+    address.suburb ??
+    address.neighbourhood ??
+    address.municipality ??
+    address.county ??
+    address.state;
+
+  if (preferred) {
+    return preferred;
+  }
+
+  if (trimmedText(result.name)) {
+    return trimmedText(result.name);
+  }
+
+  return result.display_name.trim().split(',').slice(0, 2).join(',').trim();
+}
+
+function reverseGeocodeCoordinate(
+  value: number,
+  field: 'latitude' | 'longitude',
+) {
+  if (!Number.isFinite(value)) {
+    throw new IncidentServiceError(
+      400,
+      `${field === 'latitude' ? 'Latitude' : 'Longitude'} must be a valid number.`,
+    );
+  }
+
+  if (field === 'latitude' && (value < -90 || value > 90)) {
+    throw new IncidentServiceError(400, 'Latitude must be between -90 and 90.');
+  }
+
+  if (field === 'longitude' && (value < -180 || value > 180)) {
+    throw new IncidentServiceError(400, 'Longitude must be between -180 and 180.');
+  }
+
+  return value;
+}
+
+export async function reverseGeocodeLocation(latitude: number, longitude: number) {
+  const lat = reverseGeocodeCoordinate(latitude, 'latitude');
+  const lon = reverseGeocodeCoordinate(longitude, 'longitude');
+
+  const cacheKey = `${lat.toFixed(4)},${lon.toFixed(4)}`;
+  const cached = reverseGeocodeCache.get(cacheKey);
+
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.result;
+  }
+
+  const url = new URL(NOMINATIM_REVERSE_URL);
+  url.searchParams.set('format', 'jsonv2');
+  url.searchParams.set('lat', String(lat));
+  url.searchParams.set('lon', String(lon));
+
+  let response: Response;
+
+  try {
+    response = await fetch(url, {
+      headers: {
+        Accept: 'application/json',
+        'User-Agent': geocodeUserAgent(),
+      },
+    });
+  } catch (error) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn('Nominatim reverse geocoding failed:', error);
+    }
+
+    throw new IncidentServiceError(502, 'Unable to resolve the location name. Please try again.');
+  }
+
+  if (!response.ok) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn('Nominatim reverse geocoding error:', response.status);
+    }
+
+    throw new IncidentServiceError(502, 'Unable to resolve the location name. Please try again.');
+  }
+
+  let raw: NominatimReverseResult | null = null;
+
+  try {
+    raw = await response.json() as NominatimReverseResult;
+  } catch {
+    raw = null;
+  }
+
+  if (!raw || !raw.display_name) {
+    reverseGeocodeCache.set(cacheKey, {
+      expiresAt: Date.now() + GEOCODE_CACHE_DURATION_MS,
+      result: null,
+    });
+
+    return null;
+  }
+
+  const resolvedLat = Number(raw.lat);
+  const resolvedLon = Number(raw.lon);
+
+  const result: ReverseGeocodeResult = {
+    displayName: raw.display_name,
+    shortName: reverseGeocodeShortName(raw),
+    latitude: Number.isFinite(resolvedLat) ? resolvedLat : lat,
+    longitude: Number.isFinite(resolvedLon) ? resolvedLon : lon,
+  };
+
+  reverseGeocodeCache.set(cacheKey, {
+    expiresAt: Date.now() + GEOCODE_CACHE_DURATION_MS,
+    result,
+  });
+
+  return result;
 }

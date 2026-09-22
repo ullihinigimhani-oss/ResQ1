@@ -2,9 +2,11 @@ import { API_BASE_URL } from '@/services/authService';
 import { Platform } from 'react-native';
 import type {
   CreateIncidentPayload,
+  GeocodeResult,
   Incident,
   IncidentFieldErrors,
   IncidentPhoto,
+  ReverseGeocodeResult,
   SelectedIncidentPhoto,
   IncidentStatus,
 } from '@/types/incident';
@@ -247,4 +249,41 @@ export async function updateIncidentStatus(incidentId: number, status: IncidentS
   }
 
   return response.incident;
+}
+
+type ApiGeocodeResponse = ApiErrorBody & {
+  success: boolean;
+  results?: GeocodeResult[];
+};
+
+export async function searchIncidentLocation(query: string, token: string) {
+  const params = new URLSearchParams({ q: query });
+  const response = await incidentRequest<ApiGeocodeResponse>(
+    `/api/incidents/geocode?${params.toString()}`,
+    token,
+  );
+
+  return response.results ?? [];
+}
+
+type ApiReverseGeocodeResponse = ApiErrorBody & {
+  success: boolean;
+  result?: ReverseGeocodeResult | null;
+};
+
+export async function reverseGeocodeIncidentLocation(
+  latitude: number,
+  longitude: number,
+  token: string,
+) {
+  const params = new URLSearchParams({
+    lat: String(latitude),
+    lon: String(longitude),
+  });
+  const response = await incidentRequest<ApiReverseGeocodeResponse>(
+    `/api/incidents/reverse-geocode?${params.toString()}`,
+    token,
+  );
+
+  return response.result ?? null;
 }

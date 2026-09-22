@@ -84,6 +84,19 @@ export interface UpdateIncidentStatusInput {
   status?: unknown;
 }
 
+export interface GeocodeResult {
+  displayName: string;
+  latitude: number;
+  longitude: number;
+}
+
+export interface ReverseGeocodeResult {
+  displayName: string;
+  shortName: string;
+  latitude: number;
+  longitude: number;
+}
+
 export interface ValidatedIncidentInput {
   incidentType: IncidentType;
   title: string;

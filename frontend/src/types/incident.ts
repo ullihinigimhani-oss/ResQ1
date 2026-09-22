@@ -44,6 +44,19 @@ export interface IncidentPhoto {
   createdAt: string;
 }
 
+export interface GeocodeResult {
+  displayName: string;
+  latitude: number;
+  longitude: number;
+}
+
+export interface ReverseGeocodeResult {
+  displayName: string;
+  shortName: string;
+  latitude: number;
+  longitude: number;
+}
+
 export type SelectedIncidentPhoto = {
   uri: string;
   fileName: string;

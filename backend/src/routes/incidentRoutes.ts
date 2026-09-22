@@ -10,6 +10,8 @@ import {
   listMyIncidentReports,
   updateIncidentReport,
   deleteIncidentPhoto,
+  geocodeIncidentLocation,
+  reverseGeocodeIncidentLocation,
 } from '../controllers/incidentController.js';
 import { authenticateRequest } from '../middleware/authMiddleware.js';
 import { incidentPhotoUpload } from '../middleware/incidentPhotoUpload.js';
@@ -26,6 +28,8 @@ router.get('/my', listMyIncidentReports);
 router.get('/all', listAllIncidents);
 router.patch('/:id/status', updateIncidentStatus);
 router.put('/:id', updateIncidentReport);
+router.get('/geocode', geocodeIncidentLocation);
+router.get('/reverse-geocode', reverseGeocodeIncidentLocation);
 router.get('/:id', getMyIncidentReport);
 
 export default router;
