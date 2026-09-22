@@ -29,6 +29,7 @@ export interface Incident {
   createdAt: string;
   updatedAt: string;
   photos: IncidentPhoto[];
+  distanceKm?: number;
 }
 
 export interface IncidentPhoto {

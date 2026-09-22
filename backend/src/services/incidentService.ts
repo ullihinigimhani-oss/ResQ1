@@ -122,6 +122,10 @@ function toIncident(row: IncidentRow, photos: IncidentPhoto[] = []): Incident {
     createdAt: formatTimestamp(row.created_at),
     updatedAt: formatTimestamp(row.updated_at),
     photos,
+    distanceKm:
+      row.distance_km === undefined || row.distance_km === null
+        ? undefined
+        : (optionalNumber(row.distance_km) ?? undefined),
   };
 }
 
@@ -477,6 +481,46 @@ export async function getAllIncidents(role: string) {
       AND longitude IS NOT NULL
       AND (${isAuthority} OR status = 'Verified')
     ORDER BY created_at DESC
+  `;
+
+  return (rows as IncidentRow[]).map(row => toIncident(row));
+}
+
+export async function getNearbyIncidents(
+  latitude: number,
+  longitude: number,
+  radiusKm: number,
+  role: string,
+) {
+  if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) {
+    throw new IncidentServiceError(400, 'Latitude must be between -90 and 90.');
+  }
+
+  if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+    throw new IncidentServiceError(400, 'Longitude must be between -180 and 180.');
+  }
+
+  if (!Number.isFinite(radiusKm) || radiusKm <= 0 || radiusKm > 50) {
+    throw new IncidentServiceError(400, 'Search radius must be between 1 and 50 km.');
+  }
+
+  const isAuthority = role === 'admin' || role === 'authority';
+  const distanceExpression = sql`
+    (6371 * acos(least(1,
+      cos(radians(${latitude})) * cos(radians(latitude)) * cos(radians(longitude) - radians(${longitude}))
+      + sin(radians(${latitude})) * sin(radians(latitude))
+    )))
+  `;
+
+  const rows = await sql`
+    SELECT id, incident_type, title, description, location, latitude, longitude, severity, photo_url, status, created_at, updated_at,
+      ${distanceExpression} AS distance_km
+    FROM incidents
+    WHERE latitude IS NOT NULL
+      AND longitude IS NOT NULL
+      AND (${isAuthority} OR status = 'Verified')
+      AND ${distanceExpression} <= ${radiusKm}
+    ORDER BY distance_km ASC
   `;
 
   return (rows as IncidentRow[]).map(row => toIncident(row));

@@ -61,7 +61,7 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Allow ResQ1 to use your location to attach GPS coordinates to an incident report."
+          "locationWhenInUsePermission": "Allow ResQ1 to detect your location so you can attach incident reports, view incidents on the map, and see verified incidents near you."
         }
       ]
     ],

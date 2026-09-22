@@ -5,6 +5,7 @@ import {
   uploadIncidentPhoto,
   getMyIncidentReport,
   listAllIncidents,
+  listNearbyIncidents,
   updateIncidentStatus,
   getIncidentPhoto,
   listMyIncidentReports,
@@ -26,6 +27,7 @@ router.get('/:id/photos/:photoId', getIncidentPhoto);
 router.delete('/:id/photos/:photoId', deleteIncidentPhoto);
 router.get('/my', listMyIncidentReports);
 router.get('/all', listAllIncidents);
+router.get('/nearby', listNearbyIncidents);
 router.patch('/:id/status', updateIncidentStatus);
 router.put('/:id', updateIncidentReport);
 router.get('/geocode', geocodeIncidentLocation);

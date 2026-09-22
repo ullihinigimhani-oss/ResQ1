@@ -17,6 +17,7 @@ export interface IncidentRow {
   status: IncidentStatus | string;
   created_at: Date | string;
   updated_at: Date | string;
+  distance_km?: number | string | null;
 }
 
 export interface Incident {
@@ -33,6 +34,7 @@ export interface Incident {
   createdAt: string;
   updatedAt: string;
   photos: IncidentPhoto[];
+  distanceKm?: number;
 }
 
 export interface IncidentPhotoRow {

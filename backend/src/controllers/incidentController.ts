@@ -4,6 +4,7 @@ import { cloudinary } from "../config/cloudinary.js";
 import {
   createIncident,
   getAllIncidents,
+  getNearbyIncidents,
   addIncidentPhoto,
   getIncidentById,
   getIncidentPhotoFile,
@@ -56,6 +57,14 @@ function requireIncidentManager(req: Request) {
 
 function firstParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
+}
+
+function firstQueryParam(value: unknown) {
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  return Array.isArray(value) && typeof value[0] === 'string' ? value[0] : '';
 }
 
 export async function createIncidentReport(req: Request, res: Response) {
@@ -132,6 +141,34 @@ export async function listAllIncidents(req: Request, res: Response) {
   try {
     const user = requireAuthenticatedUser(req);
     const incidents = await getAllIncidents(user.role);
+
+    return res.status(200).json({
+      success: true,
+      incidents,
+    });
+  } catch (error) {
+    return sendIncidentError(error, res);
+  }
+}
+
+export async function listNearbyIncidents(req: Request, res: Response) {
+  try {
+    const user = requireAuthenticatedUser(req);
+    const latParam = firstQueryParam(req.query.lat);
+    const lngParam = firstQueryParam(req.query.lng);
+    const radiusParam = firstQueryParam(req.query.radius);
+
+    if (!latParam || !lngParam || !radiusParam) {
+      throw new IncidentServiceError(
+        400,
+        "Please provide 'lat', 'lng', and 'radius' query parameters.",
+      );
+    }
+
+    const latitude = Number(latParam);
+    const longitude = Number(lngParam);
+    const radiusKm = Number(radiusParam);
+    const incidents = await getNearbyIncidents(latitude, longitude, radiusKm, user.role);
 
     return res.status(200).json({
       success: true,

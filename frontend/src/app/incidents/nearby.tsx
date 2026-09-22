@@ -1,6 +1,7 @@
+import * as Location from 'expo-location';
 import { Redirect, useRouter, type Href } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import MapView, { Circle, Marker, PROVIDER_GOOGLE } from '@/components/shelters/native-map';
 import {
@@ -15,11 +16,12 @@ import {
 import { SeverityBadge } from '@/components/incidents/incident-badges';
 import { colors, radius, spacing } from '@/constants/design';
 import { useAuth } from '@/context/auth-context';
-import { getAllIncidents } from '@/services/incidentService';
+import { getAllIncidents, getNearbyIncidents } from '@/services/incidentService';
 import type { Incident, IncidentSeverity } from '@/types/incident';
 import { formatDateTime, normalize } from '@/utils/format';
 
 const SEVERITY_ORDER: IncidentSeverity[] = ['Low', 'Medium', 'High', 'Critical'];
+const RADIUS_OPTIONS = [2, 5, 10] as const;
 
 const severityPinColor: Record<IncidentSeverity, string> = {
   Low: colors.blueBorder,
@@ -39,6 +41,14 @@ function withAlpha(hex: string) {
   return `${hex}66`;
 }
 
+function distanceLabel(km: number | undefined) {
+  if (km === undefined || km === null) {
+    return '';
+  }
+
+  return km < 1 ? `${Math.round(km * 1000)} m away` : `${km.toFixed(1)} km away`;
+}
+
 export default function NearbyIncidentsScreen() {
   const router = useRouter();
   const { isLoading, token, user } = useAuth();
@@ -46,9 +56,55 @@ export default function NearbyIncidentsScreen() {
   const [loadingIncidents, setLoadingIncidents] = useState(true);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<'All' | 'Flood' | 'Landslide' | 'Road Block'>('All');
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [locationStatus, setLocationStatus] = useState<'idle' | 'locating' | 'granted' | 'denied'>('idle');
+  const [radiusKm, setRadiusKm] = useState<number | null>(null);
   const mapRef = useRef<React.ElementRef<typeof MapView>>(null);
   const mapReadyRef = useRef(false);
   const fittedOnceRef = useRef(false);
+  const pendingRadiusRef = useRef<number | null>(null);
+
+  const locateUser = useCallback(async () => {
+    setLocationStatus('locating');
+
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+
+      if (status !== 'granted') {
+        setLocationStatus('denied');
+        pendingRadiusRef.current = null;
+        return;
+      }
+
+      const position = await Location.getCurrentPositionAsync({});
+
+      setUserLocation({
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+      });
+      setLocationStatus('granted');
+      setRadiusKm(pendingRadiusRef.current ?? 5);
+      pendingRadiusRef.current = null;
+    } catch {
+      setLocationStatus('denied');
+      pendingRadiusRef.current = null;
+    }
+  }, []);
+
+  const selectRadius = useCallback((value: number | null) => {
+    if (value === null) {
+      setRadiusKm(null);
+      return;
+    }
+
+    if (userLocation) {
+      setRadiusKm(value);
+      return;
+    }
+
+    pendingRadiusRef.current = value;
+    void locateUser();
+  }, [locateUser, userLocation]);
 
   const loadIncidents = useCallback(async () => {
     if (!token) {
@@ -58,11 +114,21 @@ export default function NearbyIncidentsScreen() {
     setLoadingIncidents(true);
 
     try {
-      setIncidents(await getAllIncidents(token));
+      if (userLocation && radiusKm !== null) {
+        setIncidents(await getNearbyIncidents(userLocation.latitude, userLocation.longitude, radiusKm, token));
+      } else {
+        setIncidents(await getAllIncidents(token));
+      }
     } finally {
       setLoadingIncidents(false);
     }
-  }, [token]);
+  }, [radiusKm, token, userLocation]);
+
+  useEffect(() => {
+    if (token) {
+      void locateUser();
+    }
+  }, [locateUser, token]);
 
   useEffect(() => {
     if (token) {
@@ -80,26 +146,29 @@ export default function NearbyIncidentsScreen() {
       return;
     }
 
+    const points = locatedIncidents.map((incident) => ({
+      latitude: incident.latitude as number,
+      longitude: incident.longitude as number,
+    }));
+
+    if (userLocation) {
+      points.push(userLocation);
+    }
+
     requestAnimationFrame(() => {
-      mapRef.current?.fitToCoordinates(
-        locatedIncidents.map((incident) => ({
-          latitude: incident.latitude as number,
-          longitude: incident.longitude as number,
-        })),
-        {
-          animated: true,
-          edgePadding: { top: 80, right: 80, bottom: 80, left: 80 },
-        },
-      );
+      mapRef.current?.fitToCoordinates(points, {
+        animated: true,
+        edgePadding: { top: 80, right: 80, bottom: 80, left: 80 },
+      });
     });
-  }, [locatedIncidents]);
+  }, [locatedIncidents, userLocation]);
 
   useEffect(() => {
-    if (mapReadyRef.current && !fittedOnceRef.current && locatedIncidents.length > 0) {
+    if (mapReadyRef.current && !fittedOnceRef.current && (locatedIncidents.length > 0 || userLocation)) {
       fittedOnceRef.current = true;
       fitMapToIncidents();
     }
-  }, [fitMapToIncidents, locatedIncidents.length]);
+  }, [fitMapToIncidents, locatedIncidents.length, userLocation]);
 
   const filteredIncidents = useMemo(() => {
     const normalizedQuery = normalize(query);
@@ -139,9 +208,63 @@ export default function NearbyIncidentsScreen() {
       <AppHeader
         eyebrow="Verified Incidents"
         title="Incident Map"
-        subtitle="Verified incident reports around your area, with severity-colored markers."
+        subtitle="Verified incidents near you, filtered by a selected radius."
         onBack={() => router.replace('/incidents' as Href)}
       />
+
+      <SectionCard title="My Location & Radius">
+        {locationStatus === 'locating' ? (
+          <View style={styles.locationStatusRow}>
+            <ActivityIndicator color={colors.accentAction} size="small" />
+            <Text style={styles.locationStatusText}>Finding your current location...</Text>
+          </View>
+        ) : null}
+
+        {locationStatus === 'granted' && userLocation ? (
+          <Text style={styles.locationStatusText}>
+            You are here — showing verified incidents within {radiusKm === null ? 'any radius' : `${radiusKm} km`} of your device.
+          </Text>
+        ) : null}
+
+        {locationStatus === 'denied' ? (
+          <View style={styles.locationStatusRow}>
+            <Text style={styles.locationStatusText}>
+              Location permission is off — showing all verified incidents.
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => void locateUser()}
+              style={({ pressed }) => [pressed && styles.pressed]}>
+              <Text style={styles.enableLocationText}>Enable</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
+        {locationStatus === 'idle' ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => void locateUser()}
+            style={({ pressed }) => [pressed && styles.pressed]}>
+            <Text style={styles.enableLocationText}>Use my location</Text>
+          </Pressable>
+        ) : null}
+
+        <View style={styles.radiusRow}>
+          {RADIUS_OPTIONS.map((km) => (
+            <FilterChip
+              key={km}
+              selected={radiusKm === km}
+              title={`${km} km`}
+              onPress={() => selectRadius(km)}
+            />
+          ))}
+          <FilterChip
+            selected={radiusKm === null}
+            title="All areas"
+            onPress={() => selectRadius(null)}
+          />
+        </View>
+      </SectionCard>
 
       <SectionCard title="Incident Map">
         <View style={styles.legendRow}>
@@ -176,7 +299,7 @@ export default function NearbyIncidentsScreen() {
                 style={styles.map}
                 onMapReady={() => {
                   mapReadyRef.current = true;
-                  if (!fittedOnceRef.current && locatedIncidents.length > 0) {
+                  if (!fittedOnceRef.current && (locatedIncidents.length > 0 || userLocation)) {
                     fittedOnceRef.current = true;
                     fitMapToIncidents();
                   }
@@ -217,6 +340,16 @@ export default function NearbyIncidentsScreen() {
                     </Marker>
                   );
                 })}
+                {userLocation ? (
+                  <Marker
+                    coordinate={userLocation}
+                    title="You are here"
+                    tracksViewChanges={false}>
+                    <View style={styles.userDotOuter}>
+                      <View style={[styles.centerDot, { backgroundColor: colors.accentAction }]} />
+                    </View>
+                  </Marker>
+                ) : null}
               </MapView>
             </View>
           )
@@ -237,25 +370,56 @@ export default function NearbyIncidentsScreen() {
         {!loadingIncidents && filteredIncidents.length === 0 ? (
           <EmptyState title="No incidents found" body="No verified incident records match this view." />
         ) : null}
-        {filteredIncidents.map((incident) => (
-          <Pressable
-            accessibilityRole="button"
-            key={incident.id}
-            onPress={() => openIncident(incident)}
-            style={({ pressed }) => [styles.incidentRow, pressed && styles.pressed]}>
-            <View style={styles.incidentTextBlock}>
-              <Text style={styles.incidentTitle}>{incident.title}</Text>
-              <Text style={styles.incidentMeta}>{incident.location} | {formatDateTime(incident.createdAt)}</Text>
-            </View>
-            <SeverityBadge severity={incident.severity} />
-          </Pressable>
-        ))}
+        {filteredIncidents.map((incident) => {
+          const distance = distanceLabel(incident.distanceKm);
+
+          return (
+            <Pressable
+              accessibilityRole="button"
+              key={incident.id}
+              onPress={() => openIncident(incident)}
+              style={({ pressed }) => [styles.incidentRow, pressed && styles.pressed]}>
+              <View style={styles.incidentTextBlock}>
+                <Text style={styles.incidentTitle}>{incident.title}</Text>
+                <Text style={styles.incidentMeta}>
+                  {incident.location}
+                  {distance ? ` | ${distance}` : ''} | {formatDateTime(incident.createdAt)}
+                </Text>
+              </View>
+              <SeverityBadge severity={incident.severity} />
+            </Pressable>
+          );
+        })}
       </SectionCard>
     </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
+  locationStatusRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  locationStatusText: {
+    color: colors.muted,
+    fontSize: 13,
+    fontWeight: '400',
+    lineHeight: 19,
+  },
+  enableLocationText: {
+    color: colors.blue,
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 19,
+  },
+  radiusRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+  },
   legendRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -304,6 +468,20 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 2,
     width: 22,
+  },
+  userDotOuter: {
+    alignItems: 'center',
+    backgroundColor: colors.white,
+    borderColor: colors.accentAction,
+    borderRadius: 13,
+    borderWidth: 3,
+    height: 26,
+    justifyContent: 'center',
+    shadowColor: colors.navy,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3,
+    width: 26,
   },
   centerDot: {
     borderRadius: 7,
