@@ -15,6 +15,8 @@ import {
 } from '@/components/ui/app-components';
 import { colors, radius, spacing } from '@/constants/design';
 import { useAuth } from '@/context/auth-context';
+import { useCurrentLocation } from '@/hooks/use-current-location';
+import { updateVolunteerStatus as updateVolunteerStatusApi } from '@/services/authService';
 import { updateVolunteerStatus as updateVolunteerStatusApi, API_BASE_URL } from '@/services/authService';
 import { getUserSOSStatus } from '@/services/sosService';
 import { formatRole, initials, isAuthorityRole } from '@/utils/format';
@@ -58,6 +60,7 @@ function ActionRow({
 export default function ProfileScreen() {
   const router = useRouter();
   const { isLoading, signOut, user, token, updateUser } = useAuth();
+  const { currentArea } = useCurrentLocation();
   const [isShining, setIsShining] = useState(user?.isVolunteeringActive || false);
   const [mapModalVisible, setMapModalVisible] = useState(false);
   const [selectedRegion, setSelectedRegion] = useState<{ latitude: number; longitude: number; latitudeDelta: number; longitudeDelta: number } | null>(null);
@@ -244,6 +247,7 @@ export default function ProfileScreen() {
 
       <SectionCard title="Location">
         <InfoRow label="Registered Area" value={user.location || 'Not set'} />
+        <InfoRow label="Current Area" value={currentArea} />
       </SectionCard>
 
       <SectionCard title="Account">
