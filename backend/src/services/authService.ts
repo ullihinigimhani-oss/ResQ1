@@ -14,6 +14,7 @@ import type {
   ResetPasswordInput,
   SafeUser,
   UpdateProfileInput,
+  UpdateVolunteerStatusInput,
   UserRow,
   VerifyResetOtpInput,
 } from '../types/auth.js';
@@ -81,6 +82,9 @@ function toSafeUser(row: UserRow): SafeUser {
     location: row.location,
     preferredLanguage: row.preferred_language,
     isVolunteer: row.is_volunteer,
+    volunteerAreaLatitude: row.volunteer_area_latitude,
+    volunteerAreaLongitude: row.volunteer_area_longitude,
+    isVolunteeringActive: row.is_volunteering_active,
     createdAt: formatTimestamp(row.created_at),
     updatedAt: formatTimestamp(row.updated_at),
   };
@@ -387,7 +391,7 @@ export async function loginResident(input: LoginResidentInput): Promise<AuthResu
   const credentials = validateLoginInput(input);
 
   const rows = await sql`
-    SELECT id, full_name, email, password_hash, role, location, preferred_language, is_volunteer, created_at, updated_at
+    SELECT id, full_name, email, password_hash, role, location, preferred_language, is_volunteer, volunteer_area_latitude, volunteer_area_longitude, is_volunteering_active, created_at, updated_at
     FROM users
     WHERE email = ${credentials.email}
     LIMIT 1
@@ -722,7 +726,35 @@ export async function updateResidentProfile(
       preferred_language = ${profile.preferredLanguage},
       updated_at = CURRENT_TIMESTAMP
     WHERE id = ${userId}
-    RETURNING id, full_name, email, role, location, preferred_language, is_volunteer, created_at, updated_at
+    RETURNING id, full_name, email, role, location, preferred_language, is_volunteer, volunteer_area_latitude, volunteer_area_longitude, is_volunteering_active, created_at, updated_at
+  `;
+
+  const updatedUser = rows[0] as UserRow | undefined;
+
+  if (!updatedUser) {
+    throw new AuthServiceError(404, 'Resident account was not found.');
+  }
+
+  return { user: toSafeUser(updatedUser) };
+}
+
+export async function updateVolunteerStatus(
+  userId: number,
+  input: UpdateVolunteerStatusInput,
+): Promise<AuthResult> {
+  const volunteerAreaLatitude = input.volunteerAreaLatitude === null ? null : Number(input.volunteerAreaLatitude);
+  const volunteerAreaLongitude = input.volunteerAreaLongitude === null ? null : Number(input.volunteerAreaLongitude);
+  const isVolunteeringActive = input.isVolunteeringActive === true;
+
+  const rows = await sql`
+    UPDATE users
+    SET
+      volunteer_area_latitude = ${volunteerAreaLatitude},
+      volunteer_area_longitude = ${volunteerAreaLongitude},
+      is_volunteering_active = ${isVolunteeringActive},
+      updated_at = CURRENT_TIMESTAMP
+    WHERE id = ${userId}
+    RETURNING id, full_name, email, role, location, preferred_language, is_volunteer, volunteer_area_latitude, volunteer_area_longitude, is_volunteering_active, created_at, updated_at
   `;
 
   const updatedUser = rows[0] as UserRow | undefined;

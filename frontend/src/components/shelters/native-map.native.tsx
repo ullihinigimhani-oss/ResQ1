@@ -1,5 +1,6 @@
 export { default } from 'react-native-maps';
 export {
+  Circle,
   Marker,
   Polyline,
   PROVIDER_DEFAULT,

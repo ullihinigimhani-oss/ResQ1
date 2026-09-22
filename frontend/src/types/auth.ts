@@ -8,6 +8,9 @@ export interface AuthUser {
   location: string | null;
   preferredLanguage: string;
   isVolunteer: boolean;
+  volunteerAreaLatitude: number | null;
+  volunteerAreaLongitude: number | null;
+  isVolunteeringActive: boolean;
   createdAt: string;
   updatedAt: string;
 }

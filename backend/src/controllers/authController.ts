@@ -7,6 +7,7 @@ import {
   requestPasswordReset,
   resetPassword,
   updateResidentProfile,
+  updateVolunteerStatus as updateVolunteerStatusService,
   verifyResetOtp,
 } from '../services/authService.js';
 
@@ -110,6 +111,27 @@ export async function updateProfile(req: Request, res: Response) {
     return res.status(200).json({
       success: true,
       message: 'Profile updated successfully.',
+      user: result.user,
+    });
+  } catch (error) {
+    return sendErrorResponse(error, res);
+  }
+}
+
+export async function updateVolunteerStatus(req: Request, res: Response): Promise<Response> {
+  if (!req.authUser) {
+    return res.status(401).json({
+      success: false,
+      message: 'Authentication is required.',
+    });
+  }
+
+  try {
+    const result = await updateVolunteerStatusService(req.authUser.id, req.body);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Volunteer status updated successfully.',
       user: result.user,
     });
   } catch (error) {

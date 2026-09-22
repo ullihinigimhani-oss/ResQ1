@@ -9,6 +9,7 @@ import emergencyContactRoutes from './routes/emergencyContactRoutes.js';
 import familyMemberRoutes from './routes/familyMemberRoutes.js';
 import incidentRoutes from './routes/incidentRoutes.js';
 import shelterRoutes from './routes/shelterRoutes.js';
+import sosRoutes from './routes/sosRoutes.js';
 
 dotenv.config();
 
@@ -27,6 +28,7 @@ app.use('/api/emergency-contacts', emergencyContactRoutes);
 app.use('/api/family-members', familyMemberRoutes);
 app.use('/api/incidents', incidentRoutes);
 app.use('/api/shelters', shelterRoutes);
+app.use('/api/sos', sosRoutes);
 
 // Basic API test
 app.get('/', (_req, res) => {

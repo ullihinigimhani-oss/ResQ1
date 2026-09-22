@@ -104,10 +104,10 @@ async function parseJson(response: Response) {
   }
 }
 
-async function authRequest(
+export async function authRequest(
   path: string,
-  body: RegisterResidentPayload | LoginResidentPayload | UpdateProfilePayload,
-  options: { method?: 'POST' | 'PUT'; token?: string } = {},
+  body: RegisterResidentPayload | LoginResidentPayload | UpdateProfilePayload | Record<string, unknown>,
+  options: { method?: 'POST' | 'PUT' | 'GET'; token?: string } = {},
 ) {
   let response: Response;
   const url = `${API_BASE_URL}${path}`;
@@ -240,6 +240,18 @@ export async function loginResident(payload: LoginResidentPayload): Promise<Auth
 
 export async function updateProfile(token: string, payload: UpdateProfilePayload): Promise<AuthUser> {
   const response = await authRequest('/api/auth/me', payload, {
+    method: 'PUT',
+    token,
+  });
+
+  return response.user;
+}
+
+export async function updateVolunteerStatus(
+  token: string,
+  payload: { volunteerAreaLatitude: number | null; volunteerAreaLongitude: number | null; isVolunteeringActive: boolean },
+): Promise<AuthUser> {
+  const response = await authRequest('/api/auth/volunteer-status', payload, {
     method: 'PUT',
     token,
   });
