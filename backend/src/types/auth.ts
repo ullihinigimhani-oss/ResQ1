@@ -82,6 +82,15 @@ export interface UpdateVolunteerStatusInput {
   isVolunteeringActive?: unknown;
 }
 
+export interface VerifyPasswordInput {
+  currentPassword?: unknown;
+}
+
+export interface ChangePasswordInput {
+  currentPassword?: unknown;
+  newPassword?: unknown;
+}
+
 export interface AuthResult {
   user: SafeUser;
   token?: string;
