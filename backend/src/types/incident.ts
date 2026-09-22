@@ -2,7 +2,7 @@ export type IncidentType = 'Flood' | 'Fire' | 'Landslide' | 'Cyclone' | 'Tsunami
 
 export type IncidentSeverity = 'Low' | 'Medium' | 'High' | 'Critical';
 
-export type IncidentStatus = 'Reported' | 'Under Review' | 'In Progress' | 'Resolved' | 'Verified' | 'Rejected';
+export type IncidentStatus = 'Reported' | 'Under Review' | 'Verified' | 'Rejected';
 
 export interface IncidentRow {
   id: number;

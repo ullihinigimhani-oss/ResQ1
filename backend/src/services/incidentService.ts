@@ -21,11 +21,13 @@ const INCIDENT_SEVERITIES = new Set<IncidentSeverity>(['Low', 'Medium', 'High', 
 const INCIDENT_STATUSES = new Set<IncidentStatus>([
   'Reported',
   'Under Review',
-  'In Progress',
-  'Resolved',
   'Verified',
   'Rejected',
 ]);
+const LEGACY_STATUS_REMAP: Record<string, IncidentStatus> = {
+  'In Progress': 'Under Review',
+  Resolved: 'Verified',
+};
 const DEFAULT_INCIDENT_STATUS: IncidentStatus = 'Reported';
 
 export class IncidentServiceError extends Error {
@@ -97,6 +99,14 @@ function toIncidentPhoto(row: IncidentPhotoRow): IncidentPhoto {
   };
 }
 
+function normalizedIncidentStatus(value: string): IncidentStatus {
+  if (INCIDENT_STATUSES.has(value as IncidentStatus)) {
+    return value as IncidentStatus;
+  }
+
+  return LEGACY_STATUS_REMAP[value] ?? DEFAULT_INCIDENT_STATUS;
+}
+
 function toIncident(row: IncidentRow, photos: IncidentPhoto[] = []): Incident {
   return {
     id: row.id,
@@ -108,7 +118,7 @@ function toIncident(row: IncidentRow, photos: IncidentPhoto[] = []): Incident {
     longitude: optionalNumber(row.longitude),
     severity: row.severity,
     photoUrl: row.photo_url,
-    status: row.status,
+    status: normalizedIncidentStatus(row.status),
     createdAt: formatTimestamp(row.created_at),
     updatedAt: formatTimestamp(row.updated_at),
     photos,
@@ -465,7 +475,6 @@ export async function getAllIncidents(role: string) {
     FROM incidents
     WHERE latitude IS NOT NULL
       AND longitude IS NOT NULL
-      AND status != 'Resolved'
       AND (${isAuthority} OR status = 'Verified')
     ORDER BY created_at DESC
   `;

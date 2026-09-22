@@ -3,8 +3,6 @@ export const incidentSeverityOptions = ['Low', 'Medium', 'High', 'Critical'] as 
 export const incidentStatusWorkflow = [
   'Reported',
   'Under Review',
-  'In Progress',
-  'Resolved',
   'Verified',
   'Rejected',
 ] as const;

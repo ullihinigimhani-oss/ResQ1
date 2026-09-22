@@ -120,7 +120,7 @@ export default function NearbyIncidentsScreen() {
               <Text style={styles.incidentTitle}>{incident.title}</Text>
               <Text style={styles.incidentMeta}>{incident.location} | {formatDateTime(incident.createdAt)}</Text>
             </View>
-            <StatusBadge label={incident.status} tone={incident.status === 'Resolved' ? 'green' : 'blue'} />
+            <StatusBadge label={incident.status} tone={incident.status === 'Verified' ? 'green' : incident.status === 'Rejected' ? 'red' : 'blue'} />
           </Pressable>
         ))}
       </SectionCard>
