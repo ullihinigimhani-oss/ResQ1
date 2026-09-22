@@ -16,7 +16,6 @@ import {
 import { colors, radius, spacing } from '@/constants/design';
 import { useAuth } from '@/context/auth-context';
 import { useCurrentLocation } from '@/hooks/use-current-location';
-import { updateVolunteerStatus as updateVolunteerStatusApi } from '@/services/authService';
 import { updateVolunteerStatus as updateVolunteerStatusApi, API_BASE_URL } from '@/services/authService';
 import { getUserSOSStatus } from '@/services/sosService';
 import { formatRole, initials, isAuthorityRole } from '@/utils/format';
