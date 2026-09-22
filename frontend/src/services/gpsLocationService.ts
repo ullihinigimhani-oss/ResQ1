@@ -41,6 +41,54 @@ export function extractAreaName(addresses: Location.LocationGeocodedAddress[]): 
 }
 
 /**
+ * Reverse-geocodes coordinates into an area name with multi-tier fallback.
+ */
+export async function reverseGeocodeCoordinates(
+  latitude: number,
+  longitude: number,
+): Promise<string> {
+  try {
+    const addresses = await Location.reverseGeocodeAsync({ latitude, longitude });
+
+    if (addresses && addresses.length > 0) {
+      return extractAreaName(addresses);
+    }
+  } catch {
+    // In web or restricted environments, reverse geocoding may fail; attempt client-side fallback
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`,
+        {
+          headers: {
+            'User-Agent': 'ResQ1/1.0',
+          },
+        },
+      );
+      if (res.ok) {
+        const data = await res.json();
+        const address = data?.address;
+        const fallbackArea =
+          address?.city ||
+          address?.town ||
+          address?.village ||
+          address?.suburb ||
+          address?.county ||
+          address?.state_district ||
+          address?.state;
+
+        if (fallbackArea) {
+          return fallbackArea;
+        }
+      }
+    } catch {
+      // Fallback failed, continue
+    }
+  }
+
+  return `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+}
+
+/**
  * Requests location permission, obtains high/balanced accuracy coordinates,
  * and reverse-geocodes them into a localized town/city area name.
  */
@@ -63,61 +111,12 @@ export async function getGpsCurrentArea(): Promise<GpsLocationResult> {
     });
 
     const { latitude, longitude } = location.coords;
-
-    try {
-      const addresses = await Location.reverseGeocodeAsync({ latitude, longitude });
-
-      if (addresses && addresses.length > 0) {
-        const areaName = extractAreaName(addresses);
-        return {
-          latitude,
-          longitude,
-          areaName,
-          status: 'ready',
-          address: addresses[0],
-        };
-      }
-    } catch {
-      // In web or restricted environments, reverse geocoding may fail; attempt client-side fallback
-      try {
-        const res = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`,
-          {
-            headers: {
-              'User-Agent': 'ResQ1/1.0',
-            },
-          },
-        );
-        if (res.ok) {
-          const data = await res.json();
-          const address = data?.address;
-          const fallbackArea =
-            address?.city ||
-            address?.town ||
-            address?.village ||
-            address?.suburb ||
-            address?.county ||
-            address?.state_district ||
-            address?.state;
-
-          if (fallbackArea) {
-            return {
-              latitude,
-              longitude,
-              areaName: fallbackArea,
-              status: 'ready',
-            };
-          }
-        }
-      } catch {
-        // Fallback failed, continue
-      }
-    }
+    const areaName = await reverseGeocodeCoordinates(latitude, longitude);
 
     return {
       latitude,
       longitude,
-      areaName: `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`,
+      areaName,
       status: 'ready',
     };
   } catch (error) {
