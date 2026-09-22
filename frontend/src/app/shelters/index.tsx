@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Linking,
+  Modal,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -148,6 +149,7 @@ export default function NearbySheltersScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [sosModalVisible, setSosModalVisible] = useState(false);
 
   const loadShelters = useCallback(async (refresh = false) => {
     if (!token) {
@@ -231,8 +233,17 @@ export default function NearbySheltersScreen() {
         <BackButton onPress={() => router.replace('/dashboard' as Href)} />
 
         <View style={styles.header}>
-          <Text style={styles.eyebrow}>Emergency Response</Text>
-          <Text style={styles.title}>Nearby Safe Shelters</Text>
+          <View style={styles.headerRow}>
+            <View style={styles.headerText}>
+              <Text style={styles.eyebrow}>Emergency Response</Text>
+              <Text style={styles.title}>Nearby Safe Shelters</Text>
+            </View>
+            <Pressable
+              onPress={() => setSosModalVisible(true)}
+              style={({ pressed }) => [styles.sosButton, pressed && styles.sosButtonPressed]}>
+              <Text style={styles.sosButtonText}>SOS</Text>
+            </Pressable>
+          </View>
           <Text style={styles.subtitle}>
             Find verified emergency shelters and check their current availability.
           </Text>
@@ -317,6 +328,30 @@ export default function NearbySheltersScreen() {
         ) : null}
       </ScrollView>
       <BottomNavigation />
+
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={sosModalVisible}
+        onRequestClose={() => setSosModalVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Do you need emergency assistance?</Text>
+            <Pressable
+              style={({ pressed }) => [styles.shareLocationButton, pressed && styles.shareLocationButtonPressed]}
+              onPress={() => {
+                setSosModalVisible(false);
+              }}>
+              <Text style={styles.shareLocationButtonText}>Share your live location</Text>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [styles.cancelButton, pressed && styles.cancelButtonPressed]}
+              onPress={() => setSosModalVisible(false)}>
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -341,6 +376,15 @@ const styles = StyleSheet.create({
   header: {
     gap: 7,
   },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  headerText: {
+    flex: 1,
+    gap: 7,
+  },
   eyebrow: {
     color: BrandColors.red,
     fontSize: 12,
@@ -359,6 +403,28 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     lineHeight: 22,
+  },
+  sosButton: {
+    backgroundColor: '#FF0000',
+    borderRadius: 30,
+    width: 60,
+    height: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  sosButtonPressed: {
+    opacity: 0.8,
+  },
+  sosButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+    lineHeight: 20,
   },
   createButton: {
     marginTop: 4,
@@ -557,5 +623,61 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.72,
+  },
+  modalOverlay: {
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: BrandColors.white,
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 320,
+    gap: 16,
+  },
+  modalTitle: {
+    color: BrandColors.navy,
+    fontSize: 20,
+    fontWeight: '700',
+    lineHeight: 26,
+    textAlign: 'center',
+  },
+  shareLocationButton: {
+    backgroundColor: BrandColors.red,
+    borderRadius: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+  },
+  shareLocationButtonPressed: {
+    opacity: 0.8,
+  },
+  shareLocationButtonText: {
+    color: BrandColors.white,
+    fontSize: 16,
+    fontWeight: '700',
+    lineHeight: 22,
+  },
+  cancelButton: {
+    backgroundColor: BrandColors.background,
+    borderRadius: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: BrandColors.border,
+  },
+  cancelButtonPressed: {
+    opacity: 0.8,
+  },
+  cancelButtonText: {
+    color: BrandColors.text,
+    fontSize: 16,
+    fontWeight: '600',
+    lineHeight: 22,
   },
 });
