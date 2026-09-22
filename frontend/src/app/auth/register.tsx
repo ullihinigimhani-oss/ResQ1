@@ -4,6 +4,7 @@ import { useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -27,6 +28,7 @@ import type { FieldErrors, PreferredLanguage, RegisterResidentPayload } from '@/
 type RegistrationForm = Omit<RegisterResidentPayload, 'preferredLanguage'> & {
   confirmPassword: string;
   preferredLanguage: PreferredLanguage | '';
+  isVolunteer: boolean;
 };
 
 const initialForm: RegistrationForm = {
@@ -36,6 +38,7 @@ const initialForm: RegistrationForm = {
   confirmPassword: '',
   location: '',
   preferredLanguage: '',
+  isVolunteer: false,
 };
 
 function validateForm(form: RegistrationForm) {
@@ -45,6 +48,7 @@ function validateForm(form: RegistrationForm) {
     password: form.password,
     location: form.location.trim(),
     preferredLanguage: form.preferredLanguage,
+    isVolunteer: form.isVolunteer,
   };
   const errors: FieldErrors & { confirmPassword?: string } = {};
   const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -212,6 +216,26 @@ export default function RegisterScreen() {
               textContentType="addressCity"
               value={form.location}
             />
+            <View style={styles.volunteerSection}>
+              <Text style={styles.volunteerText}>
+                If you can volunteer and act as emergency helper please tap this button.
+              </Text>
+              <Pressable
+                onPress={() => setForm((current) => ({ ...current, isVolunteer: !current.isVolunteer }))}
+                style={({ pressed }) => [
+                  styles.volunteerButton,
+                  form.isVolunteer ? styles.volunteerButtonActive : styles.volunteerButtonInactive,
+                  pressed && styles.volunteerButtonPressed,
+                ]}>
+                <Text
+                  style={[
+                    styles.volunteerButtonText,
+                    form.isVolunteer ? styles.volunteerButtonTextActive : styles.volunteerButtonTextInactive,
+                  ]}>
+                  Emergency Volunteer
+                </Text>
+              </Pressable>
+            </View>
             <LanguageSelector
               error={fieldErrors.preferredLanguage}
               value={form.preferredLanguage}
@@ -274,6 +298,46 @@ const styles = StyleSheet.create({
   },
   form: {
     gap: 16,
+  },
+  volunteerSection: {
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  volunteerText: {
+    color: BrandColors.muted,
+    fontSize: 14,
+    fontWeight: '500',
+    lineHeight: 20,
+    marginBottom: 12,
+  },
+  volunteerButton: {
+    borderRadius: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    borderWidth: 2,
+  },
+  volunteerButtonInactive: {
+    backgroundColor: BrandColors.background,
+    borderColor: BrandColors.muted,
+  },
+  volunteerButtonActive: {
+    backgroundColor: '#8B0000',
+    borderColor: '#8B0000',
+  },
+  volunteerButtonPressed: {
+    opacity: 0.8,
+  },
+  volunteerButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    lineHeight: 22,
+  },
+  volunteerButtonTextInactive: {
+    color: BrandColors.muted,
+  },
+  volunteerButtonTextActive: {
+    color: '#FFFFFF',
   },
   actions: {
     gap: 14,

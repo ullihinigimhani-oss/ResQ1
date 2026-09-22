@@ -7,6 +7,10 @@ export interface AuthUser {
   role: 'resident' | 'admin' | 'authority';
   location: string | null;
   preferredLanguage: string;
+  isVolunteer: boolean;
+  volunteerAreaLatitude: number | null;
+  volunteerAreaLongitude: number | null;
+  isVolunteeringActive: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -17,6 +21,7 @@ export interface RegisterResidentPayload {
   password: string;
   location: string;
   preferredLanguage: PreferredLanguage;
+  isVolunteer?: boolean;
 }
 
 export interface LoginResidentPayload {
