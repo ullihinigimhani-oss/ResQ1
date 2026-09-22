@@ -23,9 +23,9 @@ import { ShelterStatusBadge } from '@/components/shelters/shelter-ui';
 import { BrandColors } from '@/constants/brand';
 import { useAuth } from '@/context/auth-context';
 import { getShelters, isShelterApiError } from '@/services/shelterService';
-import { createSOSRequest, getActiveSOSRequests, getUserSOSStatus, respondToSOSRequest } from '@/services/sosService';
+import { createSOSRequest, getUserSOSStatus } from '@/services/sosService';
 import type { Shelter } from '@/types/shelter';
-import type { SOSRequestWithUser, SOSRequestWithVolunteer } from '@/types/sos';
+import type { SOSRequestWithVolunteer } from '@/types/sos';
 
 type FilterKey = 'Nearest' | 'Available' | 'Medical Support' | 'Family Friendly' | 'Area';
 
@@ -155,9 +155,6 @@ export default function NearbySheltersScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sosModalVisible, setSosModalVisible] = useState(false);
   const [sosRequest, setSosRequest] = useState<SOSRequestWithVolunteer | null>(null);
-  const [activeSOSRequests, setActiveSOSRequests] = useState<SOSRequestWithUser[]>([]);
-  const [volunteerSOSModalVisible, setVolunteerSOSModalVisible] = useState(false);
-  const [selectedSOSRequest, setSelectedSOSRequest] = useState<SOSRequestWithUser | null>(null);
 
   // Disable SOS polling on web to prevent network errors
   const isWeb = Platform.OS === 'web';
@@ -214,27 +211,6 @@ export default function NearbySheltersScreen() {
     }
   }, [token, isWeb]);
 
-  useEffect(() => {
-    if (token && user?.isVolunteeringActive && !isWeb) {
-      const checkActiveSOS = async () => {
-        try {
-          const requests = await getActiveSOSRequests(token);
-          if (requests && requests.length > 0 && !volunteerSOSModalVisible) {
-            setSelectedSOSRequest(requests[0]);
-            setVolunteerSOSModalVisible(true);
-          }
-        } catch (error) {
-          console.error('Failed to check active SOS requests:', error);
-        }
-      };
-
-      checkActiveSOS();
-      const interval = setInterval(checkActiveSOS, 5000);
-
-      return () => clearInterval(interval);
-    }
-  }, [token, user?.isVolunteeringActive, volunteerSOSModalVisible, isWeb]);
-
   const filteredShelters = useMemo(() => {
     const query = normalizedText(searchQuery);
 
@@ -273,24 +249,6 @@ export default function NearbySheltersScreen() {
       console.error('Failed to create SOS request:', error);
       alert('Failed to share location. Please try again.');
     }
-  };
-
-  const handleVolunteerReady = async () => {
-    if (!token || !selectedSOSRequest) return;
-
-    try {
-      await respondToSOSRequest(token, selectedSOSRequest.id);
-      setVolunteerSOSModalVisible(false);
-      setSelectedSOSRequest(null);
-    } catch (error) {
-      console.error('Failed to respond to SOS:', error);
-      alert('Failed to respond to SOS. Please try again.');
-    }
-  };
-
-  const handleVolunteerNotReady = () => {
-    setVolunteerSOSModalVisible(false);
-    setSelectedSOSRequest(null);
   };
 
   if (!isLoading && !user) {
@@ -454,31 +412,6 @@ export default function NearbySheltersScreen() {
               style={({ pressed }) => [styles.cancelButton, pressed && styles.cancelButtonPressed]}
               onPress={() => setSosModalVisible(false)}>
               <Text style={styles.cancelButtonText}>Cancel</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
-
-      <Modal
-        animationType="fade"
-        transparent={true}
-        visible={volunteerSOSModalVisible}
-        onRequestClose={() => setVolunteerSOSModalVisible(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Emergency Assistance Needed!</Text>
-            <Text style={styles.modalSubtitle}>
-              {selectedSOSRequest?.userName} needs help at their location.
-            </Text>
-            <Pressable
-              style={({ pressed }) => [styles.readyButton, pressed && styles.readyButtonPressed]}
-              onPress={handleVolunteerReady}>
-              <Text style={styles.readyButtonText}>Emergency Rescue Team is Ready</Text>
-            </Pressable>
-            <Pressable
-              style={({ pressed }) => [styles.notReadyButton, pressed && styles.notReadyButtonPressed]}
-              onPress={handleVolunteerNotReady}>
-              <Text style={styles.notReadyButtonText}>Not Ready</Text>
             </Pressable>
           </View>
         </View>

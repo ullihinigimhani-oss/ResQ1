@@ -36,6 +36,7 @@ const initialForm: RegistrationForm = {
   email: '',
   password: '',
   confirmPassword: '',
+  phoneNumber: '',
   location: '',
   preferredLanguage: '',
   isVolunteer: false,
@@ -46,6 +47,7 @@ function validateForm(form: RegistrationForm) {
     fullName: form.fullName.trim(),
     email: form.email.trim().toLowerCase(),
     password: form.password,
+    phoneNumber: form.phoneNumber?.trim() || '',
     location: form.location.trim(),
     preferredLanguage: form.preferredLanguage,
     isVolunteer: form.isVolunteer,
@@ -173,7 +175,7 @@ export default function RegisterScreen() {
               value={form.fullName}
             />
             <AuthTextField
-              autoCapitalize="none"
+              autoCapitalize="words"
               autoComplete="email"
               error={fieldErrors.email}
               keyboardType="email-address"
@@ -182,6 +184,17 @@ export default function RegisterScreen() {
               placeholder="resident@example.com"
               textContentType="emailAddress"
               value={form.email}
+            />
+            <AuthTextField
+              autoCapitalize="none"
+              autoComplete="tel"
+              error={fieldErrors.phoneNumber}
+              keyboardType="phone-pad"
+              label="Phone Number (Optional)"
+              onChangeText={(value) => updateField('phoneNumber', value)}
+              placeholder="+94 7X XXX XXXX"
+              textContentType="telephoneNumber"
+              value={form.phoneNumber}
             />
             <PasswordField
               autoCapitalize="none"

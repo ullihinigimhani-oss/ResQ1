@@ -15,7 +15,7 @@ export interface CreateSOSRequestInput {
 }
 
 export interface RespondSOSRequestInput {
-  volunteerId?: unknown;
+  accept?: boolean;
 }
 
 export interface SOSRequest {

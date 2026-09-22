@@ -1,6 +1,6 @@
 import { Redirect, useRouter, type Href } from 'expo-router';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useState } from 'react';
+import { Linking, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useState, useEffect } from 'react';
 import { Platform } from 'react-native';
 
 import {
@@ -17,7 +17,10 @@ import { colors, radius, spacing } from '@/constants/design';
 import { useAuth } from '@/context/auth-context';
 import { useCurrentLocation } from '@/hooks/use-current-location';
 import { updateVolunteerStatus as updateVolunteerStatusApi } from '@/services/authService';
+import { updateVolunteerStatus as updateVolunteerStatusApi, API_BASE_URL } from '@/services/authService';
+import { getUserSOSStatus } from '@/services/sosService';
 import { formatRole, initials, isAuthorityRole } from '@/utils/format';
+import type { SOSRequestWithVolunteer } from '@/types/sos';
 
 let MapView: any, Circle: any, Marker: any;
 if (Platform.OS !== 'web') {
@@ -61,6 +64,8 @@ export default function ProfileScreen() {
   const [isShining, setIsShining] = useState(user?.isVolunteeringActive || false);
   const [mapModalVisible, setMapModalVisible] = useState(false);
   const [selectedRegion, setSelectedRegion] = useState<{ latitude: number; longitude: number; latitudeDelta: number; longitudeDelta: number } | null>(null);
+  const [sosRequest, setSosRequest] = useState<SOSRequestWithVolunteer | null>(null);
+  const isWeb = Platform.OS === 'web';
 
   if (!isLoading && !user) {
     return <Redirect href={'/auth/welcome' as Href} />;
@@ -126,6 +131,68 @@ export default function ProfileScreen() {
     });
   };
 
+  useEffect(() => {
+    if (token && !isWeb) {
+      const checkSOSStatus = async () => {
+        try {
+          const status = await getUserSOSStatus(token);
+          setSosRequest(status);
+        } catch (error) {
+          console.error('Failed to check SOS status:', error);
+        }
+      };
+
+      checkSOSStatus();
+      const interval = setInterval(checkSOSStatus, 5000);
+
+      return () => clearInterval(interval);
+    }
+  }, [token, isWeb]);
+
+  const handleRouteToVictim = async () => {
+    if (!user?.volunteerAreaLatitude || !user?.volunteerAreaLongitude) {
+      alert('Please set your volunteer area first by clicking Volunteer Now.');
+      return;
+    }
+
+    if (!token) return;
+
+    try {
+      console.log('Fetching SOS from:', `${API_BASE_URL}/api/sos/volunteer-accepted`);
+      
+      const response = await fetch(`${API_BASE_URL}/api/sos/volunteer-accepted`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      console.log('Response status:', response.status);
+      const data = await response.json();
+      console.log('Response data:', data);
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to get SOS request');
+      }
+
+      const sosRequest = data.request;
+
+      if (!sosRequest) {
+        alert('No active SOS request to respond to. Please wait for an SOS alert and click "Emergency Rescue Team is Ready" to accept it.');
+        return;
+      }
+
+      const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${user.volunteerAreaLatitude},${user.volunteerAreaLongitude}&destination=${sosRequest.latitude},${sosRequest.longitude}&travelmode=driving`;
+      
+      Linking.openURL(googleMapsUrl).catch((error) => {
+        console.error('Failed to open Google Maps:', error);
+        alert('Unable to open Google Maps. Please ensure you have Google Maps installed.');
+      });
+    } catch (error) {
+      console.error('Failed to get SOS request:', error);
+      alert(`Failed to get SOS request: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`);
+    }
+  };
+
   return (
     <ScreenContainer>
       <AppHeader
@@ -141,6 +208,7 @@ export default function ProfileScreen() {
         <View style={styles.identityBlock}>
           <Text style={styles.name}>{user.fullName}</Text>
           <Text style={styles.email}>{user.email}</Text>
+          {user.phoneNumber && <Text style={styles.phoneNumber}>{user.phoneNumber}</Text>}
           <View style={styles.identityBadges}>
             <StatusBadge label={`Resident ID ${user.id}`} tone="blue" />
             <StatusBadge label={formatRole(user.role)} tone="green" />
@@ -161,6 +229,14 @@ export default function ProfileScreen() {
           </Text>
         </Pressable>
       )}
+
+      {user.isVolunteer && user.isVolunteeringActive && user?.volunteerAreaLatitude && user?.volunteerAreaLongitude ? (
+        <PrimaryButton
+          onPress={handleRouteToVictim}
+          title="Route to Disaster Victim"
+          tone="navy"
+        />
+      ) : null}
 
       <SectionCard title="Personal Details">
         <InfoRow label="Full Name" value={user.fullName} />
@@ -307,6 +383,12 @@ const styles = StyleSheet.create({
     lineHeight: 27,
   },
   email: {
+    color: colors.onPrimaryMuted,
+    fontSize: 14,
+    fontWeight: '400',
+    lineHeight: 20,
+  },
+  phoneNumber: {
     color: colors.onPrimaryMuted,
     fontSize: 14,
     fontWeight: '400',

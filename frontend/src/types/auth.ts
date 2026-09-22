@@ -4,6 +4,7 @@ export interface AuthUser {
   id: number;
   fullName: string;
   email: string;
+  phoneNumber: string | null;
   role: 'resident' | 'admin' | 'authority';
   location: string | null;
   preferredLanguage: string;
@@ -19,6 +20,7 @@ export interface RegisterResidentPayload {
   fullName: string;
   email: string;
   password: string;
+  phoneNumber?: string;
   location: string;
   preferredLanguage: PreferredLanguage;
   isVolunteer?: boolean;
@@ -32,6 +34,7 @@ export interface LoginResidentPayload {
 export interface UpdateProfilePayload {
   fullName: string;
   email: string;
+  phoneNumber?: string;
   location: string;
   preferredLanguage: PreferredLanguage;
 }
