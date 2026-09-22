@@ -5,6 +5,7 @@ import {
   ActivityIndicator,
   Linking,
   Modal,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -14,6 +15,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as Location from 'expo-location';
 
 import { AuthButton, BackButton, StatusBanner } from '@/components/common/auth-components';
 import { BottomNavigation } from '@/components/ui/app-components';
@@ -21,7 +23,9 @@ import { ShelterStatusBadge } from '@/components/shelters/shelter-ui';
 import { BrandColors } from '@/constants/brand';
 import { useAuth } from '@/context/auth-context';
 import { getShelters, isShelterApiError } from '@/services/shelterService';
+import { createSOSRequest, getActiveSOSRequests, getUserSOSStatus, respondToSOSRequest } from '@/services/sosService';
 import type { Shelter } from '@/types/shelter';
+import type { SOSRequestWithUser, SOSRequestWithVolunteer } from '@/types/sos';
 
 type FilterKey = 'Nearest' | 'Available' | 'Medical Support' | 'Family Friendly' | 'Area';
 
@@ -150,6 +154,13 @@ export default function NearbySheltersScreen() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [sosModalVisible, setSosModalVisible] = useState(false);
+  const [sosRequest, setSosRequest] = useState<SOSRequestWithVolunteer | null>(null);
+  const [activeSOSRequests, setActiveSOSRequests] = useState<SOSRequestWithUser[]>([]);
+  const [volunteerSOSModalVisible, setVolunteerSOSModalVisible] = useState(false);
+  const [selectedSOSRequest, setSelectedSOSRequest] = useState<SOSRequestWithUser | null>(null);
+
+  // Disable SOS polling on web to prevent network errors
+  const isWeb = Platform.OS === 'web';
 
   const loadShelters = useCallback(async (refresh = false) => {
     if (!token) {
@@ -185,10 +196,49 @@ export default function NearbySheltersScreen() {
     }
   }, [loadShelters, token]);
 
+  useEffect(() => {
+    if (token && !isWeb) {
+      const checkSOSStatus = async () => {
+        try {
+          const status = await getUserSOSStatus(token);
+          setSosRequest(status);
+        } catch (error) {
+          console.error('Failed to check SOS status:', error);
+        }
+      };
+
+      checkSOSStatus();
+      const interval = setInterval(checkSOSStatus, 5000);
+
+      return () => clearInterval(interval);
+    }
+  }, [token, isWeb]);
+
+  useEffect(() => {
+    if (token && user?.isVolunteeringActive && !isWeb) {
+      const checkActiveSOS = async () => {
+        try {
+          const requests = await getActiveSOSRequests(token);
+          if (requests && requests.length > 0 && !volunteerSOSModalVisible) {
+            setSelectedSOSRequest(requests[0]);
+            setVolunteerSOSModalVisible(true);
+          }
+        } catch (error) {
+          console.error('Failed to check active SOS requests:', error);
+        }
+      };
+
+      checkActiveSOS();
+      const interval = setInterval(checkActiveSOS, 5000);
+
+      return () => clearInterval(interval);
+    }
+  }, [token, user?.isVolunteeringActive, volunteerSOSModalVisible, isWeb]);
+
   const filteredShelters = useMemo(() => {
     const query = normalizedText(searchQuery);
 
-    return shelters.filter((shelter) => {
+    return (shelters || []).filter((shelter) => {
       return (
         !query ||
         normalizedText(shelter.name).includes(query) ||
@@ -196,6 +246,52 @@ export default function NearbySheltersScreen() {
       );
     });
   }, [searchQuery, shelters]);
+
+  const handleShareLocation = async () => {
+    if (!token) return;
+
+    if (Platform.OS === 'web') {
+      alert('Location sharing is not available on web. Please use the mobile app.');
+      return;
+    }
+
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        alert('Location permission is required to share your live location.');
+        return;
+      }
+
+      const location = await Location.getCurrentPositionAsync({});
+      await createSOSRequest(token, {
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      });
+
+      setSosModalVisible(false);
+    } catch (error) {
+      console.error('Failed to create SOS request:', error);
+      alert('Failed to share location. Please try again.');
+    }
+  };
+
+  const handleVolunteerReady = async () => {
+    if (!token || !selectedSOSRequest) return;
+
+    try {
+      await respondToSOSRequest(token, selectedSOSRequest.id);
+      setVolunteerSOSModalVisible(false);
+      setSelectedSOSRequest(null);
+    } catch (error) {
+      console.error('Failed to respond to SOS:', error);
+      alert('Failed to respond to SOS. Please try again.');
+    }
+  };
+
+  const handleVolunteerNotReady = () => {
+    setVolunteerSOSModalVisible(false);
+    setSelectedSOSRequest(null);
+  };
 
   if (!isLoading && !user) {
     return <Redirect href={'/auth/welcome' as Href} />;
@@ -238,11 +334,23 @@ export default function NearbySheltersScreen() {
               <Text style={styles.eyebrow}>Emergency Response</Text>
               <Text style={styles.title}>Nearby Safe Shelters</Text>
             </View>
-            <Pressable
-              onPress={() => setSosModalVisible(true)}
-              style={({ pressed }) => [styles.sosButton, pressed && styles.sosButtonPressed]}>
-              <Text style={styles.sosButtonText}>SOS</Text>
-            </Pressable>
+            {sosRequest && sosRequest.status === 'accepted' && sosRequest.volunteerName ? (
+              <View style={styles.volunteerContact}>
+                <Text style={styles.volunteerContactLabel}>Rescue Team:</Text>
+                <Text style={styles.volunteerName}>{sosRequest.volunteerName}</Text>
+                <Pressable
+                  onPress={() => Linking.openURL(`tel:${sosRequest.volunteerPhone}`)}
+                  style={({ pressed }) => [styles.callVolunteerButton, pressed && styles.callVolunteerButtonPressed]}>
+                  <Text style={styles.callVolunteerButtonText}>Call</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <Pressable
+                onPress={() => setSosModalVisible(true)}
+                style={({ pressed }) => [styles.sosButton, pressed && styles.sosButtonPressed]}>
+                <Text style={styles.sosButtonText}>SOS</Text>
+              </Pressable>
+            )}
           </View>
           <Text style={styles.subtitle}>
             Find verified emergency shelters and check their current availability.
@@ -339,15 +447,38 @@ export default function NearbySheltersScreen() {
             <Text style={styles.modalTitle}>Do you need emergency assistance?</Text>
             <Pressable
               style={({ pressed }) => [styles.shareLocationButton, pressed && styles.shareLocationButtonPressed]}
-              onPress={() => {
-                setSosModalVisible(false);
-              }}>
+              onPress={handleShareLocation}>
               <Text style={styles.shareLocationButtonText}>Share your live location</Text>
             </Pressable>
             <Pressable
               style={({ pressed }) => [styles.cancelButton, pressed && styles.cancelButtonPressed]}
               onPress={() => setSosModalVisible(false)}>
               <Text style={styles.cancelButtonText}>Cancel</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={volunteerSOSModalVisible}
+        onRequestClose={() => setVolunteerSOSModalVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Emergency Assistance Needed!</Text>
+            <Text style={styles.modalSubtitle}>
+              {selectedSOSRequest?.userName} needs help at their location.
+            </Text>
+            <Pressable
+              style={({ pressed }) => [styles.readyButton, pressed && styles.readyButtonPressed]}
+              onPress={handleVolunteerReady}>
+              <Text style={styles.readyButtonText}>Emergency Rescue Team is Ready</Text>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [styles.notReadyButton, pressed && styles.notReadyButtonPressed]}
+              onPress={handleVolunteerNotReady}>
+              <Text style={styles.notReadyButtonText}>Not Ready</Text>
             </Pressable>
           </View>
         </View>
@@ -646,6 +777,14 @@ const styles = StyleSheet.create({
     lineHeight: 26,
     textAlign: 'center',
   },
+  modalSubtitle: {
+    color: BrandColors.text,
+    fontSize: 15,
+    fontWeight: '500',
+    lineHeight: 21,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
   shareLocationButton: {
     backgroundColor: BrandColors.red,
     borderRadius: 8,
@@ -679,5 +818,73 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     lineHeight: 22,
+  },
+  readyButton: {
+    backgroundColor: '#00FF00',
+    borderRadius: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+  },
+  readyButtonPressed: {
+    opacity: 0.8,
+  },
+  readyButtonText: {
+    color: BrandColors.navy,
+    fontSize: 16,
+    fontWeight: '700',
+    lineHeight: 22,
+  },
+  notReadyButton: {
+    backgroundColor: BrandColors.background,
+    borderRadius: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: BrandColors.border,
+  },
+  notReadyButtonPressed: {
+    opacity: 0.8,
+  },
+  notReadyButtonText: {
+    color: BrandColors.text,
+    fontSize: 16,
+    fontWeight: '600',
+    lineHeight: 22,
+  },
+  volunteerContact: {
+    backgroundColor: '#00FF00',
+    borderRadius: 8,
+    padding: 8,
+    alignItems: 'center',
+    gap: 4,
+  },
+  volunteerContactLabel: {
+    color: BrandColors.navy,
+    fontSize: 11,
+    fontWeight: '700',
+    lineHeight: 15,
+  },
+  volunteerName: {
+    color: BrandColors.navy,
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 18,
+  },
+  callVolunteerButton: {
+    backgroundColor: BrandColors.navy,
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  callVolunteerButtonPressed: {
+    opacity: 0.8,
+  },
+  callVolunteerButtonText: {
+    color: BrandColors.white,
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 18,
   },
 });
