@@ -84,7 +84,7 @@ function statusTone(value: string): BadgeTone {
 }
 
 function activeIncident(incident: Incident) {
-  return incident.status !== 'Resolved' && incident.status !== 'Rejected';
+  return incident.status !== 'Verified' && incident.status !== 'Rejected';
 }
 
 function openShelter(shelter: Shelter) {
@@ -466,7 +466,6 @@ function IncidentStatusPanel({ incidents, loading }: Pick<AuthorityDashboardProp
                   <View style={[
                     styles.workflowFill,
                     { width: `${width}%` as DimensionValue },
-                    status === 'Resolved' && styles.workflowResolved,
                     status === 'Rejected' && styles.workflowRejected,
                   ]} />
                 </View>
@@ -1052,9 +1051,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.blue,
     borderRadius: radius.xs,
     height: '100%',
-  },
-  workflowResolved: {
-    backgroundColor: colors.success,
   },
   workflowRejected: {
     backgroundColor: colors.red,

@@ -3,8 +3,6 @@ export const incidentSeverityOptions = ['Low', 'Medium', 'High', 'Critical'] as 
 export const incidentStatusWorkflow = [
   'Reported',
   'Under Review',
-  'In Progress',
-  'Resolved',
   'Verified',
   'Rejected',
 ] as const;
@@ -31,6 +29,7 @@ export interface Incident {
   createdAt: string;
   updatedAt: string;
   photos: IncidentPhoto[];
+  distanceKm?: number;
 }
 
 export interface IncidentPhoto {
@@ -42,6 +41,19 @@ export interface IncidentPhoto {
   width: number | null;
   height: number | null;
   createdAt: string;
+}
+
+export interface GeocodeResult {
+  displayName: string;
+  latitude: number;
+  longitude: number;
+}
+
+export interface ReverseGeocodeResult {
+  displayName: string;
+  shortName: string;
+  latitude: number;
+  longitude: number;
 }
 
 export type SelectedIncidentPhoto = {

@@ -2,7 +2,7 @@ export type IncidentType = 'Flood' | 'Fire' | 'Landslide' | 'Cyclone' | 'Tsunami
 
 export type IncidentSeverity = 'Low' | 'Medium' | 'High' | 'Critical';
 
-export type IncidentStatus = 'Reported' | 'Under Review' | 'In Progress' | 'Resolved' | 'Verified' | 'Rejected';
+export type IncidentStatus = 'Reported' | 'Under Review' | 'Verified' | 'Rejected';
 
 export interface IncidentRow {
   id: number;
@@ -17,6 +17,7 @@ export interface IncidentRow {
   status: IncidentStatus | string;
   created_at: Date | string;
   updated_at: Date | string;
+  distance_km?: number | string | null;
 }
 
 export interface Incident {
@@ -33,6 +34,7 @@ export interface Incident {
   createdAt: string;
   updatedAt: string;
   photos: IncidentPhoto[];
+  distanceKm?: number;
 }
 
 export interface IncidentPhotoRow {
@@ -82,6 +84,19 @@ export interface UpdateIncidentInput {
 
 export interface UpdateIncidentStatusInput {
   status?: unknown;
+}
+
+export interface GeocodeResult {
+  displayName: string;
+  latitude: number;
+  longitude: number;
+}
+
+export interface ReverseGeocodeResult {
+  displayName: string;
+  shortName: string;
+  latitude: number;
+  longitude: number;
 }
 
 export interface ValidatedIncidentInput {

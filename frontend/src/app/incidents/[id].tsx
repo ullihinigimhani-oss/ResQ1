@@ -22,11 +22,14 @@ import {
   StatusBadge,
   StatusTimeline,
 } from '@/components/incidents/incident-badges';
+import MapView, { Marker, PROVIDER_GOOGLE } from '@/components/shelters/native-map';
 import { BrandColors } from '@/constants/brand';
 import { useAuth } from '@/context/auth-context';
 import { getIncidentById, isIncidentApiError, updateIncidentStatus } from '@/services/incidentService';
 import { API_BASE_URL } from '@/services/authService';
-import type { Incident, IncidentStatus } from '@/types/incident';
+import { incidentStatusWorkflow, type Incident, type IncidentStatus } from '@/types/incident';
+
+const authorityStatusOptions = incidentStatusWorkflow.filter((status) => status !== 'Reported');
 
 function firstParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
@@ -57,23 +60,6 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function SummaryItem({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.summaryItem}>
-      <Text style={styles.summaryLabel}>{label}</Text>
-      <Text style={styles.summaryValue}>{value}</Text>
-    </View>
-  );
-}
-
-function coordinatesText(incident: Incident) {
-  if (incident.latitude === null || incident.longitude === null) {
-    return null;
-  }
-
-  return `${incident.latitude}, ${incident.longitude}`;
-}
-
 function photoUrl(path: string) {
   return path.startsWith('http') ? path : `${API_BASE_URL}${path}`;
 }
@@ -89,6 +75,7 @@ export default function IncidentDetailsScreen() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [viewingPhotoIndex, setViewingPhotoIndex] = useState<number | null>(null);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [isStatusDropdownVisible, setIsStatusDropdownVisible] = useState(false);
 
   const handleUpdateStatus = useCallback(async (newStatus: IncidentStatus) => {
     if (!token || !incident || !incidentId) return;
@@ -180,7 +167,9 @@ export default function IncidentDetailsScreen() {
     );
   }
 
-  const coordinates = incident ? coordinatesText(incident) : null;
+  const incidentLatitude = incident?.latitude ?? null;
+  const incidentLongitude = incident?.longitude ?? null;
+  const showLocationMap = incidentLatitude !== null && incidentLongitude !== null;
   const showInitialLoading = loadingIncident && !incident;
   const showError = Boolean(errorMessage) && !incident && !showInitialLoading;
 
@@ -241,13 +230,6 @@ export default function IncidentDetailsScreen() {
                   <SeverityBadge severity={incident.severity} />
                 </View>
               </View>
-
-              <View style={styles.summaryGrid}>
-                <SummaryItem label="Incident Type" value={incident.incidentType} />
-                <SummaryItem label="Location" value={incident.location} />
-                <SummaryItem label="Reported" value={formatDateTime(incident.createdAt)} />
-                <SummaryItem label="Last Updated" value={formatDateTime(incident.updatedAt)} />
-              </View>
             </View>
 
             {incident.status === 'Reported' && (
@@ -260,25 +242,122 @@ export default function IncidentDetailsScreen() {
               </View>
             )}
 
+            <View style={styles.panel}>
+              <Text style={styles.sectionTitle}>Reported Location</Text>
+              {showLocationMap ? (
+                Platform.OS === 'web' ? (
+                  <View style={styles.mapFallbackCard}>
+                    <Text style={styles.mapFallbackText}>{incident.location}</Text>
+                  </View>
+                ) : (
+                  <View style={styles.mapContainer}>
+                    <MapView
+                      provider={PROVIDER_GOOGLE}
+                      style={styles.map}
+                      initialRegion={{
+                        latitude: incidentLatitude,
+                        longitude: incidentLongitude,
+                        latitudeDelta: 0.05,
+                        longitudeDelta: 0.05,
+                      }}>
+                      <Marker
+                        coordinate={{ latitude: incidentLatitude, longitude: incidentLongitude }}
+                        description={incident.location}
+                        pinColor={BrandColors.red}
+                        title="Incident Location"
+                      />
+                    </MapView>
+                  </View>
+                )
+              ) : (
+                <Text style={styles.sectionCopy}>No location attached to this report.</Text>
+              )}
+            </View>
+
+            <View style={styles.panel}>
+              <Text style={styles.sectionTitle}>Incident Information</Text>
+              <View style={styles.descriptionBlock}>
+                <Text style={styles.detailLabel}>Description</Text>
+                <Text style={styles.description}>{incident.description}</Text>
+              </View>
+              <DetailRow label="Location" value={incident.location} />
+              <DetailRow label="Incident Type" value={incident.incidentType} />
+              <DetailRow label="Severity" value={incident.severity} />
+              <DetailRow label="Submitted Date" value={formatDateTime(incident.createdAt)} />
+              <DetailRow label="Last Updated" value={formatDateTime(incident.updatedAt)} />
+            </View>
+
+            {incident.photos.length > 0 ? (
+              <View style={styles.panel}>
+                <Text style={styles.sectionTitle}>Photo Evidence</Text>
+                <Text style={styles.sectionCopy}>{incident.photos.length} photo{incident.photos.length === 1 ? '' : 's'} attached to this report.</Text>
+                <View style={styles.photoGrid}>
+                  {incident.photos.map((photo, index) => (
+                    <Pressable
+                      key={photo.id}
+                      onPress={() => setViewingPhotoIndex(index)}
+                      style={({ pressed }) => [pressed && styles.pressed]}
+                    >
+                      <Image
+                        accessibilityLabel={`Incident evidence photo ${index + 1}`}
+                        source={{ uri: photoUrl(photo.url), headers: { Authorization: `Bearer ${token}` } }}
+                        style={styles.photo}
+                      />
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            ) : null}
+
             {user?.role === 'authority' && (
               <View style={styles.panel}>
                 <Text style={styles.sectionTitle}>Authority Actions</Text>
-                <Text style={styles.sectionCopy}>Review and update the status of this incident.</Text>
-                <View style={{ flexDirection: 'row', gap: 10, marginTop: 10, flexWrap: 'wrap' }}>
-                  <AuthButton
-                    title={updatingStatus ? "Updating..." : "Verify"}
-                    variant={incident.status === 'Verified' ? 'primary' : 'secondary'}
-                    onPress={() => void handleUpdateStatus('Verified')}
-                    disabled={updatingStatus}
-                    style={{ flex: 1, minWidth: '45%' }}
-                  />
-                  <AuthButton
-                    title={updatingStatus ? "Updating..." : "Reject"}
-                    variant={incident.status === 'Rejected' ? 'primary' : 'secondary'}
-                    onPress={() => void handleUpdateStatus('Rejected')}
-                    disabled={updatingStatus}
-                    style={{ flex: 1, minWidth: '45%' }}
-                  />
+                <Text style={styles.sectionCopy}>Review and update the progress of this incident.</Text>
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.label}>Status</Text>
+                  <View style={styles.dropdownWrapper}>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityState={{ expanded: isStatusDropdownVisible }}
+                      disabled={updatingStatus}
+                      onPress={() => setIsStatusDropdownVisible((visible) => !visible)}
+                      style={[styles.dropdownButton, updatingStatus && styles.refreshButtonDisabled]}>
+                      <Text style={styles.dropdownButtonText}>
+                        {updatingStatus ? 'Updating...' : incident.status}
+                      </Text>
+                      <Text style={styles.dropdownCaret}>
+                        {isStatusDropdownVisible ? '▲' : '▼'}
+                      </Text>
+                    </Pressable>
+                    {isStatusDropdownVisible && !updatingStatus ? (
+                      <View style={styles.dropdownPanel}>
+                        {authorityStatusOptions.map((status) => (
+                          <Pressable
+                            accessibilityRole="button"
+                            key={status}
+                            onPress={() => {
+                              setIsStatusDropdownVisible(false);
+                              if (status !== incident.status) {
+                                void handleUpdateStatus(status);
+                              }
+                            }}
+                            style={({ pressed }) => [
+                              styles.dropdownItem,
+                              incident.status === status && styles.dropdownItemSelected,
+                              pressed && styles.pressed,
+                            ]}>
+                            <Text
+                              style={[
+                                styles.dropdownItemText,
+                                incident.status === status && styles.dropdownItemTextSelected,
+                              ]}>
+                              {status}
+                            </Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                    ) : null}
+                  </View>
                 </View>
               </View>
             )}
@@ -307,42 +386,6 @@ export default function IncidentDetailsScreen() {
               </View>
               <StatusTimeline currentStatus={incident.status} />
             </View>
-
-            <View style={styles.panel}>
-              <Text style={styles.sectionTitle}>Incident Information</Text>
-              <View style={styles.descriptionBlock}>
-                <Text style={styles.detailLabel}>Description</Text>
-                <Text style={styles.description}>{incident.description}</Text>
-              </View>
-              <DetailRow label="Location" value={incident.location} />
-              {coordinates ? <DetailRow label="Coordinates" value={coordinates} /> : null}
-              <DetailRow label="Incident Type" value={incident.incidentType} />
-              <DetailRow label="Severity" value={incident.severity} />
-              <DetailRow label="Submitted Date" value={formatDateTime(incident.createdAt)} />
-              <DetailRow label="Last Updated" value={formatDateTime(incident.updatedAt)} />
-            </View>
-
-            {incident.photos.length > 0 ? (
-              <View style={styles.panel}>
-                <Text style={styles.sectionTitle}>Photo Evidence</Text>
-                <Text style={styles.sectionCopy}>{incident.photos.length} photo{incident.photos.length === 1 ? '' : 's'} attached to this report.</Text>
-                <View style={styles.photoGrid}>
-                  {incident.photos.map((photo, index) => (
-                    <Pressable
-                      key={photo.id}
-                      onPress={() => setViewingPhotoIndex(index)}
-                      style={({ pressed }) => [pressed && styles.pressed]}
-                    >
-                      <Image
-                        accessibilityLabel={`Incident evidence photo ${index + 1}`}
-                        source={{ uri: photoUrl(photo.url), headers: { Authorization: `Bearer ${token}` } }}
-                        style={styles.photo}
-                      />
-                    </Pressable>
-                  ))}
-                </View>
-              </View>
-            ) : null}
           </>
         ) : null}
       </ScrollView>
@@ -430,32 +473,6 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 8,
   },
-  summaryGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  summaryItem: {
-    backgroundColor: BrandColors.lightBlue,
-    borderRadius: 8,
-    flexGrow: 1,
-    minWidth: '47%',
-    padding: 12,
-  },
-  summaryLabel: {
-    color: BrandColors.muted,
-    fontSize: 11,
-    fontWeight: '700',
-    lineHeight: 15,
-    textTransform: 'uppercase',
-  },
-  summaryValue: {
-    color: BrandColors.text,
-    fontSize: 14,
-    fontWeight: '600',
-    lineHeight: 20,
-    marginTop: 4,
-  },
   editActionContainer: {
     paddingHorizontal: 20,
     marginBottom: 20,
@@ -509,6 +526,103 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     lineHeight: 16,
+  },
+  fieldGroup: {
+    gap: 8,
+  },
+  label: {
+    color: BrandColors.text,
+    fontSize: 14,
+    fontWeight: '400',
+  },
+  dropdownButton: {
+    alignItems: 'center',
+    backgroundColor: BrandColors.white,
+    borderColor: BrandColors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    minHeight: 52,
+    paddingHorizontal: 14,
+  },
+  dropdownButtonText: {
+    color: BrandColors.navy,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  dropdownCaret: {
+    color: BrandColors.muted,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  dropdownWrapper: {
+    position: 'relative',
+  },
+  dropdownPanel: {
+    backgroundColor: BrandColors.white,
+    borderColor: BrandColors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    elevation: 8,
+    left: 0,
+    marginTop: 6,
+    overflow: 'hidden',
+    padding: 4,
+    position: 'absolute',
+    right: 0,
+    top: '100%',
+    zIndex: 20,
+    ...Platform.select({
+      web: { boxShadow: '0 2px 6px rgba(8, 29, 56, 0.08)' },
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 6,
+      },
+    }),
+  },
+  dropdownItem: {
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  dropdownItemSelected: {
+    backgroundColor: BrandColors.lightBlue,
+  },
+  dropdownItemText: {
+    color: BrandColors.text,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  dropdownItemTextSelected: {
+    color: BrandColors.deepBlue,
+    fontWeight: '700',
+  },
+  mapContainer: {
+    borderColor: BrandColors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    height: 220,
+    overflow: 'hidden',
+  },
+  map: {
+    height: '100%',
+    width: '100%',
+  },
+  mapFallbackCard: {
+    backgroundColor: BrandColors.lightBlue,
+    borderColor: BrandColors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    padding: 14,
+  },
+  mapFallbackText: {
+    color: BrandColors.deepBlue,
+    fontSize: 14,
+    fontWeight: '600',
+    lineHeight: 20,
   },
   descriptionBlock: {
     backgroundColor: BrandColors.lightBlue,
