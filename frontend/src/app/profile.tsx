@@ -1,5 +1,7 @@
 import { Redirect, useRouter, type Href } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Platform } from 'react-native';
 
 import {
   AppIcon,
@@ -13,7 +15,16 @@ import {
 } from '@/components/ui/app-components';
 import { colors, radius, spacing } from '@/constants/design';
 import { useAuth } from '@/context/auth-context';
+import { updateVolunteerStatus as updateVolunteerStatusApi } from '@/services/authService';
 import { formatRole, initials, isAuthorityRole } from '@/utils/format';
+
+let MapView: any, Circle: any, Marker: any;
+if (Platform.OS !== 'web') {
+  const nativeMap = require('@/components/shelters/native-map');
+  MapView = nativeMap.default;
+  Circle = nativeMap.Circle;
+  Marker = nativeMap.Marker;
+}
 
 function ActionRow({
   icon,
@@ -44,7 +55,10 @@ function ActionRow({
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { isLoading, signOut, user } = useAuth();
+  const { isLoading, signOut, user, token, updateUser } = useAuth();
+  const [isShining, setIsShining] = useState(user?.isVolunteeringActive || false);
+  const [mapModalVisible, setMapModalVisible] = useState(false);
+  const [selectedRegion, setSelectedRegion] = useState<{ latitude: number; longitude: number; latitudeDelta: number; longitudeDelta: number } | null>(null);
 
   if (!isLoading && !user) {
     return <Redirect href={'/auth/welcome' as Href} />;
@@ -61,6 +75,53 @@ export default function ProfileScreen() {
   const handleSignOut = async () => {
     await signOut();
     router.replace('/auth/welcome' as Href);
+  };
+
+  const handleVolunteerNow = async () => {
+    if (user?.isVolunteeringActive) {
+      if (token && user) {
+        try {
+          const updatedUser = await updateVolunteerStatusApi(token, {
+            volunteerAreaLatitude: null,
+            volunteerAreaLongitude: null,
+            isVolunteeringActive: false,
+          });
+          await updateUser(updatedUser);
+          setIsShining(false);
+        } catch (error) {
+          console.error('Failed to update volunteer status:', error);
+        }
+      }
+    } else {
+      setMapModalVisible(true);
+    }
+  };
+
+  const handleMapRegionSelect = async () => {
+    if (selectedRegion && token && user) {
+      try {
+        const updatedUser = await updateVolunteerStatusApi(token, {
+          volunteerAreaLatitude: selectedRegion.latitude,
+          volunteerAreaLongitude: selectedRegion.longitude,
+          isVolunteeringActive: true,
+        });
+        await updateUser(updatedUser);
+        setIsShining(true);
+        setMapModalVisible(false);
+      } catch (error) {
+        console.error('Failed to update volunteer status:', error);
+      }
+    }
+  };
+
+  const handleMapPress = (event: any) => {
+    const { latitude, longitude } = event.nativeEvent.coordinate;
+    setSelectedRegion({
+      latitude,
+      longitude,
+      latitudeDelta: 0.0922,
+      longitudeDelta: 0.0421,
+    });
   };
 
   return (
@@ -84,6 +145,20 @@ export default function ProfileScreen() {
           </View>
         </View>
       </View>
+
+      {user.isVolunteer && (
+        <Pressable
+          onPress={handleVolunteerNow}
+          style={({ pressed }) => [
+            styles.volunteerNowButton,
+            user.isVolunteeringActive && isShining && styles.volunteerNowButtonShining,
+            pressed && styles.volunteerNowButtonPressed,
+          ]}>
+          <Text style={styles.volunteerNowButtonText}>
+            {user.isVolunteeringActive ? 'Volunteering Active' : 'Volunteer Now'}
+          </Text>
+        </Pressable>
+      )}
 
       <SectionCard title="Personal Details">
         <InfoRow label="Full Name" value={user.fullName} />
@@ -122,6 +197,75 @@ export default function ProfileScreen() {
       </SectionCard>
 
       <PrimaryButton title="Sign Out" tone="red" onPress={handleSignOut} />
+
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={mapModalVisible}
+        onRequestClose={() => setMapModalVisible(false)}>
+        <View style={styles.mapModalOverlay}>
+          <View style={styles.mapModalContent}>
+            <Text style={styles.mapModalTitle}>Select Volunteer Area</Text>
+            <Text style={styles.mapModalSubtitle}>Tap on the map to select your volunteer area</Text>
+            <View style={styles.mapContainer}>
+              {Platform.OS !== 'web' && MapView ? (
+                <MapView
+                  style={styles.map}
+                  initialRegion={{
+                    latitude: 6.9271,
+                    longitude: 79.8612,
+                    latitudeDelta: 0.0922,
+                    longitudeDelta: 0.0421,
+                  }}
+                  onPress={handleMapPress}>
+                  {selectedRegion && (
+                    <>
+                      <Circle
+                        center={{
+                          latitude: selectedRegion.latitude,
+                          longitude: selectedRegion.longitude,
+                        }}
+                        radius={8000}
+                        strokeColor="rgba(255, 0, 0, 0.5)"
+                        fillColor="rgba(255, 0, 0, 0.1)"
+                      />
+                      <Marker
+                        coordinate={{
+                          latitude: selectedRegion.latitude,
+                          longitude: selectedRegion.longitude,
+                        }}
+                      />
+                    </>
+                  )}
+                </MapView>
+              ) : (
+                <View style={styles.webMapPlaceholder}>
+                  <Text style={styles.webMapPlaceholderText}>
+                    Volunteer area selection is only available on mobile. Please use the mobile app to select your volunteer area.
+                  </Text>
+                </View>
+              )}
+            </View>
+            <View style={styles.mapModalButtons}>
+              <Pressable
+                style={({ pressed }) => [styles.mapCancelButton, pressed && styles.mapCancelButtonPressed]}
+                onPress={() => setMapModalVisible(false)}>
+                <Text style={styles.mapCancelButtonText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.mapConfirmButton,
+                  !selectedRegion && styles.mapConfirmButtonDisabled,
+                  pressed && styles.mapConfirmButtonPressed,
+                ]}
+                onPress={handleMapRegionSelect}
+                disabled={!selectedRegion}>
+                <Text style={styles.mapConfirmButtonText}>Confirm Area</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScreenContainer>
   );
 }
@@ -210,5 +354,126 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.72,
+  },
+  volunteerNowButton: {
+    backgroundColor: '#8B0000',
+    borderRadius: 8,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  volunteerNowButtonShining: {
+    backgroundColor: '#FF0000',
+    shadowColor: '#FF0000',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 10,
+    elevation: 10,
+  },
+  volunteerNowButtonPressed: {
+    opacity: 0.8,
+  },
+  volunteerNowButtonText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '700',
+    lineHeight: 24,
+  },
+  mapModalOverlay: {
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  mapModalContent: {
+    backgroundColor: colors.white,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    paddingBottom: 40,
+    gap: 16,
+  },
+  mapModalTitle: {
+    color: colors.navy,
+    fontSize: 20,
+    fontWeight: '700',
+    lineHeight: 26,
+  },
+  mapModalSubtitle: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '500',
+    lineHeight: 20,
+  },
+  mapContainer: {
+    height: 300,
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  map: {
+    flex: 1,
+  },
+  webMapPlaceholder: {
+    flex: 1,
+    backgroundColor: colors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  webMapPlaceholderText: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '500',
+    lineHeight: 20,
+    textAlign: 'center',
+  },
+  mapModalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 8,
+  },
+  mapCancelButton: {
+    flex: 1,
+    backgroundColor: colors.background,
+    borderRadius: 8,
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  mapCancelButtonPressed: {
+    opacity: 0.8,
+  },
+  mapCancelButtonText: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: '600',
+    lineHeight: 22,
+  },
+  mapConfirmButton: {
+    flex: 1,
+    backgroundColor: colors.navy,
+    borderRadius: 8,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  mapConfirmButtonDisabled: {
+    backgroundColor: colors.border,
+  },
+  mapConfirmButtonPressed: {
+    opacity: 0.8,
+  },
+  mapConfirmButtonText: {
+    color: colors.white,
+    fontSize: 16,
+    fontWeight: '700',
+    lineHeight: 22,
   },
 });

@@ -6,6 +6,21 @@ CREATE TABLE IF NOT EXISTS users (
     role VARCHAR(50) DEFAULT 'resident',
     location VARCHAR(150),
     preferred_language VARCHAR(20) DEFAULT 'English',
+    is_volunteer BOOLEAN DEFAULT FALSE,
+    volunteer_area_latitude DECIMAL(10, 7),
+    volunteer_area_longitude DECIMAL(10, 7),
+    is_volunteering_active BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS sos_requests (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    latitude DECIMAL(10, 7) NOT NULL,
+    longitude DECIMAL(10, 7) NOT NULL,
+    status VARCHAR(50) DEFAULT 'pending',
+    volunteer_id INTEGER REFERENCES users(id),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

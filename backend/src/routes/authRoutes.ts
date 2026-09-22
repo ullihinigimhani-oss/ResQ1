@@ -6,6 +6,7 @@ import {
   register,
   resetAccountPassword,
   updateProfile,
+  updateVolunteerStatus,
   verifyPasswordResetOtp,
 } from '../controllers/authController.js';
 import { authenticateRequest } from '../middleware/authMiddleware.js';
@@ -18,5 +19,6 @@ router.post('/forgot-password', forgotPassword);
 router.post('/verify-reset-otp', verifyPasswordResetOtp);
 router.post('/reset-password', resetAccountPassword);
 router.put('/me', authenticateRequest, updateProfile);
+router.put('/volunteer-status', authenticateRequest, updateVolunteerStatus);
 
 export default router;
