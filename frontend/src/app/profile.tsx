@@ -173,11 +173,7 @@ export default function ProfileScreen() {
 
       <SectionCard title="Account">
         <ActionRow label="Edit Profile" onPress={() => router.push('/profile/edit' as Href)} />
-        <ActionRow
-          label="Change Password"
-          status="Future"
-          onPress={() => router.push('/profile/change-password' as Href)}
-        />
+        <ActionRow label="Change Password" onPress={() => router.push('/profile/change-password' as Href)} />
         <ActionRow
           label="Household Information"
           onPress={() => router.push('/household' as Href)}
