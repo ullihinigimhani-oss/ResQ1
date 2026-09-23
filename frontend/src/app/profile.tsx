@@ -1,6 +1,6 @@
 import { Redirect, useRouter, type Href } from 'expo-router';
 import { Linking, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useState, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 
 import {
@@ -65,7 +65,7 @@ export default function ProfileScreen() {
   const [selectedRegion, setSelectedRegion] = useState<{ latitude: number; longitude: number; latitudeDelta: number; longitudeDelta: number } | null>(null);
   const [sosRequest, setSosRequest] = useState<SOSRequestWithVolunteer | null>(null);
   const [volunteerSOSRequest, setVolunteerSOSRequest] = useState<any>(null);
-  const [previousSOSStatus, setPreviousSOSStatus] = useState<string | null>(null);
+  const previousSOSStatusRef = useRef<string | null>(null);
   const isWeb = Platform.OS === 'web';
   const authenticatedUserId = user?.id ?? null;
 
@@ -89,6 +89,46 @@ export default function ProfileScreen() {
     return () => clearInterval(interval);
   }, [authenticatedUserId, isLoading, isWeb, token]);
 
+  useEffect(() => {
+    if (!token || isWeb || !user?.isVolunteer || !user.isVolunteeringActive) {
+      return;
+    }
+
+    const checkVolunteerSOSStatus = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/sos/volunteer-accepted`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+        const data = await response.json();
+        const currentSOS = data.request;
+        console.log('Volunteer SOS status:', currentSOS);
+
+        // Check if SOS status changed from accepted to completed
+        if (currentSOS && currentSOS.status === 'completed' && previousSOSStatusRef.current === 'accepted') {
+          const statusMessages: Record<string, string> = {
+            'assistant_came': 'Emergency Assistant Came',
+            'rescued': 'Rescued',
+            'safe_shelter': 'Safe Shelter',
+          };
+          const statusMessage = statusMessages[currentSOS.evacuationStatus] || 'Safe';
+          alert(`The disaster victim has been marked as ${statusMessage}. They are safe now.`);
+        }
+
+        previousSOSStatusRef.current = currentSOS?.status || null;
+        setVolunteerSOSRequest(currentSOS);
+      } catch (error) {
+        console.error('Failed to check volunteer SOS status:', error);
+      }
+    };
+
+    void checkVolunteerSOSStatus();
+    const interval = setInterval(() => void checkVolunteerSOSStatus(), 5000);
+
+    return () => clearInterval(interval);
+  }, [isWeb, token, user?.isVolunteer, user?.isVolunteeringActive]);
+
   if (!isLoading && !user) {
     return <Redirect href={'/auth/welcome' as Href} />;
   }
@@ -103,7 +143,6 @@ export default function ProfileScreen() {
 
   const handleSignOut = async () => {
     await signOut();
-    router.replace('/auth/welcome' as Href);
   };
 
   const handleVolunteerNow = async () => {
@@ -152,62 +191,6 @@ export default function ProfileScreen() {
       longitudeDelta: 0.0421,
     });
   };
-
-  useEffect(() => {
-    if (token && !isWeb) {
-      const checkSOSStatus = async () => {
-        try {
-          const status = await getUserSOSStatus(token);
-          setSosRequest(status);
-        } catch (error) {
-          console.error('Failed to check SOS status:', error);
-        }
-      };
-
-      checkSOSStatus();
-      const interval = setInterval(checkSOSStatus, 5000);
-
-      return () => clearInterval(interval);
-    }
-  }, [token, isWeb]);
-
-  useEffect(() => {
-    if (token && !isWeb && user?.isVolunteer && user?.isVolunteeringActive) {
-      const checkVolunteerSOSStatus = async () => {
-        try {
-          const response = await fetch(`${API_BASE_URL}/api/sos/volunteer-accepted`, {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-            },
-          });
-          const data = await response.json();
-          const currentSOS = data.request;
-          console.log('Volunteer SOS status:', currentSOS);
-
-          // Check if SOS status changed from accepted to completed
-          if (currentSOS && currentSOS.status === 'completed' && previousSOSStatus === 'accepted') {
-            const statusMessages: Record<string, string> = {
-              'assistant_came': 'Emergency Assistant Came',
-              'rescued': 'Rescued',
-              'safe_shelter': 'Safe Shelter',
-            };
-            const statusMessage = statusMessages[currentSOS.evacuationStatus] || 'Safe';
-            alert(`The disaster victim has been marked as ${statusMessage}. They are safe now.`);
-          }
-
-          setPreviousSOSStatus(currentSOS?.status || null);
-          setVolunteerSOSRequest(currentSOS);
-        } catch (error) {
-          console.error('Failed to check volunteer SOS status:', error);
-        }
-      };
-
-      checkVolunteerSOSStatus();
-      const interval = setInterval(checkVolunteerSOSStatus, 5000);
-
-      return () => clearInterval(interval);
-    }
-  }, [token, isWeb, user?.isVolunteer, user?.isVolunteeringActive]);
 
   const handleRouteToVictim = async () => {
     console.log('handleRouteToVictim called');
