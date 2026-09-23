@@ -65,6 +65,27 @@ export default function ProfileScreen() {
   const [selectedRegion, setSelectedRegion] = useState<{ latitude: number; longitude: number; latitudeDelta: number; longitudeDelta: number } | null>(null);
   const [sosRequest, setSosRequest] = useState<SOSRequestWithVolunteer | null>(null);
   const isWeb = Platform.OS === 'web';
+  const authenticatedUserId = user?.id ?? null;
+
+  useEffect(() => {
+    if (isLoading || !authenticatedUserId || !token || isWeb) {
+      return;
+    }
+
+    const checkSOSStatus = async () => {
+      try {
+        const status = await getUserSOSStatus(token);
+        setSosRequest(status);
+      } catch (error) {
+        console.error('Failed to check SOS status:', error);
+      }
+    };
+
+    void checkSOSStatus();
+    const interval = setInterval(() => void checkSOSStatus(), 5000);
+
+    return () => clearInterval(interval);
+  }, [authenticatedUserId, isLoading, isWeb, token]);
 
   if (!isLoading && !user) {
     return <Redirect href={'/auth/welcome' as Href} />;
@@ -129,24 +150,6 @@ export default function ProfileScreen() {
       longitudeDelta: 0.0421,
     });
   };
-
-  useEffect(() => {
-    if (token && !isWeb) {
-      const checkSOSStatus = async () => {
-        try {
-          const status = await getUserSOSStatus(token);
-          setSosRequest(status);
-        } catch (error) {
-          console.error('Failed to check SOS status:', error);
-        }
-      };
-
-      checkSOSStatus();
-      const interval = setInterval(checkSOSStatus, 5000);
-
-      return () => clearInterval(interval);
-    }
-  }, [token, isWeb]);
 
   const handleRouteToVictim = async () => {
     if (!user?.volunteerAreaLatitude || !user?.volunteerAreaLongitude) {
