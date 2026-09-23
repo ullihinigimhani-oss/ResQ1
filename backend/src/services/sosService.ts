@@ -33,6 +33,7 @@ function toSOSRequest(row: SOSRequestRow): SOSRequest {
     latitude: row.latitude,
     longitude: row.longitude,
     status: row.status as 'pending' | 'accepted' | 'completed',
+    evacuationStatus: row.evacuation_status as 'pending' | 'assistant_came' | 'rescued' | 'safe_shelter' | 'still_in_disaster',
     volunteerId: row.volunteer_id,
     createdAt: formatTimestamp(row.created_at),
     updatedAt: formatTimestamp(row.updated_at),
@@ -54,9 +55,9 @@ export async function createSOSRequest(
   }
 
   const rows = await sql`
-    INSERT INTO sos_requests (user_id, latitude, longitude, status)
-    VALUES (${userId}, ${latitude}, ${longitude}, 'pending')
-    RETURNING id, user_id, latitude, longitude, status, volunteer_id, created_at, updated_at
+    INSERT INTO sos_requests (user_id, latitude, longitude, status, evacuation_status)
+    VALUES (${userId}, ${latitude}, ${longitude}, 'pending', 'pending')
+    RETURNING id, user_id, latitude, longitude, status, evacuation_status, volunteer_id, created_at, updated_at
   `;
 
   const createdRequest = rows[0] as SOSRequestRow | undefined;
@@ -71,7 +72,7 @@ export async function createSOSRequest(
 export async function getActiveSOSRequests(): Promise<SOSRequestWithUser[]> {
   const rows = await sql`
     SELECT 
-      sr.id, sr.user_id, sr.latitude, sr.longitude, sr.status, sr.volunteer_id, sr.created_at, sr.updated_at,
+      sr.id, sr.user_id, sr.latitude, sr.longitude, sr.status, sr.evacuation_status, sr.volunteer_id, sr.created_at, sr.updated_at,
       u.full_name as user_name, u.location as user_location
     FROM sos_requests sr
     JOIN users u ON sr.user_id = u.id
@@ -89,7 +90,7 @@ export async function getActiveSOSRequests(): Promise<SOSRequestWithUser[]> {
 export async function getActiveSOSRequestsForVolunteer(volunteerId: number): Promise<SOSRequestWithUser[]> {
   const rows = await sql`
     SELECT 
-      sr.id, sr.user_id, sr.latitude, sr.longitude, sr.status, sr.volunteer_id, sr.created_at, sr.updated_at,
+      sr.id, sr.user_id, sr.latitude, sr.longitude, sr.status, sr.evacuation_status, sr.volunteer_id, sr.created_at, sr.updated_at,
       u.full_name as user_name, u.location as user_location
     FROM sos_requests sr
     JOIN users u ON sr.user_id = u.id
@@ -123,7 +124,7 @@ export async function respondToSOSRequest(
         volunteer_id = ${volunteerId},
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ${requestId} AND status = 'pending'
-      RETURNING id, user_id, latitude, longitude, status, volunteer_id, created_at, updated_at
+      RETURNING id, user_id, latitude, longitude, status, evacuation_status, volunteer_id, created_at, updated_at
     `;
 
     const updatedRequest = rows[0] as SOSRequestRow | undefined;
@@ -133,18 +134,18 @@ export async function respondToSOSRequest(
     }
 
     const volunteerRows = await sql`
-      SELECT full_name, email
+      SELECT full_name, phone_number
       FROM users
       WHERE id = ${volunteerId}
       LIMIT 1
     `;
 
-    const volunteer = volunteerRows[0] as { full_name: string; email: string } | undefined;
+    const volunteer = volunteerRows[0] as { full_name: string; phone_number: string } | undefined;
 
     return {
       ...toSOSRequest(updatedRequest),
       volunteerName: volunteer?.full_name || null,
-      volunteerPhone: volunteer?.email || null,
+      volunteerPhone: volunteer?.phone_number || null,
     };
   } else {
     // Record the decline
@@ -156,7 +157,7 @@ export async function respondToSOSRequest(
 
     // Return the original request unchanged
     const rows = await sql`
-      SELECT id, user_id, latitude, longitude, status, volunteer_id, created_at, updated_at
+      SELECT id, user_id, latitude, longitude, status, evacuation_status, volunteer_id, created_at, updated_at
       FROM sos_requests
       WHERE id = ${requestId}
       LIMIT 1
@@ -169,18 +170,18 @@ export async function respondToSOSRequest(
     }
 
     const volunteerRows = await sql`
-      SELECT full_name, email
+      SELECT full_name, phone_number
       FROM users
       WHERE id = ${volunteerId}
       LIMIT 1
     `;
 
-    const volunteer = volunteerRows[0] as { full_name: string; email: string } | undefined;
+    const volunteer = volunteerRows[0] as { full_name: string; phone_number: string } | undefined;
 
     return {
       ...toSOSRequest(request),
       volunteerName: volunteer?.full_name || null,
-      volunteerPhone: volunteer?.email || null,
+      volunteerPhone: volunteer?.phone_number || null,
     };
   }
 }
@@ -188,11 +189,11 @@ export async function respondToSOSRequest(
 export async function getUserActiveSOSRequest(userId: number): Promise<SOSRequestWithVolunteer | null> {
   const rows = await sql`
     SELECT 
-      sr.id, sr.user_id, sr.latitude, sr.longitude, sr.status, sr.volunteer_id, sr.created_at, sr.updated_at,
-      u.full_name as volunteer_name, u.email as volunteer_phone
+      sr.id, sr.user_id, sr.latitude, sr.longitude, sr.status, sr.evacuation_status, sr.volunteer_id, sr.created_at, sr.updated_at,
+      u.full_name as volunteer_name, u.phone_number as volunteer_phone
     FROM sos_requests sr
     LEFT JOIN users u ON sr.volunteer_id = u.id
-    WHERE sr.user_id = ${userId} AND sr.status IN ('pending', 'accepted')
+    WHERE sr.user_id = ${userId}
     ORDER BY sr.created_at DESC
     LIMIT 1
   `;
@@ -210,13 +211,53 @@ export async function getUserActiveSOSRequest(userId: number): Promise<SOSReques
   };
 }
 
+export async function updateEvacuationStatus(
+  requestId: number,
+  userId: number,
+  evacuationStatus: 'assistant_came' | 'rescued' | 'safe_shelter' | 'still_in_disaster',
+): Promise<SOSRequestWithVolunteer> {
+  const rows = await sql`
+    UPDATE sos_requests
+    SET 
+      evacuation_status = ${evacuationStatus},
+      status = CASE 
+        WHEN ${evacuationStatus} IN ('assistant_came', 'rescued', 'safe_shelter') THEN 'completed'
+        ELSE status
+      END,
+      updated_at = CURRENT_TIMESTAMP
+    WHERE id = ${requestId} AND user_id = ${userId}
+    RETURNING id, user_id, latitude, longitude, status, evacuation_status, volunteer_id, created_at, updated_at
+  `;
+
+  const updatedRequest = rows[0] as SOSRequestRow | undefined;
+
+  if (!updatedRequest) {
+    throw new SOSServiceError(404, 'SOS request not found.');
+  }
+
+  const volunteerRows = await sql`
+    SELECT full_name, phone_number
+    FROM users
+    WHERE id = ${updatedRequest.volunteer_id}
+    LIMIT 1
+  `;
+
+  const volunteer = volunteerRows[0] as { full_name: string; phone_number: string } | undefined;
+
+  return {
+    ...toSOSRequest(updatedRequest),
+    volunteerName: volunteer?.full_name || null,
+    volunteerPhone: volunteer?.phone_number || null,
+  };
+}
+
 export async function getVolunteerAcceptedSOSRequest(volunteerId: number): Promise<SOSRequestWithUser | null> {
   const rows = await sql`
-    SELECT sr.id, sr.user_id, sr.latitude, sr.longitude, sr.status, sr.volunteer_id, sr.created_at, sr.updated_at,
+    SELECT sr.id, sr.user_id, sr.latitude, sr.longitude, sr.status, sr.evacuation_status, sr.volunteer_id, sr.created_at, sr.updated_at,
       u.full_name as user_name, u.location as user_location
     FROM sos_requests sr
     LEFT JOIN users u ON sr.user_id = u.id
-    WHERE sr.volunteer_id = ${volunteerId} AND sr.status = 'accepted'
+    WHERE sr.volunteer_id = ${volunteerId}
     ORDER BY sr.created_at DESC
     LIMIT 1
   `;
