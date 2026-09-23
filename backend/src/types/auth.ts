@@ -1,0 +1,101 @@
+export type PreferredLanguage = 'English' | 'Sinhala' | 'Tamil';
+
+export type UserRole = 'resident' | 'admin' | 'authority';
+
+export interface UserRow {
+  id: number;
+  full_name: string;
+  email: string;
+  password_hash?: string;
+  phone_number: string | null;
+  role: UserRole;
+  location: string | null;
+  preferred_language: PreferredLanguage | string;
+  is_volunteer: boolean;
+  volunteer_area_latitude: number | null;
+  volunteer_area_longitude: number | null;
+  is_volunteering_active: boolean;
+  created_at: Date | string;
+  updated_at: Date | string;
+}
+
+export interface SafeUser {
+  id: number;
+  fullName: string;
+  email: string;
+  phoneNumber: string | null;
+  role: UserRole;
+  location: string | null;
+  preferredLanguage: string;
+  isVolunteer: boolean;
+  volunteerAreaLatitude: number | null;
+  volunteerAreaLongitude: number | null;
+  isVolunteeringActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AuthenticatedUser {
+  id: number;
+  email: string;
+  role: UserRole | string;
+  location: string | null;
+  preferredLanguage: string;
+}
+
+export interface RegisterResidentInput {
+  fullName?: unknown;
+  email?: unknown;
+  password?: unknown;
+  phoneNumber?: unknown;
+  location?: unknown;
+  preferredLanguage?: unknown;
+  isVolunteer?: unknown;
+}
+
+export interface LoginResidentInput {
+  email?: unknown;
+  password?: unknown;
+}
+
+export interface ForgotPasswordInput {
+  email?: unknown;
+}
+
+export interface VerifyResetOtpInput {
+  email?: unknown;
+  otp?: unknown;
+}
+
+export interface ResetPasswordInput {
+  resetToken?: unknown;
+  newPassword?: unknown;
+}
+
+export interface UpdateProfileInput {
+  fullName?: unknown;
+  email?: unknown;
+  phoneNumber?: unknown;
+  location?: unknown;
+  preferredLanguage?: unknown;
+}
+
+export interface UpdateVolunteerStatusInput {
+  volunteerAreaLatitude?: unknown;
+  volunteerAreaLongitude?: unknown;
+  isVolunteeringActive?: unknown;
+}
+
+export interface VerifyPasswordInput {
+  currentPassword?: unknown;
+}
+
+export interface ChangePasswordInput {
+  currentPassword?: unknown;
+  newPassword?: unknown;
+}
+
+export interface AuthResult {
+  user: SafeUser;
+  token?: string;
+}

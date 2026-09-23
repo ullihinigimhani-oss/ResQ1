@@ -1,0 +1,90 @@
+export type PreferredLanguage = 'English' | 'Sinhala' | 'Tamil';
+
+export interface AuthUser {
+  id: number;
+  fullName: string;
+  email: string;
+  phoneNumber: string | null;
+  role: 'resident' | 'admin' | 'authority';
+  location: string | null;
+  preferredLanguage: string;
+  isVolunteer: boolean;
+  volunteerAreaLatitude: number | null;
+  volunteerAreaLongitude: number | null;
+  isVolunteeringActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RegisterResidentPayload {
+  fullName: string;
+  email: string;
+  password: string;
+  phoneNumber?: string;
+  location: string;
+  preferredLanguage: PreferredLanguage;
+  isVolunteer?: boolean;
+}
+
+export interface LoginResidentPayload {
+  email: string;
+  password: string;
+}
+
+export interface UpdateProfilePayload {
+  fullName: string;
+  email: string;
+  phoneNumber?: string;
+  location: string;
+  preferredLanguage: PreferredLanguage;
+}
+
+export interface AuthSession {
+  user: AuthUser;
+  token: string;
+}
+
+export interface ForgotPasswordPayload {
+  email: string;
+}
+
+export interface VerifyResetOtpPayload {
+  email: string;
+  otp: string;
+}
+
+export interface ResetPasswordPayload {
+  resetToken: string;
+  newPassword: string;
+  confirmPassword?: string;
+}
+
+export interface VerifyResetOtpResponse {
+  success: boolean;
+  message: string;
+  resetToken: string;
+}
+
+export interface VerifyPasswordPayload {
+  currentPassword: string;
+}
+
+export interface ChangePasswordPayload {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword?: string;
+}
+
+export type FieldErrors = Partial<
+  Record<
+    | keyof RegisterResidentPayload
+    | keyof LoginResidentPayload
+    | keyof UpdateProfilePayload
+    | keyof ForgotPasswordPayload
+    | keyof VerifyResetOtpPayload
+    | keyof ResetPasswordPayload
+    | keyof VerifyPasswordPayload
+    | keyof ChangePasswordPayload,
+    string
+  >
+>;
