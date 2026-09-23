@@ -266,7 +266,7 @@ const styles = StyleSheet.create({
     fontWeight: '400',
   },
   addSmallBtn: {
-    backgroundColor: colors.navy,
+    backgroundColor: colors.primaryAction,
     borderRadius: radius.sm,
     paddingHorizontal: 12,
     paddingVertical: 6,

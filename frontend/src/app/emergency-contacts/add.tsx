@@ -195,7 +195,7 @@ export default function AddEmergencyContactScreen() {
                 <Switch
                   onValueChange={setIsPrimary}
                   thumbColor={isPrimary ? '#ffffff' : '#f4f3f4'}
-                  trackColor={{ false: '#d1d5db', true: colors.navy }}
+                  trackColor={{ false: '#d1d5db', true: colors.primaryAction }}
                   value={isPrimary}
                 />
               </View>
@@ -258,8 +258,8 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   gridChipSelected: {
-    backgroundColor: colors.navy,
-    borderColor: colors.navy,
+    backgroundColor: colors.primaryAction,
+    borderColor: colors.primaryAction,
   },
   gridChipText: {
     color: colors.muted,
