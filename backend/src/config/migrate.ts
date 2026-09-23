@@ -47,6 +47,9 @@ async function migrate() {
       ON sos_declines(sos_request_id)
     `;
     
+    console.log('Adding evacuation_status column to sos_requests table...');
+    await sql`ALTER TABLE sos_requests ADD COLUMN IF NOT EXISTS evacuation_status VARCHAR(50) DEFAULT 'pending'`;
+    
     console.log('Migration completed successfully!');
     process.exit(0);
   } catch (error) {

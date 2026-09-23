@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 
-import { SOSServiceError, createSOSRequest, getActiveSOSRequests, getActiveSOSRequestsForVolunteer, respondToSOSRequest, getUserActiveSOSRequest, getVolunteerAcceptedSOSRequest } from '../services/sosService.js';
+import { SOSServiceError, createSOSRequest, getActiveSOSRequests, getActiveSOSRequestsForVolunteer, respondToSOSRequest, getUserActiveSOSRequest, getVolunteerAcceptedSOSRequest, updateEvacuationStatus as updateEvacuationStatusService } from '../services/sosService.js';
 
 function sendErrorResponse(error: unknown, res: Response) {
   if (error instanceof SOSServiceError) {
@@ -134,6 +134,37 @@ export async function getVolunteerAcceptedSOS(req: Request, res: Response): Prom
 
     return res.status(200).json({
       success: true,
+      request,
+    });
+  } catch (error) {
+    return sendErrorResponse(error, res);
+  }
+}
+
+export async function updateEvacuationStatus(req: Request, res: Response): Promise<Response> {
+  if (!req.authUser) {
+    return res.status(401).json({
+      success: false,
+      message: 'Authentication is required.',
+    });
+  }
+
+  const { requestId } = req.params;
+  const { evacuationStatus } = req.body;
+
+  if (!evacuationStatus || !['assistant_came', 'rescued', 'safe_shelter', 'still_in_disaster'].includes(evacuationStatus)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Invalid evacuation status.',
+    });
+  }
+
+  try {
+    const request = await updateEvacuationStatusService(Number(requestId), req.authUser.id, evacuationStatus);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Evacuation status updated successfully.',
       request,
     });
   } catch (error) {
