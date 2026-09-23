@@ -67,6 +67,27 @@ export default function ProfileScreen() {
   const [volunteerSOSRequest, setVolunteerSOSRequest] = useState<any>(null);
   const [previousSOSStatus, setPreviousSOSStatus] = useState<string | null>(null);
   const isWeb = Platform.OS === 'web';
+  const authenticatedUserId = user?.id ?? null;
+
+  useEffect(() => {
+    if (isLoading || !authenticatedUserId || !token || isWeb) {
+      return;
+    }
+
+    const checkSOSStatus = async () => {
+      try {
+        const status = await getUserSOSStatus(token);
+        setSosRequest(status);
+      } catch (error) {
+        console.error('Failed to check SOS status:', error);
+      }
+    };
+
+    void checkSOSStatus();
+    const interval = setInterval(() => void checkSOSStatus(), 5000);
+
+    return () => clearInterval(interval);
+  }, [authenticatedUserId, isLoading, isWeb, token]);
 
   if (!isLoading && !user) {
     return <Redirect href={'/auth/welcome' as Href} />;
