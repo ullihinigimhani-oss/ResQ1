@@ -76,3 +76,16 @@ export async function getUserSOSStatus(token: string): Promise<SOSRequestWithVol
   );
   return response.request;
 }
+
+export async function updateEvacuationStatus(
+  token: string,
+  requestId: number,
+  evacuationStatus: 'assistant_came' | 'rescued' | 'safe_shelter' | 'still_in_disaster',
+): Promise<SOSRequestWithVolunteer> {
+  const response = await sosRequest<{ success: boolean; message: string; request: SOSRequestWithVolunteer }>(
+    `/api/sos/${requestId}/evacuation-status`,
+    { evacuationStatus },
+    { method: 'PUT', token },
+  );
+  return response.request;
+}

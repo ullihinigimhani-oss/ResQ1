@@ -65,6 +65,16 @@ export interface VerifyResetOtpResponse {
   resetToken: string;
 }
 
+export interface VerifyPasswordPayload {
+  currentPassword: string;
+}
+
+export interface ChangePasswordPayload {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword?: string;
+}
+
 export type FieldErrors = Partial<
   Record<
     | keyof RegisterResidentPayload
@@ -72,7 +82,9 @@ export type FieldErrors = Partial<
     | keyof UpdateProfilePayload
     | keyof ForgotPasswordPayload
     | keyof VerifyResetOtpPayload
-    | keyof ResetPasswordPayload,
+    | keyof ResetPasswordPayload
+    | keyof VerifyPasswordPayload
+    | keyof ChangePasswordPayload,
     string
   >
 >;
