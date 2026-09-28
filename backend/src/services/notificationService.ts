@@ -1,6 +1,7 @@
 import { sql } from '../config/database.js';
 import { AlertServiceError } from './alertService.js';
 import type { Alert } from '../types/alert.js';
+import { ensureAlertSubscriptionSchema } from './alertAreaSubscriptionService.js';
 
 type RegisterPushTokenInput = {
   deviceName?: unknown;
@@ -22,6 +23,7 @@ type PushRecipientRow = {
   quiet_hours_enabled: boolean | null;
   quiet_hours_start: Date | string | null;
   quiet_hours_end: Date | string | null;
+  is_subscribed_area: boolean | null;
 };
 
 type ExpoPushMessage = {
@@ -156,7 +158,8 @@ async function ensurePushTokenTable() {
 
 function shouldNotifyRecipient(alert: Alert, recipient: PushRecipientRow) {
   const critical = isCriticalAlert(alert);
-  const areaMatched = isResidentAreaMatch(alert.affectedArea, recipient.location);
+  const areaMatched = isResidentAreaMatch(alert.affectedArea, recipient.location)
+    || Boolean(recipient.is_subscribed_area);
 
   if (!areaMatched) {
     return false;
@@ -275,6 +278,7 @@ export async function registerResidentPushToken(userId: number, input: RegisterP
 
 export async function sendAlertPushNotifications(alert: Alert) {
   await ensurePushTokenTable();
+  await ensureAlertSubscriptionSchema();
 
   const rows = await sql`
     SELECT
@@ -290,7 +294,17 @@ export async function sendAlertPushNotifications(alert: Alert) {
       alert_preferences.vibration_enabled,
       alert_preferences.quiet_hours_enabled,
       alert_preferences.quiet_hours_start,
-      alert_preferences.quiet_hours_end
+      alert_preferences.quiet_hours_end,
+      EXISTS (
+        SELECT 1
+        FROM alert_subscriptions
+        WHERE alert_subscriptions.user_id = users.id
+          AND (
+            LOWER(TRIM(alert_subscriptions.area_name)) = LOWER(TRIM(${alert.affectedArea}))
+            OR LOWER(TRIM(alert_subscriptions.area_name)) LIKE '%' || LOWER(TRIM(${alert.affectedArea})) || '%'
+            OR LOWER(TRIM(${alert.affectedArea})) LIKE '%' || LOWER(TRIM(alert_subscriptions.area_name)) || '%'
+          )
+      ) AS is_subscribed_area
     FROM users
     INNER JOIN alert_push_tokens
       ON alert_push_tokens.user_id = users.id

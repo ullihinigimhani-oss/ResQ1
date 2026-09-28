@@ -66,7 +66,7 @@ function requireAlertManager(req: Request) {
 export async function listActiveAlerts(req: Request, res: Response) {
   try {
     const user = requireAuthenticatedUser(req);
-    const alerts = await getActiveAlerts(user.location);
+    const alerts = await getActiveAlerts(user.id, user.location);
 
     return res.status(200).json({
       success: true,
