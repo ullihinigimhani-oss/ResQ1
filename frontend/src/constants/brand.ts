@@ -23,7 +23,7 @@ function androidColorFallbacks(variable: string): string[] {
   }
 
   if (variable === 'text-strong' || variable === 'text' || variable === 'route-alternate') {
-    return ['?android:attr/textColorPrimary', '@android:color/black'];
+    return ['?android:attr/colorForeground', '@android:color/black'];
   }
 
   if (
@@ -32,7 +32,7 @@ function androidColorFallbacks(variable: string): string[] {
     || variable === 'placeholder'
     || variable === 'slate'
   ) {
-    return ['?android:attr/textColorSecondary', '?android:attr/textColorPrimary'];
+    return ['?android:attr/colorForeground', '@android:color/black'];
   }
 
   if (variable === 'on-primary' || variable === 'on-primary-muted' || variable === 'critical-text') {
@@ -40,11 +40,11 @@ function androidColorFallbacks(variable: string): string[] {
   }
 
   if (variable === 'border' || variable === 'switch-track') {
-    return ['?android:attr/textColorSecondary', '?android:attr/textColorPrimary'];
+    return ['?android:attr/colorForeground', '@android:color/black'];
   }
 
   if (variable === 'switch-thumb') {
-    return ['?android:attr/colorControlNormal', '?android:attr/textColorPrimary'];
+    return ['?android:attr/colorForeground', '@android:color/black'];
   }
 
   if (variable.includes('success') || variable === 'route-safe' || variable === 'safe-bright') {
@@ -73,7 +73,7 @@ function androidColorFallbacks(variable: string): string[] {
     return ['@android:color/transparent'];
   }
 
-  return ['?android:attr/colorAccent', '?android:attr/textColorPrimary'];
+  return ['?android:attr/colorAccent', '?android:attr/colorForeground', '@android:color/black'];
 }
 
 function themedColor(variable: string, lightFallback: string, darkFallback: string): string {

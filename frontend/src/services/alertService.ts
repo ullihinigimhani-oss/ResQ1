@@ -75,11 +75,6 @@ type ApiSchoolSearchResponse = ApiErrorBody & {
   schools?: SchoolSearchResult[];
 };
 
-type ApiPushTokenResponse = ApiErrorBody & {
-  success: boolean;
-  message?: string;
-};
-
 type ApiAlertAreaSubscriptionListResponse = ApiErrorBody & {
   success: boolean;
   subscriptions?: AlertAreaSubscription[];
@@ -352,18 +347,4 @@ export async function updateAlertPreferences(payload: UpdateAlertPreferencesPayl
   }
 
   return response.preferences;
-}
-
-export async function registerAlertPushToken(
-  payload: {
-    deviceName?: string | null;
-    expoPushToken: string;
-    platform?: string | null;
-  },
-  token: string,
-) {
-  await alertRequest<ApiPushTokenResponse>('/api/alerts/push-token', token, {
-    method: 'POST',
-    body: payload,
-  });
 }
