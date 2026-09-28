@@ -45,9 +45,9 @@ function applyBrowserTheme(theme: AppTheme) {
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<AppTheme>(() => (
-    Platform.OS === 'web' ? 'light' : Appearance.getColorScheme() === 'dark' ? 'dark' : 'light'
+    Platform.OS === 'web' ? browserTheme() : Appearance.getColorScheme() === 'dark' ? 'dark' : 'light'
   ));
-  const [isReady, setIsReady] = useState(false);
+  const [isReady, setIsReady] = useState(Platform.OS === 'web');
 
   useEffect(() => {
     if (!isReady) {
@@ -60,14 +60,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    Appearance.setColorScheme(theme);
-    void SecureStore.setItemAsync(THEME_STORAGE_KEY, theme);
+    void SecureStore.setItemAsync(THEME_STORAGE_KEY, theme)
+      .catch(() => null)
+      .finally(() => Appearance.setColorScheme(theme));
   }, [isReady, theme]);
 
   useEffect(() => {
     if (Platform.OS === 'web') {
-      setTheme(browserTheme());
-      setIsReady(true);
       return;
     }
 
