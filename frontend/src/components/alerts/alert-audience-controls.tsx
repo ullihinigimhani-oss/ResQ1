@@ -1,4 +1,4 @@
-import { createElement, useEffect, useMemo, useState } from 'react';
+import { createElement, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Platform,
@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 
+import MapView, { Marker, PROVIDER_DEFAULT } from '@/components/shelters/native-map';
 import { BrandColors } from '@/constants/brand';
 import { isAlertApiError, searchSchoolsByArea } from '@/services/alertService';
 import {
@@ -25,6 +26,14 @@ const audienceLabels: Record<AlertAudience, string> = {
 };
 
 type SchoolOption = SchoolSearchResult;
+
+const absoluteFillStyle = {
+  bottom: 0,
+  left: 0,
+  position: 'absolute' as const,
+  right: 0,
+  top: 0,
+};
 
 export function audienceLabel(audience: AlertAudience) {
   return audienceLabels[audience];
@@ -101,42 +110,79 @@ function schoolToPayload(school: SchoolOption): SchoolSelectionPayload {
   };
 }
 
-function schoolKey(school: SchoolOption | SchoolSelectionPayload) {
-  if (school.osmId && school.osmType) {
-    return `osm:${school.osmType.toLowerCase()}:${school.osmId.toLowerCase()}`;
+function schoolIdentityKeys(school: SchoolOption | SchoolSelectionPayload) {
+  const keys: string[] = [];
+
+  if (typeof school.id === 'number' && Number.isInteger(school.id) && school.id > 0) {
+    keys.push(`db:${school.id}`);
   }
 
-  if (school.id) {
-    return `db:${school.id}`;
+  const osmId = school.osmId?.trim().toLowerCase();
+  const osmType = school.osmType?.trim().toLowerCase();
+
+  if (osmId && osmType) {
+    keys.push(`osm:${osmType}:${osmId}`);
   }
 
-  return [
+  keys.push(`details:${[
     school.schoolName?.toLowerCase().trim() ?? '',
     school.area?.toLowerCase().trim() ?? '',
     school.latitude ?? '',
     school.longitude ?? '',
-  ].join('|');
+  ].join('|')}`);
+
+  return keys;
+}
+
+function schoolKey(school: SchoolOption | SchoolSelectionPayload) {
+  return schoolIdentityKeys(school)[0];
+}
+
+function schoolsMatch(
+  first: SchoolOption | SchoolSelectionPayload,
+  second: SchoolOption | SchoolSelectionPayload,
+) {
+  const firstKeys = new Set(schoolIdentityKeys(first));
+  return schoolIdentityKeys(second).some((key) => firstKeys.has(key));
+}
+
+function isSchoolSelected(
+  school: SchoolOption | SchoolSelectionPayload,
+  selectedKeys: Set<string>,
+) {
+  return schoolIdentityKeys(school).some((key) => selectedKeys.has(key));
 }
 
 function mergeSchoolOptions(
   selectedSchools: SchoolSelectionPayload[],
   searchResults: SchoolOption[],
 ) {
-  const merged = new Map<string, SchoolOption>();
+  const merged: SchoolOption[] = [];
+
+  const addSchool = (option: SchoolOption) => {
+    const existingIndex = merged.findIndex((school) => schoolsMatch(school, option));
+
+    if (existingIndex >= 0) {
+      merged[existingIndex] = option;
+      return;
+    }
+
+    merged.push(option);
+  };
 
   for (const school of selectedSchools) {
     const option = schoolToOption(school);
 
     if (option) {
-      merged.set(schoolKey(option), option);
+      addSchool(option);
     }
   }
 
   for (const school of searchResults) {
-    merged.set(schoolKey(school), school);
+    addSchool(school);
   }
 
-  return [...merged.values()];
+  return merged;
 }
 
 function buildOsmEmbedUrl(schools: SchoolOption[]) {
@@ -185,6 +231,22 @@ function markerPositions(schools: SchoolOption[]) {
   }));
 }
 
+function nativeMapRegion(schools: SchoolOption[]) {
+  const latitudes = schools.map((school) => school.latitude as number);
+  const longitudes = schools.map((school) => school.longitude as number);
+  const minLat = Math.min(...latitudes);
+  const maxLat = Math.max(...latitudes);
+  const minLng = Math.min(...longitudes);
+  const maxLng = Math.max(...longitudes);
+
+  return {
+    latitude: (minLat + maxLat) / 2,
+    longitude: (minLng + maxLng) / 2,
+    latitudeDelta: Math.max((maxLat - minLat) * 1.5, 0.035),
+    longitudeDelta: Math.max((maxLng - minLng) * 1.5, 0.035),
+  };
+}
+
 function SchoolMapPreview({
   onToggleSchool,
   schools,
@@ -194,14 +256,57 @@ function SchoolMapPreview({
   schools: SchoolOption[];
   selectedKeys: Set<string>;
 }) {
-  const [mapFailed, setMapFailed] = useState(false);
-  const coordinateSchools = schools.filter((school) => school.latitude !== null && school.longitude !== null);
+  const [failedMapUrl, setFailedMapUrl] = useState<string | null>(null);
+  const mapRef = useRef<React.ElementRef<typeof MapView>>(null);
+  const mapReadyRef = useRef(false);
+  const coordinateSchools = useMemo(
+    () => schools.filter((school) => school.latitude !== null && school.longitude !== null),
+    [schools],
+  );
+  const schoolCoordinates = useMemo(
+    () => coordinateSchools.map((school) => ({
+      latitude: school.latitude as number,
+      longitude: school.longitude as number,
+    })),
+    [coordinateSchools],
+  );
   const mapUrl = useMemo(() => buildOsmEmbedUrl(coordinateSchools), [coordinateSchools]);
+  const mapFailed = Boolean(mapUrl && failedMapUrl === mapUrl);
   const markers = useMemo(() => markerPositions(coordinateSchools), [coordinateSchools]);
+  const initialRegion = useMemo(() => nativeMapRegion(coordinateSchools), [coordinateSchools]);
+  const fitNativeMarkers = useCallback((animated: boolean) => {
+    if (Platform.OS === 'web' || !mapRef.current || schoolCoordinates.length === 0) {
+      return;
+    }
+
+    if (schoolCoordinates.length === 1) {
+      mapRef.current.animateToRegion({
+        ...schoolCoordinates[0],
+        latitudeDelta: 0.025,
+        longitudeDelta: 0.025,
+      }, animated ? 280 : 0);
+      return;
+    }
+
+    mapRef.current.fitToCoordinates(schoolCoordinates, {
+      animated,
+      edgePadding: {
+        bottom: 44,
+        left: 44,
+        right: 44,
+        top: 44,
+      },
+    });
+  }, [schoolCoordinates]);
 
   useEffect(() => {
-    setMapFailed(false);
-  }, [mapUrl]);
+    if (Platform.OS === 'web' || !mapReadyRef.current) {
+      return;
+    }
+
+    const frame = requestAnimationFrame(() => fitNativeMarkers(true));
+    return () => cancelAnimationFrame(frame);
+  }, [fitNativeMarkers]);
 
   if (coordinateSchools.length === 0) {
     return (
@@ -217,7 +322,7 @@ function SchoolMapPreview({
       <View style={styles.mapCanvas}>
         {Platform.OS === 'web' && mapUrl && !mapFailed ? createElement('iframe', {
           loading: 'lazy',
-          onError: () => setMapFailed(true),
+          onError: () => setFailedMapUrl(mapUrl),
           src: mapUrl,
           style: {
             border: 0,
@@ -228,19 +333,58 @@ function SchoolMapPreview({
             width: '100%',
           },
           title: 'OpenStreetMap school locations',
-        }) : (
+        }) : Platform.OS !== 'web' ? (
+          <>
+            <MapView
+              initialRegion={initialRegion}
+              loadingEnabled
+              mapType="standard"
+              onMapReady={() => {
+                mapReadyRef.current = true;
+                fitNativeMarkers(false);
+              }}
+              pitchEnabled={false}
+              provider={PROVIDER_DEFAULT}
+              ref={mapRef}
+              rotateEnabled={false}
+              scrollEnabled
+              showsBuildings
+              showsCompass
+              showsPointsOfInterests
+              style={styles.nativeMap}
+              toolbarEnabled={false}
+              zoomEnabled>
+              {coordinateSchools.map((school) => {
+                const key = schoolKey(school);
+                const selected = isSchoolSelected(school, selectedKeys);
+
+                return (
+                  <Marker
+                    coordinate={{
+                      latitude: school.latitude as number,
+                      longitude: school.longitude as number,
+                    }}
+                    description={school.formattedAddress || school.area}
+                    key={key}
+                    onPress={() => onToggleSchool(school)}
+                    pinColor={selected ? BrandColors.red : BrandColors.accentAction}
+                    title={school.schoolName}
+                  />
+                );
+              })}
+            </MapView>
+          </>
+        ) : (
           <View style={styles.nativeMapFallback}>
             <Text style={styles.mapTitle}>OpenStreetMap</Text>
             <Text style={styles.mapBody}>
-              {mapFailed
-                ? 'Map unavailable. School list is still available.'
-                : 'Map tiles are available on web. School markers remain selectable here.'}
+              Map unavailable. School list is still available.
             </Text>
           </View>
         )}
-        <View style={styles.mapOverlay} />
-        {markers.map((marker) => {
-          const selected = selectedKeys.has(marker.key);
+        {Platform.OS === 'web' ? <View pointerEvents="none" style={styles.mapOverlay} /> : null}
+        {Platform.OS === 'web' ? markers.map((marker) => {
+          const selected = isSchoolSelected(marker.school, selectedKeys);
 
           return (
             <Pressable
@@ -262,7 +406,7 @@ function SchoolMapPreview({
               </Text>
             </Pressable>
           );
-        })}
+        }) : null}
       </View>
     </View>
   );
@@ -318,14 +462,10 @@ export function SchoolTargetingSection({
   const [loadingSchools, setLoadingSchools] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const area = affectedArea.trim();
-  const selectedKeys = useMemo(
-    () => new Set(selectedSchools.map((school) => schoolKey(school))),
-    [selectedSchools],
-  );
-  const displayedSchools = useMemo(
-    () => mergeSchoolOptions(selectedSchools, schools),
-    [schools, selectedSchools],
-  );
+  const selectedKeys = new Set(selectedSchools.flatMap((school) => schoolIdentityKeys(school)));
+  const displayedSchools = mergeSchoolOptions(selectedSchools, schools);
+  const allDisplayedSchoolsSelected = displayedSchools.length > 0
+    && displayedSchools.every((school) => isSchoolSelected(school, selectedKeys));
 
   const findSchools = async () => {
     if (!token) {
@@ -363,18 +503,37 @@ export function SchoolTargetingSection({
   };
 
   const toggleSchool = (school: SchoolOption) => {
-    const key = schoolKey(school);
-
-    if (selectedKeys.has(key)) {
-      onSelectedSchoolsChange(selectedSchools.filter((selectedSchool) => schoolKey(selectedSchool) !== key));
+    if (isSchoolSelected(school, selectedKeys)) {
+      onSelectedSchoolsChange(
+        selectedSchools.filter((selectedSchool) => !schoolsMatch(selectedSchool, school)),
+      );
       return;
     }
 
     onSelectedSchoolsChange([...selectedSchools, schoolToPayload(school)]);
   };
 
-  const selectAllDisplayedSchools = () => {
-    onSelectedSchoolsChange(displayedSchools.map(schoolToPayload));
+  const toggleAllDisplayedSchools = () => {
+    if (allDisplayedSchoolsSelected) {
+      onSelectedSchoolsChange(
+        selectedSchools.filter(
+          (selectedSchool) => !displayedSchools.some(
+            (displayedSchool) => schoolsMatch(selectedSchool, displayedSchool),
+          ),
+        ),
+      );
+      return;
+    }
+
+    const nextSelectedSchools = [...selectedSchools];
+
+    for (const school of displayedSchools) {
+      if (!nextSelectedSchools.some((selectedSchool) => schoolsMatch(selectedSchool, school))) {
+        nextSelectedSchools.push(schoolToPayload(school));
+      }
+    }
+
+    onSelectedSchoolsChange(nextSelectedSchools);
   };
 
   return (
@@ -425,10 +584,17 @@ export function SchoolTargetingSection({
 
           <View style={styles.schoolActions}>
             <Pressable
+              accessibilityLabel={allDisplayedSchoolsSelected
+                ? 'Deselect all displayed schools'
+                : 'Select all displayed schools'}
               accessibilityRole="button"
-              onPress={selectAllDisplayedSchools}
+              onPress={toggleAllDisplayedSchools}
               style={({ pressed }) => [styles.selectAllButton, pressed && styles.pressed]}>
-              <Text style={styles.selectAllText}>Select All Displayed Schools</Text>
+              <Text style={styles.selectAllText}>
+                {allDisplayedSchoolsSelected
+                  ? 'Deselect All Displayed Schools'
+                  : 'Select All Displayed Schools'}
+              </Text>
             </Pressable>
           </View>
 
@@ -438,7 +604,7 @@ export function SchoolTargetingSection({
                 key={schoolKey(school)}
                 onToggle={() => toggleSchool(school)}
                 school={school}
-                selected={selectedKeys.has(schoolKey(school))}
+                selected={isSchoolSelected(school, selectedKeys)}
               />
             ))}
           </View>
@@ -550,20 +716,23 @@ const styles = StyleSheet.create({
     borderColor: BrandColors.sky,
     borderRadius: 8,
     borderWidth: 1,
-    minHeight: 174,
+    height: Platform.OS === 'web' ? 174 : 220,
     overflow: 'hidden',
   },
   mapCanvas: {
     backgroundColor: BrandColors.lightBlue,
-    minHeight: 174,
+    flex: 1,
     overflow: 'hidden',
   },
+  nativeMap: {
+    ...absoluteFillStyle,
+  },
   mapOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...absoluteFillStyle,
     backgroundColor: BrandColors.subtleOverlay,
   },
   nativeMapFallback: {
-    ...StyleSheet.absoluteFillObject,
+    ...absoluteFillStyle,
     gap: 4,
     justifyContent: 'center',
     padding: 14,

@@ -141,10 +141,14 @@ const styles = StyleSheet.create({
     position: 'absolute',
   },
   splashOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: BrandColors.splashBlue,
     alignItems: 'center',
+    backgroundColor: BrandColors.splashBlue,
+    bottom: 0,
     justifyContent: 'center',
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
     zIndex: 1000,
   },
 });

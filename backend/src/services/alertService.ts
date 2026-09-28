@@ -40,12 +40,25 @@ const SCHOOL_NAME_MAX_LENGTH = 150;
 const OSM_ID_MAX_LENGTH = 80;
 const OSM_TYPE_MAX_LENGTH = 20;
 const NOMINATIM_SEARCH_URL = 'https://nominatim.openstreetmap.org/search';
-const OVERPASS_INTERPRETER_URL = 'https://overpass-api.de/api/interpreter';
+const OVERPASS_INTERPRETER_URLS = [
+  ...trimmedText(process.env.RESQ1_OVERPASS_URLS).split(',').map((url) => url.trim()),
+  trimmedText(process.env.RESQ1_OVERPASS_URL),
+  'https://overpass-api.de/api/interpreter',
+  'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
+  'https://overpass.private.coffee/api/interpreter',
+].filter((url, index, urls) => Boolean(url) && urls.indexOf(url) === index);
+const OVERPASS_REQUEST_TIMEOUT_MS = 30_000;
 const SCHOOL_SEARCH_CACHE_DURATION_MS = 10 * 60 * 1000;
+const SCHOOL_SEARCH_STALE_DURATION_MS = 24 * 60 * 60 * 1000;
 let auditTableReady: Promise<void> | null = null;
 let alertSchemaReady: Promise<void> | null = null;
 let acknowledgementTableReady: Promise<void> | null = null;
-const schoolSearchCache = new Map<string, { expiresAt: number; schools: SchoolSearchResult[] }>();
+const schoolSearchCache = new Map<string, {
+  expiresAt: number;
+  schools: SchoolSearchResult[];
+  staleUntil: number;
+}>();
+const schoolSearchRequests = new Map<string, Promise<SchoolSearchResult[]>>();
 
 export class AlertServiceError extends Error {
   constructor(
@@ -406,12 +419,22 @@ function schoolSearchDedupeKey(school: SchoolSearchResult) {
   ].join('|');
 }
 
-function cachedSchoolSearch(area: string) {
+function cachedSchoolSearch(area: string, allowStale = false) {
   const cacheKey = area.toLowerCase();
   const cached = schoolSearchCache.get(cacheKey);
 
-  if (!cached || cached.expiresAt <= Date.now()) {
+  if (!cached) {
+    return null;
+  }
+
+  const now = Date.now();
+
+  if (cached.staleUntil <= now) {
     schoolSearchCache.delete(cacheKey);
+    return null;
+  }
+
+  if (!allowStale && cached.expiresAt <= now) {
     return null;
   }
 
@@ -422,6 +445,7 @@ function setCachedSchoolSearch(area: string, schools: SchoolSearchResult[]) {
   schoolSearchCache.set(area.toLowerCase(), {
     expiresAt: Date.now() + SCHOOL_SEARCH_CACHE_DURATION_MS,
     schools,
+    staleUntil: Date.now() + SCHOOL_SEARCH_STALE_DURATION_MS,
   });
 }
 
@@ -510,49 +534,76 @@ function buildOverpassSchoolQuery(bounds: { east: number; north: number; south: 
   const bbox = `${bounds.south},${bounds.west},${bounds.north},${bounds.east}`;
 
   return `
-    [out:json][timeout:25];
-    (
-      node["amenity"="school"](${bbox});
-      way["amenity"="school"](${bbox});
-      relation["amenity"="school"](${bbox});
-    );
-    out center 50;
+    [out:json][timeout:20];
+    nw["amenity"="school"]["name"](${bbox});
+    out tags center qt 50;
   `;
 }
 
+function isRetryableOverpassStatus(status: number) {
+  return status === 408 || status === 429 || status >= 500;
+}
+
+function isAbortError(error: unknown) {
+  return Boolean(
+    error
+      && typeof error === 'object'
+      && 'name' in error
+      && error.name === 'AbortError',
+  );
+}
+
 async function queryOverpassSchools(bounds: { east: number; north: number; south: number; west: number }) {
-  let response: Response;
+  const requestBody = new URLSearchParams({ data: buildOverpassSchoolQuery(bounds) }).toString();
 
-  try {
-    response = await fetch(OVERPASS_INTERPRETER_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
-        'User-Agent': schoolSearchUserAgent(),
-      },
-      body: new URLSearchParams({ data: buildOverpassSchoolQuery(bounds) }).toString(),
-    });
-  } catch (error) {
-    if (process.env.NODE_ENV !== 'production') {
-      console.warn('Overpass school search failed:', error);
+  for (const [index, url] of OVERPASS_INTERPRETER_URLS.entries()) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), OVERPASS_REQUEST_TIMEOUT_MS);
+
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+          'User-Agent': schoolSearchUserAgent(),
+        },
+        body: requestBody,
+        signal: controller.signal,
+      });
+
+      if (response.ok) {
+        return await response.json() as OverpassResponse;
+      }
+
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn(`Overpass school search error from ${url}:`, response.status);
+      }
+
+      const hasFallback = index < OVERPASS_INTERPRETER_URLS.length - 1;
+
+      if (!hasFallback || !isRetryableOverpassStatus(response.status)) {
+        break;
+      }
+    } catch (error) {
+      if (process.env.NODE_ENV !== 'production') {
+        if (isAbortError(error)) {
+          console.warn(
+            `Overpass school search timed out for ${url} after ${OVERPASS_REQUEST_TIMEOUT_MS}ms.`,
+          );
+        } else {
+          console.warn(`Overpass school search failed for ${url}:`, error);
+        }
+      }
+    } finally {
+      clearTimeout(timeout);
     }
-
-    throw new AlertServiceError(502, 'Unable to search school locations. Please try again.');
   }
 
-  if (!response.ok) {
-    if (process.env.NODE_ENV !== 'production') {
-      console.warn('Overpass school search error:', response.status);
-    }
-
-    throw new AlertServiceError(502, 'Unable to search school locations. Please try again.');
-  }
-
-  try {
-    return await response.json() as OverpassResponse;
-  } catch {
-    throw new AlertServiceError(502, 'Unable to search school locations. Please try again.');
-  }
+  throw new AlertServiceError(
+    503,
+    'School data is temporarily unavailable. Please try again.',
+  );
 }
 
 function addressText(tags: Record<string, string | undefined>, fallbackArea: string) {
@@ -592,30 +643,61 @@ function toSchoolSearchResult(element: OverpassElement, area: string): SchoolSea
   };
 }
 
-async function hydrateExistingSchoolIds(results: SchoolSearchResult[]) {
-  const hydrated = await Promise.all(
-    results.map(async (result) => {
-      if (!result.osmId || !result.osmType) {
-        return result;
-      }
+async function searchSchoolsByAreaUncached(affectedArea: string) {
+  const bounds = await geocodeAreaForSchoolSearch(affectedArea);
 
-      const rows = await sql`
-        SELECT id, school_name, area, latitude, longitude, osm_id, osm_type, created_at
-        FROM schools
-        WHERE osm_id = ${result.osmId}
-          AND osm_type = ${result.osmType}
-        LIMIT 1
-      `;
-      const existingSchool = (rows as SchoolRow[])[0];
+  if (!bounds) {
+    setCachedSchoolSearch(affectedArea, []);
+    return [];
+  }
 
-      return {
-        ...result,
-        id: existingSchool?.id ?? null,
-      };
-    }),
+  let overpassData: OverpassResponse;
+
+  try {
+    overpassData = await queryOverpassSchools(bounds);
+  } catch (error) {
+    const staleSchools = cachedSchoolSearch(affectedArea, true);
+
+    if (staleSchools) {
+      return staleSchools;
+    }
+
+    const savedSchools = await getSchoolsForArea(affectedArea);
+
+    if (savedSchools.length > 0) {
+      const fallbackSchools = savedSchools.map((school): SchoolSearchResult => ({
+        id: school.id,
+        schoolName: school.schoolName,
+        area: school.area,
+        latitude: school.latitude,
+        longitude: school.longitude,
+        osmId: school.osmId,
+        osmType: school.osmType,
+        formattedAddress: school.formattedAddress ?? school.area,
+      }));
+      setCachedSchoolSearch(affectedArea, fallbackSchools);
+      return fallbackSchools;
+    }
+
+    throw error;
+  }
+  const deduped = new Map<string, SchoolSearchResult>();
+
+  for (const element of overpassData.elements ?? []) {
+    const result = toSchoolSearchResult(element, affectedArea);
+
+    if (result) {
+      deduped.set(schoolSearchDedupeKey(result), result);
+    }
+  }
+
+  const schools = await persistSchoolSearchResults(
+    affectedArea,
+    [...deduped.values()].slice(0, 50),
   );
+  setCachedSchoolSearch(affectedArea, schools);
 
-  return hydrated;
+  return schools;
 }
 
 export async function searchSchoolsByArea(area: string) {
@@ -633,28 +715,23 @@ export async function searchSchoolsByArea(area: string) {
     return cached;
   }
 
-  const bounds = await geocodeAreaForSchoolSearch(affectedArea);
+  const requestKey = affectedArea.toLowerCase();
+  const pendingRequest = schoolSearchRequests.get(requestKey);
 
-  if (!bounds) {
-    setCachedSchoolSearch(affectedArea, []);
-    return [];
+  if (pendingRequest) {
+    return pendingRequest;
   }
 
-  const overpassData = await queryOverpassSchools(bounds);
-  const deduped = new Map<string, SchoolSearchResult>();
+  const request = searchSchoolsByAreaUncached(affectedArea);
+  schoolSearchRequests.set(requestKey, request);
 
-  for (const element of overpassData.elements ?? []) {
-    const result = toSchoolSearchResult(element, affectedArea);
-
-    if (result) {
-      deduped.set(schoolSearchDedupeKey(result), result);
+  try {
+    return await request;
+  } finally {
+    if (schoolSearchRequests.get(requestKey) === request) {
+      schoolSearchRequests.delete(requestKey);
     }
   }
-
-  const schools = await hydrateExistingSchoolIds([...deduped.values()].slice(0, 50));
-  setCachedSchoolSearch(affectedArea, schools);
-
-  return schools;
 }
 
 async function getExistingSchoolById(schoolId: number) {
@@ -769,6 +846,29 @@ async function upsertSelectedSchool(affectedArea: string, selection: SchoolSelec
   const savedSchool = (rows as SchoolRow[])[0];
 
   return savedSchool?.id ?? null;
+}
+
+async function persistSchoolSearchResults(
+  affectedArea: string,
+  schools: SchoolSearchResult[],
+) {
+  const persisted = await Promise.allSettled(
+    schools.map((school) => upsertSelectedSchool(affectedArea, school)),
+  );
+  const failedCount = persisted.filter((result) => result.status === 'rejected').length;
+
+  if (failedCount > 0 && process.env.NODE_ENV !== 'production') {
+    console.warn(`Unable to persist ${failedCount} school search result(s) for ${affectedArea}.`);
+  }
+
+  return schools.map((school, index) => {
+    const result = persisted[index];
+
+    return {
+      ...school,
+      id: result?.status === 'fulfilled' ? result.value : school.id,
+    };
+  });
 }
 
 async function validateSelectedSchools(
