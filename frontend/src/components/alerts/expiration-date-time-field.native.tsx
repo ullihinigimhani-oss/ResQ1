@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Text,
   useColorScheme,
+  useWindowDimensions,
   View,
 } from 'react-native';
 
@@ -15,6 +16,10 @@ import { BrandColors } from '@/constants/brand';
 import type { ExpirationDateTimeFieldProps } from './expiration-date-time-field.types';
 
 type PickerStep = 'date' | 'time';
+
+const maximumModalWidth = 430;
+const modalScreenInset = 6;
+const pickerHorizontalInset = 6;
 
 function parsedExpiration(value: string) {
   const date = value ? new Date(value) : null;
@@ -66,6 +71,9 @@ export default function ExpirationDateTimeField({
   value,
 }: ExpirationDateTimeFieldProps) {
   const colorScheme = useColorScheme();
+  const { width: windowWidth } = useWindowDimensions();
+  const modalWidth = Math.min(maximumModalWidth, Math.max(windowWidth - modalScreenInset * 2, 0));
+  const pickerWidth = Math.max(modalWidth - pickerHorizontalInset * 2, 0);
   const selectedExpiration = parsedExpiration(value);
   const [visible, setVisible] = useState(false);
   const [step, setStep] = useState<PickerStep>('date');
@@ -145,18 +153,20 @@ export default function ExpirationDateTimeField({
         transparent
         visible={visible}>
         <View style={styles.backdrop}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalEyebrow}>Alert Validity</Text>
-            <Text style={styles.modalTitle}>
-              {step === 'date' ? 'Select expiration date' : 'Select expiration time'}
-            </Text>
-            <Text style={styles.modalHelper}>
-              {step === 'date'
-                ? 'Choose the date when this alert should stop being active.'
-                : `Date selected: ${formatDate(draftDate)}`}
-            </Text>
+          <View style={[styles.modalCard, { width: modalWidth }]}>
+            <View style={styles.modalIntro}>
+              <Text style={styles.modalEyebrow}>Alert Validity</Text>
+              <Text style={styles.modalTitle}>
+                {step === 'date' ? 'Select expiration date' : 'Select expiration time'}
+              </Text>
+              <Text style={styles.modalHelper}>
+                {step === 'date'
+                  ? 'Choose the date when this alert should stop being active.'
+                  : `Date selected: ${formatDate(draftDate)}`}
+              </Text>
+            </View>
 
-            <View style={styles.pickerContainer}>
+            <View style={[styles.pickerContainer, { width: pickerWidth }]}>
               <DateTimePicker
                 accentColor={BrandColors.red}
                 display={step === 'date'
@@ -279,7 +289,8 @@ const styles = StyleSheet.create({
     backgroundColor: BrandColors.modalBackdrop,
     flex: 1,
     justifyContent: 'center',
-    padding: 20,
+    paddingHorizontal: modalScreenInset,
+    paddingVertical: 20,
   },
   modalCard: {
     backgroundColor: BrandColors.surfaceElevated,
@@ -287,8 +298,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     maxWidth: 430,
-    padding: 18,
-    width: '100%',
+    paddingVertical: 18,
+  },
+  modalIntro: {
+    paddingHorizontal: 18,
   },
   modalEyebrow: {
     color: BrandColors.red,
@@ -309,10 +322,10 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   pickerContainer: {
-    alignItems: 'center',
+    alignItems: 'stretch',
+    alignSelf: 'center',
     marginTop: 10,
-    overflow: 'hidden',
-    width: '100%',
+    paddingHorizontal: pickerHorizontalInset,
   },
   datePicker: {
     minHeight: 310,
@@ -326,11 +339,13 @@ const styles = StyleSheet.create({
     color: BrandColors.red,
     fontSize: 12,
     fontWeight: '600',
+    marginHorizontal: 18,
     marginTop: 6,
   },
   modalActions: {
     flexDirection: 'row',
     gap: 10,
+    marginHorizontal: 18,
     marginTop: 14,
   },
   secondaryButton: {
