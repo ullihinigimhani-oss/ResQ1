@@ -19,8 +19,8 @@ export function initials(fullName: string | null | undefined) {
 }
 
 export function formatRole(role: string) {
-  return role
-    .split(/\s+/)
+  return normalizeRole(role)
+    .split('_')
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
     .join(' ');
@@ -71,8 +71,24 @@ export function normalize(value: string | null | undefined) {
   return value?.trim().toLowerCase() ?? '';
 }
 
+export function normalizeRole(role: string | null | undefined) {
+  const normalizedRole = normalize(role).replace(/[\s-]+/g, '_');
+
+  return normalizedRole === 'commiunity_member' ? 'community_member' : normalizedRole;
+}
+
 export function isAuthorityRole(role: string | null | undefined) {
-  const normalizedRole = normalize(role);
+  const normalizedRole = normalizeRole(role);
 
   return normalizedRole === 'admin' || normalizedRole === 'authority';
+}
+
+export function isCommunityMemberRole(role: string | null | undefined) {
+  return normalizeRole(role) === 'community_member';
+}
+
+export function isResidentRole(role: string | null | undefined) {
+  const normalizedRole = normalizeRole(role);
+
+  return normalizedRole === 'resident' || normalizedRole === 'community_member';
 }

@@ -29,6 +29,7 @@ import {
   type ValidatedUpdateAlertInput,
 } from '../types/alert.js';
 import type { AuthenticatedUser } from '../types/auth.js';
+import { isResidentRole } from '../utils/roles.js';
 import { ensureAlertSubscriptionSchema } from './alertAreaSubscriptionService.js';
 
 const ACTIVE_ALERT_STATUS: AlertStatus = 'Active';
@@ -1577,7 +1578,7 @@ function toAcknowledgementStatus(row: AlertAcknowledgementRow | undefined): Aler
 }
 
 function isResidentUser(user: AuthenticatedUser) {
-  return String(user.role).toLowerCase() === 'resident';
+  return isResidentRole(user.role);
 }
 
 function normalizeAlertArea(value: string | null | undefined) {
@@ -1704,7 +1705,7 @@ async function getTargetedResidentRows(alert: Alert) {
       LEFT JOIN alert_acknowledgements
         ON alert_acknowledgements.user_id = users.id
         AND alert_acknowledgements.alert_id = ${alert.id}
-      WHERE LOWER(users.role) = 'resident'
+      WHERE LOWER(TRIM(users.role)) IN ('resident', 'community_member', 'commiunity_member')
         AND COALESCE(alert_preferences.school_alerts, TRUE) = TRUE
       ORDER BY
         alert_acknowledgements.acknowledged_at DESC NULLS LAST,
@@ -1725,7 +1726,7 @@ async function getTargetedResidentRows(alert: Alert) {
     LEFT JOIN alert_acknowledgements
       ON alert_acknowledgements.user_id = users.id
       AND alert_acknowledgements.alert_id = ${alert.id}
-    WHERE LOWER(users.role) = 'resident'
+    WHERE LOWER(TRIM(users.role)) IN ('resident', 'community_member', 'commiunity_member')
     ORDER BY
       alert_acknowledgements.acknowledged_at DESC NULLS LAST,
       users.full_name ASC

@@ -66,6 +66,9 @@ export default function RootLayout() {
           <Stack.Screen name="alerts/areas/add" />
           <Stack.Screen name="offline-safety/index" />
           <Stack.Screen name="offline-safety/[alertId]" />
+          <Stack.Screen name="basic-phone-residents/index" />
+          <Stack.Screen name="basic-phone-residents/add" />
+          <Stack.Screen name="basic-phone-residents/[id]/edit" />
           <Stack.Screen name="community-notifications/index" />
           <Stack.Screen name="community-notifications/[id]" />
           <Stack.Screen name="community-notifications/create" />

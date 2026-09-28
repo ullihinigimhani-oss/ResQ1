@@ -29,7 +29,14 @@ import type { AuthUser } from '@/types/auth';
 import type { CommunityNotification } from '@/types/communityNotification';
 import { alertAffectsResidentArea } from '@/utils/alert-display';
 import { compareAlertsByCurrentRisk, getCurrentRiskAlert } from '@/utils/alert-risk';
-import { firstName, formatDateTime, initials, preview, userArea } from '@/utils/format';
+import {
+  firstName,
+  formatDateTime,
+  initials,
+  isCommunityMemberRole,
+  preview,
+  userArea,
+} from '@/utils/format';
 
 type ResidentHomeProps = {
   alerts: DashboardSummary['alerts'];
@@ -378,6 +385,28 @@ function SubscribedAreaRisks({ alerts }: { alerts: Alert[] }) {
   );
 }
 
+function BasicPhoneResidentAccess() {
+  const router = useRouter();
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={() => router.push('/basic-phone-residents' as Href)}
+      style={({ pressed }) => [styles.communityMemberCard, pressed && styles.pressed]}>
+      <View style={styles.communityMemberIcon}>
+        <AppIcon fallback="P" name="person.3.fill" size={21} tintColor={colors.deepBlue} />
+      </View>
+      <View style={styles.communityMemberCopy}>
+        <Text style={styles.communityMemberTitle}>Basic Phone Residents</Text>
+        <Text style={styles.communityMemberBody}>
+          Register residents without smartphones for emergency SMS alerts.
+        </Text>
+      </View>
+      <Text style={styles.communityMemberArrow}>{'>'}</Text>
+    </Pressable>
+  );
+}
+
 function isCurrentActiveAlert(alert: Alert) {
   if (alert.status !== 'Active') {
     return false;
@@ -535,6 +564,8 @@ export function ResidentHome({
         ) : null}
 
         <SubscribedAreaRisks alerts={subscribedAreaAlerts} />
+
+        {isCommunityMemberRole(user.role) ? <BasicPhoneResidentAccess /> : null}
 
         {!loading && !initialError ? <UpdatePreview update={latestUpdate} /> : null}
 
@@ -830,6 +861,47 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     lineHeight: 18,
+  },
+  communityMemberCard: {
+    alignItems: 'center',
+    backgroundColor: colors.white,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.md,
+    minHeight: 78,
+    padding: spacing.md,
+    ...shadows.card,
+  },
+  communityMemberIcon: {
+    alignItems: 'center',
+    backgroundColor: colors.lightBlue,
+    borderRadius: radius.md,
+    height: 42,
+    justifyContent: 'center',
+    width: 42,
+  },
+  communityMemberCopy: {
+    flex: 1,
+    gap: 2,
+    minWidth: 0,
+  },
+  communityMemberTitle: {
+    color: colors.navy,
+    fontSize: 15,
+    fontWeight: '700',
+    lineHeight: 20,
+  },
+  communityMemberBody: {
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  communityMemberArrow: {
+    color: colors.deepBlue,
+    fontSize: 18,
+    fontWeight: '700',
   },
   viewAllButton: {
     alignItems: 'center',

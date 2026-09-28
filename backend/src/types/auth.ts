@@ -1,6 +1,6 @@
 export type PreferredLanguage = 'English' | 'Sinhala' | 'Tamil';
 
-export type UserRole = 'resident' | 'admin' | 'authority';
+export type UserRole = 'resident' | 'Community_Member' | 'admin' | 'authority';
 
 export interface UserRow {
   id: number;

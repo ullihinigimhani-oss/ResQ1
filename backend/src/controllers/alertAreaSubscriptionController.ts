@@ -7,6 +7,7 @@ import {
   listAvailableAlertAreas,
   removeAlertAreaSubscription,
 } from '../services/alertAreaSubscriptionService.js';
+import { isResidentRole } from '../utils/roles.js';
 
 function sendAlertAreaError(error: unknown, res: Response) {
   if (error instanceof AlertAreaSubscriptionServiceError) {
@@ -32,7 +33,7 @@ function requireResident(req: Request) {
     throw new AlertAreaSubscriptionServiceError(401, 'Authentication is required.');
   }
 
-  if (String(user.role).toLowerCase() !== 'resident') {
+  if (!isResidentRole(user.role)) {
     throw new AlertAreaSubscriptionServiceError(403, 'Alert area subscriptions are available to residents only.');
   }
 

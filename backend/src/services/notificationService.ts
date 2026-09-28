@@ -311,7 +311,7 @@ export async function sendAlertPushNotifications(alert: Alert) {
       AND alert_push_tokens.active = TRUE
     LEFT JOIN alert_preferences
       ON alert_preferences.user_id = users.id
-    WHERE LOWER(users.role) = 'resident'
+    WHERE LOWER(TRIM(users.role)) IN ('resident', 'community_member', 'commiunity_member')
   `;
 
   const messages = (rows as PushRecipientRow[])

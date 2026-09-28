@@ -14,7 +14,7 @@ import {
   setCachedDashboardSummary,
   type DashboardSummary,
 } from '@/services/dashboardSummaryService';
-import { isAuthorityRole, normalize } from '@/utils/format';
+import { isAuthorityRole, isResidentRole } from '@/utils/format';
 
 export default function DashboardScreen() {
   const { isLoading, token, user } = useAuth();
@@ -122,12 +122,11 @@ export default function DashboardScreen() {
     );
   }
 
-  const normalizedRole = normalize(user.role);
   const initialLoading = loadingSummary && !hasLoadedSummary;
   const refreshing = loadingSummary && hasLoadedSummary;
   const visibleSummaryWarning = Boolean(summaryWarning) && !refreshing ? summaryWarning : null;
 
-  if (normalizedRole === 'resident') {
+  if (isResidentRole(user.role)) {
     return (
       <ResidentDashboard
         alerts={alerts}
@@ -142,7 +141,7 @@ export default function DashboardScreen() {
     );
   }
 
-  if (isAuthorityRole(normalizedRole)) {
+  if (isAuthorityRole(user.role)) {
     return (
       <AuthorityDashboard
         alerts={alerts}

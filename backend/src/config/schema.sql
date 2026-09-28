@@ -294,4 +294,23 @@ CREATE TABLE IF NOT EXISTS emergency_contacts (
 CREATE INDEX IF NOT EXISTS idx_emergency_contacts_user_id
     ON emergency_contacts(user_id);
 
+CREATE TABLE IF NOT EXISTS basic_phone_residents (
+    id SERIAL PRIMARY KEY,
+    full_name VARCHAR(100) NOT NULL,
+    phone_number VARCHAR(10) NOT NULL,
+    area VARCHAR(150) NOT NULL,
+    registered_by INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_basic_phone_residents_registered_by
+    ON basic_phone_residents(registered_by);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_basic_phone_residents_phone_number
+    ON basic_phone_residents(phone_number);
+
+CREATE INDEX IF NOT EXISTS idx_basic_phone_residents_area
+    ON basic_phone_residents(LOWER(TRIM(area)));
+
 

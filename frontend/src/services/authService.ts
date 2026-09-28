@@ -16,6 +16,7 @@ import type {
   VerifyResetOtpPayload,
   VerifyResetOtpResponse,
 } from '@/types/auth';
+import { normalizeRole } from '@/utils/format';
 
 type ApiAuthResponse = {
   success: boolean;
@@ -32,6 +33,19 @@ type ApiErrorBody = {
 const AUTH_TOKEN_KEY = 'resq1.auth.token';
 const AUTH_USER_KEY = 'resq1.auth.user';
 const BACKEND_PORT = '5000';
+
+function withCanonicalRole(user: AuthUser): AuthUser {
+  const normalizedRole = normalizeRole(user.role);
+  const canonicalRole: AuthUser['role'] | null = normalizedRole === 'community_member'
+    ? 'Community_Member'
+    : normalizedRole === 'resident' || normalizedRole === 'admin' || normalizedRole === 'authority'
+      ? normalizedRole
+      : null;
+
+  return canonicalRole && canonicalRole !== user.role
+    ? { ...user, role: canonicalRole }
+    : user;
+}
 
 function getExpoLanHost() {
   const hostUri = Constants.expoConfig?.hostUri;
@@ -235,7 +249,7 @@ export async function loginResident(payload: LoginResidentPayload): Promise<Auth
   }
 
   return {
-    user: response.user,
+    user: withCanonicalRole(response.user),
     token: response.token,
   };
 }
@@ -246,7 +260,7 @@ export async function updateProfile(token: string, payload: UpdateProfilePayload
     token,
   });
 
-  return response.user;
+  return withCanonicalRole(response.user);
 }
 
 export async function updateVolunteerStatus(
@@ -258,12 +272,14 @@ export async function updateVolunteerStatus(
     token,
   });
 
-  return response.user;
+  return withCanonicalRole(response.user);
 }
 
 export async function saveSession(session: AuthSession) {
+  const user = withCanonicalRole(session.user);
+
   await setStoredValue(AUTH_TOKEN_KEY, session.token);
-  await setStoredValue(AUTH_USER_KEY, JSON.stringify(session.user));
+  await setStoredValue(AUTH_USER_KEY, JSON.stringify(user));
 }
 
 export async function loadSession(): Promise<AuthSession | null> {
@@ -277,9 +293,11 @@ export async function loadSession(): Promise<AuthSession | null> {
   }
 
   try {
+    const user = withCanonicalRole(JSON.parse(userJson) as AuthUser);
+
     return {
       token,
-      user: JSON.parse(userJson) as AuthUser,
+      user,
     };
   } catch {
     await clearSession();
@@ -295,7 +313,7 @@ export async function updateStoredUser(user: AuthUser) {
     return;
   }
 
-  await setStoredValue(AUTH_USER_KEY, JSON.stringify(user));
+  await setStoredValue(AUTH_USER_KEY, JSON.stringify(withCanonicalRole(user)));
 }
 
 export async function clearSession() {

@@ -5,7 +5,7 @@ export interface AuthUser {
   fullName: string;
   email: string;
   phoneNumber: string | null;
-  role: 'resident' | 'admin' | 'authority';
+  role: 'resident' | 'Community_Member' | 'admin' | 'authority';
   location: string | null;
   preferredLanguage: string;
   isVolunteer: boolean;
