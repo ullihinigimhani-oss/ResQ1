@@ -110,42 +110,79 @@ function schoolToPayload(school: SchoolOption): SchoolSelectionPayload {
   };
 }
 
-function schoolKey(school: SchoolOption | SchoolSelectionPayload) {
-  if (school.osmId && school.osmType) {
-    return `osm:${school.osmType.toLowerCase()}:${school.osmId.toLowerCase()}`;
+function schoolIdentityKeys(school: SchoolOption | SchoolSelectionPayload) {
+  const keys: string[] = [];
+
+  if (typeof school.id === 'number' && Number.isInteger(school.id) && school.id > 0) {
+    keys.push(`db:${school.id}`);
   }
 
-  if (school.id) {
-    return `db:${school.id}`;
+  const osmId = school.osmId?.trim().toLowerCase();
+  const osmType = school.osmType?.trim().toLowerCase();
+
+  if (osmId && osmType) {
+    keys.push(`osm:${osmType}:${osmId}`);
   }
 
-  return [
+  keys.push(`details:${[
     school.schoolName?.toLowerCase().trim() ?? '',
     school.area?.toLowerCase().trim() ?? '',
     school.latitude ?? '',
     school.longitude ?? '',
-  ].join('|');
+  ].join('|')}`);
+
+  return keys;
+}
+
+function schoolKey(school: SchoolOption | SchoolSelectionPayload) {
+  return schoolIdentityKeys(school)[0];
+}
+
+function schoolsMatch(
+  first: SchoolOption | SchoolSelectionPayload,
+  second: SchoolOption | SchoolSelectionPayload,
+) {
+  const firstKeys = new Set(schoolIdentityKeys(first));
+  return schoolIdentityKeys(second).some((key) => firstKeys.has(key));
+}
+
+function isSchoolSelected(
+  school: SchoolOption | SchoolSelectionPayload,
+  selectedKeys: Set<string>,
+) {
+  return schoolIdentityKeys(school).some((key) => selectedKeys.has(key));
 }
 
 function mergeSchoolOptions(
   selectedSchools: SchoolSelectionPayload[],
   searchResults: SchoolOption[],
 ) {
-  const merged = new Map<string, SchoolOption>();
+  const merged: SchoolOption[] = [];
+
+  const addSchool = (option: SchoolOption) => {
+    const existingIndex = merged.findIndex((school) => schoolsMatch(school, option));
+
+    if (existingIndex >= 0) {
+      merged[existingIndex] = option;
+      return;
+    }
+
+    merged.push(option);
+  };
 
   for (const school of selectedSchools) {
     const option = schoolToOption(school);
 
     if (option) {
-      merged.set(schoolKey(option), option);
+      addSchool(option);
     }
   }
 
   for (const school of searchResults) {
-    merged.set(schoolKey(school), school);
+    addSchool(school);
   }
 
-  return [...merged.values()];
+  return merged;
 }
 
 function buildOsmEmbedUrl(schools: SchoolOption[]) {
@@ -319,7 +356,7 @@ function SchoolMapPreview({
               zoomEnabled>
               {coordinateSchools.map((school) => {
                 const key = schoolKey(school);
-                const selected = selectedKeys.has(key);
+                const selected = isSchoolSelected(school, selectedKeys);
 
                 return (
                   <Marker
@@ -347,7 +384,7 @@ function SchoolMapPreview({
         )}
         {Platform.OS === 'web' ? <View pointerEvents="none" style={styles.mapOverlay} /> : null}
         {Platform.OS === 'web' ? markers.map((marker) => {
-          const selected = selectedKeys.has(marker.key);
+          const selected = isSchoolSelected(marker.school, selectedKeys);
 
           return (
             <Pressable
@@ -425,14 +462,10 @@ export function SchoolTargetingSection({
   const [loadingSchools, setLoadingSchools] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const area = affectedArea.trim();
-  const selectedKeys = useMemo(
-    () => new Set(selectedSchools.map((school) => schoolKey(school))),
-    [selectedSchools],
-  );
-  const displayedSchools = useMemo(
-    () => mergeSchoolOptions(selectedSchools, schools),
-    [schools, selectedSchools],
-  );
+  const selectedKeys = new Set(selectedSchools.flatMap((school) => schoolIdentityKeys(school)));
+  const displayedSchools = mergeSchoolOptions(selectedSchools, schools);
+  const allDisplayedSchoolsSelected = displayedSchools.length > 0
+    && displayedSchools.every((school) => isSchoolSelected(school, selectedKeys));
 
   const findSchools = async () => {
     if (!token) {
@@ -470,18 +503,37 @@ export function SchoolTargetingSection({
   };
 
   const toggleSchool = (school: SchoolOption) => {
-    const key = schoolKey(school);
-
-    if (selectedKeys.has(key)) {
-      onSelectedSchoolsChange(selectedSchools.filter((selectedSchool) => schoolKey(selectedSchool) !== key));
+    if (isSchoolSelected(school, selectedKeys)) {
+      onSelectedSchoolsChange(
+        selectedSchools.filter((selectedSchool) => !schoolsMatch(selectedSchool, school)),
+      );
       return;
     }
 
     onSelectedSchoolsChange([...selectedSchools, schoolToPayload(school)]);
   };
 
-  const selectAllDisplayedSchools = () => {
-    onSelectedSchoolsChange(displayedSchools.map(schoolToPayload));
+  const toggleAllDisplayedSchools = () => {
+    if (allDisplayedSchoolsSelected) {
+      onSelectedSchoolsChange(
+        selectedSchools.filter(
+          (selectedSchool) => !displayedSchools.some(
+            (displayedSchool) => schoolsMatch(selectedSchool, displayedSchool),
+          ),
+        ),
+      );
+      return;
+    }
+
+    const nextSelectedSchools = [...selectedSchools];
+
+    for (const school of displayedSchools) {
+      if (!nextSelectedSchools.some((selectedSchool) => schoolsMatch(selectedSchool, school))) {
+        nextSelectedSchools.push(schoolToPayload(school));
+      }
+    }
+
+    onSelectedSchoolsChange(nextSelectedSchools);
   };
 
   return (
@@ -532,10 +584,17 @@ export function SchoolTargetingSection({
 
           <View style={styles.schoolActions}>
             <Pressable
+              accessibilityLabel={allDisplayedSchoolsSelected
+                ? 'Deselect all displayed schools'
+                : 'Select all displayed schools'}
               accessibilityRole="button"
-              onPress={selectAllDisplayedSchools}
+              onPress={toggleAllDisplayedSchools}
               style={({ pressed }) => [styles.selectAllButton, pressed && styles.pressed]}>
-              <Text style={styles.selectAllText}>Select All Displayed Schools</Text>
+              <Text style={styles.selectAllText}>
+                {allDisplayedSchoolsSelected
+                  ? 'Deselect All Displayed Schools'
+                  : 'Select All Displayed Schools'}
+              </Text>
             </Pressable>
           </View>
 
@@ -545,7 +604,7 @@ export function SchoolTargetingSection({
                 key={schoolKey(school)}
                 onToggle={() => toggleSchool(school)}
                 school={school}
-                selected={selectedKeys.has(schoolKey(school))}
+                selected={isSchoolSelected(school, selectedKeys)}
               />
             ))}
           </View>
