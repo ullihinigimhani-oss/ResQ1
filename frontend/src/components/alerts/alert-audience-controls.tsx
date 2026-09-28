@@ -1,4 +1,4 @@
-import { createElement, useEffect, useMemo, useState } from 'react';
+import { createElement, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Platform,
@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 
+import MapView, { Marker, PROVIDER_DEFAULT } from '@/components/shelters/native-map';
 import { BrandColors } from '@/constants/brand';
 import { isAlertApiError, searchSchoolsByArea } from '@/services/alertService';
 import {
@@ -25,6 +26,14 @@ const audienceLabels: Record<AlertAudience, string> = {
 };
 
 type SchoolOption = SchoolSearchResult;
+
+const absoluteFillStyle = {
+  bottom: 0,
+  left: 0,
+  position: 'absolute' as const,
+  right: 0,
+  top: 0,
+};
 
 export function audienceLabel(audience: AlertAudience) {
   return audienceLabels[audience];
@@ -185,6 +194,22 @@ function markerPositions(schools: SchoolOption[]) {
   }));
 }
 
+function nativeMapRegion(schools: SchoolOption[]) {
+  const latitudes = schools.map((school) => school.latitude as number);
+  const longitudes = schools.map((school) => school.longitude as number);
+  const minLat = Math.min(...latitudes);
+  const maxLat = Math.max(...latitudes);
+  const minLng = Math.min(...longitudes);
+  const maxLng = Math.max(...longitudes);
+
+  return {
+    latitude: (minLat + maxLat) / 2,
+    longitude: (minLng + maxLng) / 2,
+    latitudeDelta: Math.max((maxLat - minLat) * 1.5, 0.035),
+    longitudeDelta: Math.max((maxLng - minLng) * 1.5, 0.035),
+  };
+}
+
 function SchoolMapPreview({
   onToggleSchool,
   schools,
@@ -194,14 +219,57 @@ function SchoolMapPreview({
   schools: SchoolOption[];
   selectedKeys: Set<string>;
 }) {
-  const [mapFailed, setMapFailed] = useState(false);
-  const coordinateSchools = schools.filter((school) => school.latitude !== null && school.longitude !== null);
+  const [failedMapUrl, setFailedMapUrl] = useState<string | null>(null);
+  const mapRef = useRef<React.ElementRef<typeof MapView>>(null);
+  const mapReadyRef = useRef(false);
+  const coordinateSchools = useMemo(
+    () => schools.filter((school) => school.latitude !== null && school.longitude !== null),
+    [schools],
+  );
+  const schoolCoordinates = useMemo(
+    () => coordinateSchools.map((school) => ({
+      latitude: school.latitude as number,
+      longitude: school.longitude as number,
+    })),
+    [coordinateSchools],
+  );
   const mapUrl = useMemo(() => buildOsmEmbedUrl(coordinateSchools), [coordinateSchools]);
+  const mapFailed = Boolean(mapUrl && failedMapUrl === mapUrl);
   const markers = useMemo(() => markerPositions(coordinateSchools), [coordinateSchools]);
+  const initialRegion = useMemo(() => nativeMapRegion(coordinateSchools), [coordinateSchools]);
+  const fitNativeMarkers = useCallback((animated: boolean) => {
+    if (Platform.OS === 'web' || !mapRef.current || schoolCoordinates.length === 0) {
+      return;
+    }
+
+    if (schoolCoordinates.length === 1) {
+      mapRef.current.animateToRegion({
+        ...schoolCoordinates[0],
+        latitudeDelta: 0.025,
+        longitudeDelta: 0.025,
+      }, animated ? 280 : 0);
+      return;
+    }
+
+    mapRef.current.fitToCoordinates(schoolCoordinates, {
+      animated,
+      edgePadding: {
+        bottom: 44,
+        left: 44,
+        right: 44,
+        top: 44,
+      },
+    });
+  }, [schoolCoordinates]);
 
   useEffect(() => {
-    setMapFailed(false);
-  }, [mapUrl]);
+    if (Platform.OS === 'web' || !mapReadyRef.current) {
+      return;
+    }
+
+    const frame = requestAnimationFrame(() => fitNativeMarkers(true));
+    return () => cancelAnimationFrame(frame);
+  }, [fitNativeMarkers]);
 
   if (coordinateSchools.length === 0) {
     return (
@@ -217,7 +285,7 @@ function SchoolMapPreview({
       <View style={styles.mapCanvas}>
         {Platform.OS === 'web' && mapUrl && !mapFailed ? createElement('iframe', {
           loading: 'lazy',
-          onError: () => setMapFailed(true),
+          onError: () => setFailedMapUrl(mapUrl),
           src: mapUrl,
           style: {
             border: 0,
@@ -228,18 +296,57 @@ function SchoolMapPreview({
             width: '100%',
           },
           title: 'OpenStreetMap school locations',
-        }) : (
+        }) : Platform.OS !== 'web' ? (
+          <>
+            <MapView
+              initialRegion={initialRegion}
+              loadingEnabled
+              mapType="standard"
+              onMapReady={() => {
+                mapReadyRef.current = true;
+                fitNativeMarkers(false);
+              }}
+              pitchEnabled={false}
+              provider={PROVIDER_DEFAULT}
+              ref={mapRef}
+              rotateEnabled={false}
+              scrollEnabled
+              showsBuildings
+              showsCompass
+              showsPointsOfInterests
+              style={styles.nativeMap}
+              toolbarEnabled={false}
+              zoomEnabled>
+              {coordinateSchools.map((school) => {
+                const key = schoolKey(school);
+                const selected = selectedKeys.has(key);
+
+                return (
+                  <Marker
+                    coordinate={{
+                      latitude: school.latitude as number,
+                      longitude: school.longitude as number,
+                    }}
+                    description={school.formattedAddress || school.area}
+                    key={key}
+                    onPress={() => onToggleSchool(school)}
+                    pinColor={selected ? BrandColors.red : BrandColors.accentAction}
+                    title={school.schoolName}
+                  />
+                );
+              })}
+            </MapView>
+          </>
+        ) : (
           <View style={styles.nativeMapFallback}>
             <Text style={styles.mapTitle}>OpenStreetMap</Text>
             <Text style={styles.mapBody}>
-              {mapFailed
-                ? 'Map unavailable. School list is still available.'
-                : 'Map tiles are available on web. School markers remain selectable here.'}
+              Map unavailable. School list is still available.
             </Text>
           </View>
         )}
-        <View style={styles.mapOverlay} />
-        {markers.map((marker) => {
+        {Platform.OS === 'web' ? <View pointerEvents="none" style={styles.mapOverlay} /> : null}
+        {Platform.OS === 'web' ? markers.map((marker) => {
           const selected = selectedKeys.has(marker.key);
 
           return (
@@ -262,7 +369,7 @@ function SchoolMapPreview({
               </Text>
             </Pressable>
           );
-        })}
+        }) : null}
       </View>
     </View>
   );
@@ -550,20 +657,23 @@ const styles = StyleSheet.create({
     borderColor: BrandColors.sky,
     borderRadius: 8,
     borderWidth: 1,
-    minHeight: 174,
+    height: Platform.OS === 'web' ? 174 : 220,
     overflow: 'hidden',
   },
   mapCanvas: {
     backgroundColor: BrandColors.lightBlue,
-    minHeight: 174,
+    flex: 1,
     overflow: 'hidden',
   },
+  nativeMap: {
+    ...absoluteFillStyle,
+  },
   mapOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...absoluteFillStyle,
     backgroundColor: BrandColors.subtleOverlay,
   },
   nativeMapFallback: {
-    ...StyleSheet.absoluteFillObject,
+    ...absoluteFillStyle,
     gap: 4,
     justifyContent: 'center',
     padding: 14,

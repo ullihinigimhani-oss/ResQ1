@@ -598,11 +598,15 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     backgroundColor: BrandColors.modalBackdrop,
+    bottom: 0,
     borderRadius: 8,
     justifyContent: 'center',
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
   },
   centerState: {
     alignItems: 'center',

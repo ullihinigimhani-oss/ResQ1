@@ -310,8 +310,12 @@ const styles = StyleSheet.create({
     ...shadows.card,
   },
   visualGrid: {
-    ...StyleSheet.absoluteFillObject,
+    bottom: 0,
+    left: 0,
     opacity: 0.72,
+    position: 'absolute',
+    right: 0,
+    top: 0,
   },
   gridLine: {
     backgroundColor: colors.sky,
