@@ -1,4 +1,4 @@
-import { Redirect, type Href } from 'expo-router';
+import { Redirect, useFocusEffect, type Href } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Text } from 'react-native';
 
@@ -106,11 +106,9 @@ export default function DashboardScreen() {
     setLoadingSummary(false);
   }, [applySummary, dashboardCacheKey, token, userRole]);
 
-  useEffect(() => {
-    if (token && userRole) {
-      void loadSummary();
-    }
-  }, [loadSummary, token, userRole]);
+  useFocusEffect(useCallback(() => {
+    void loadSummary();
+  }, [loadSummary]));
 
   if (!isLoading && !user) {
     return <Redirect href={'/auth/welcome' as Href} />;
