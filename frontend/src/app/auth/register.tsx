@@ -335,8 +335,8 @@ const styles = StyleSheet.create({
     borderColor: BrandColors.muted,
   },
   volunteerButtonActive: {
-    backgroundColor: '#8B0000',
-    borderColor: '#8B0000',
+    backgroundColor: BrandColors.emergencyDeep,
+    borderColor: BrandColors.emergencyDeep,
   },
   volunteerButtonPressed: {
     opacity: 0.8,
@@ -350,7 +350,7 @@ const styles = StyleSheet.create({
     color: BrandColors.muted,
   },
   volunteerButtonTextActive: {
-    color: '#FFFFFF',
+    color: BrandColors.onPrimary,
   },
   actions: {
     gap: 14,

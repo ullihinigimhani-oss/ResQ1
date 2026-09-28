@@ -63,7 +63,10 @@
         {
           "locationWhenInUsePermission": "Allow ResQ1 to detect your location so you can attach incident reports, view incidents on the map, and see verified incidents near you."
         }
-      ]
+      ],
+      "expo-image",
+      "expo-status-bar",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,

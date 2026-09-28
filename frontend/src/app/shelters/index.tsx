@@ -529,13 +529,13 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   sosButton: {
-    backgroundColor: '#FF0000',
+    backgroundColor: BrandColors.emergencyBright,
     borderRadius: 30,
     width: 60,
     height: 60,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
+    shadowColor: BrandColors.cardShadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
@@ -545,7 +545,7 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
   sosButtonText: {
-    color: '#FFFFFF',
+    color: BrandColors.onPrimary,
     fontSize: 16,
     fontWeight: '700',
     lineHeight: 20,
@@ -749,7 +749,7 @@ const styles = StyleSheet.create({
     opacity: 0.72,
   },
   modalOverlay: {
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: BrandColors.modalBackdrop,
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
@@ -789,7 +789,7 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
   shareLocationButtonText: {
-    color: BrandColors.white,
+    color: BrandColors.onPrimary,
     fontSize: 16,
     fontWeight: '700',
     lineHeight: 22,
@@ -813,7 +813,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   readyButton: {
-    backgroundColor: '#00FF00',
+    backgroundColor: BrandColors.safeBright,
     borderRadius: 8,
     paddingVertical: 14,
     paddingHorizontal: 16,
@@ -847,7 +847,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   volunteerContact: {
-    backgroundColor: '#00FF00',
+    backgroundColor: BrandColors.safeBright,
     borderRadius: 8,
     padding: 8,
     alignItems: 'center',
@@ -879,7 +879,7 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
   callVolunteerButtonText: {
-    color: BrandColors.white,
+    color: BrandColors.onPrimary,
     fontSize: 14,
     fontWeight: '700',
     lineHeight: 18,
@@ -894,7 +894,7 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
   updateStatusButtonText: {
-    color: BrandColors.white,
+    color: BrandColors.onPrimary,
     fontSize: 14,
     fontWeight: '700',
     lineHeight: 18,

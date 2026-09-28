@@ -56,7 +56,7 @@ export function EvacuationStatusModal({ visible, onClose, onUpdateStatus }: Evac
 
 const styles = StyleSheet.create({
   modalOverlay: {
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: BrandColors.modalBackdrop,
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
