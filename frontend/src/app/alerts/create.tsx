@@ -27,6 +27,7 @@ import {
   submittedDisasterType,
   type DisasterTypeSelection,
 } from '@/components/alerts/disaster-type-selector';
+import ExpirationDateTimeField from '@/components/alerts/expiration-date-time-field';
 import {
   AuthButton,
   AuthTextField,
@@ -59,7 +60,7 @@ type AlertForm = {
   selectedSchools: SchoolSelectionPayload[];
 };
 
-type TextAlertFormField = 'affectedArea' | 'expiresAt' | 'message' | 'safetyInstructions' | 'title';
+type TextAlertFormField = 'affectedArea' | 'message' | 'safetyInstructions' | 'title';
 
 const initialForm: AlertForm = {
   title: '',
@@ -161,9 +162,9 @@ function validateForm(form: AlertForm) {
     const expirationTime = expirationDate.getTime();
 
     if (!Number.isFinite(expirationTime)) {
-      errors.expiresAt = 'Expiration time must be a valid date and time.';
+      errors.expiresAt = 'Expiration date and time must be a valid date and time.';
     } else if (expirationTime <= Date.now()) {
-      errors.expiresAt = 'Expiration time must be in the future.';
+      errors.expiresAt = 'Expiration date and time must be in the future.';
     } else {
       expiresAt = expirationDate.toISOString();
     }
@@ -300,6 +301,11 @@ export default function CreateAlertScreen() {
       [field]: undefined,
       ...(field === 'affectedArea' ? { schoolIds: undefined } : {}),
     }));
+  };
+
+  const updateExpiration = (expiresAt: string) => {
+    setForm((current) => ({ ...current, expiresAt }));
+    setFieldErrors((current) => ({ ...current, expiresAt: undefined }));
   };
 
   const updateDisasterType = (disasterType: DisasterTypeSelection) => {
@@ -559,12 +565,9 @@ export default function CreateAlertScreen() {
             <FormSection
               helper="Leave blank only if an authority will manually resolve the alert."
               title="Alert Validity">
-              <AuthTextField
-                autoCapitalize="none"
+              <ExpirationDateTimeField
                 error={fieldErrors.expiresAt}
-                label="Expiration Date/Time"
-                onChangeText={(value) => updateField('expiresAt', value)}
-                placeholder="2026-08-19T06:00:00"
+                onChange={updateExpiration}
                 value={form.expiresAt}
               />
             </FormSection>
