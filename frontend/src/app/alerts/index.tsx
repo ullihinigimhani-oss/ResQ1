@@ -1037,7 +1037,7 @@ function AuthorityAlertCard({
             <AppIcon fallback="E" name="pencil.fill" size={16} tintColor={colors.red} />
           </Pressable>
           <Pressable
-            accessibilityLabel="Cancel alert"
+            accessibilityLabel="Remove alert"
             accessibilityRole="button"
             disabled={cancelling}
             hitSlop={8}
@@ -1384,10 +1384,10 @@ function CancelAlertDialog({
       <View style={styles.modalBackdrop}>
         <View style={styles.cancelDialog}>
           <Text style={styles.cancelDialogEyebrow}>Authority Action</Text>
-          <Text style={styles.cancelDialogTitle}>Cancel Emergency Alert</Text>
+          <Text style={styles.cancelDialogTitle}>Remove Emergency Alert</Text>
           <Text style={styles.cancelDialogText}>
-            This alert will no longer be shown as active to residents, active alert counts, or current area risk
-            checks.
+            This alert will be removed from active alerts and will no longer be shown to residents or included in
+            current area risk checks.
           </Text>
 
           {alert ? (
@@ -1423,7 +1423,7 @@ function CancelAlertDialog({
                 pressed && !cancelling && styles.pressed,
               ]}>
               <Text style={styles.confirmCancelButtonText}>
-                {cancelling ? 'Cancelling...' : 'Cancel Alert'}
+                {cancelling ? 'Removing...' : 'Remove Alert'}
               </Text>
             </Pressable>
           </View>
@@ -1618,16 +1618,16 @@ export default function AlertsScreen() {
 
       setAlerts((currentAlerts) => currentAlerts.filter((alert) => alert.id !== cancelledAlert.id));
       setCancelTarget(null);
-      setNoticeMessage('Emergency alert cancelled successfully.');
+      setNoticeMessage('Emergency alert removed successfully.');
     } catch (error) {
       if (__DEV__ && !isAlertApiError(error)) {
-        console.warn('Unexpected alert cancellation error:', error);
+        console.warn('Unexpected alert removal error:', error);
       }
 
       setErrorMessage(
         isAlertApiError(error) && error.statusCode === 403
-          ? 'You are not authorized to cancel emergency alerts.'
-          : 'Unable to cancel this emergency alert. Check your connection and try again.',
+          ? 'You are not authorized to remove emergency alerts.'
+          : 'Unable to remove this emergency alert. Check your connection and try again.',
       );
     } finally {
       setCancellingAlertId(null);

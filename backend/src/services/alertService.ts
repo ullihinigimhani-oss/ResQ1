@@ -1126,7 +1126,7 @@ async function validateUpdateAlertInput(input: UpdateAlertInput): Promise<Valida
   if (!statusText) {
     fieldErrors.status = 'Please select an alert status.';
   } else if (!status) {
-    fieldErrors.status = 'Choose Active, Expired, Resolved, or Cancelled.';
+    fieldErrors.status = 'Choose Active, Expired, Resolved, or Removed.';
   }
 
   if (!alert || !status) {

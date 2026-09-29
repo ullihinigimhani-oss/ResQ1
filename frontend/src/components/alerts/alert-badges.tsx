@@ -69,6 +69,10 @@ function toneForStatus(status: AlertStatus | string) {
   return statusTones[status as AlertStatus] ?? fallbackTone;
 }
 
+export function alertStatusDisplayLabel(status: AlertStatus | string) {
+  return String(status).trim().toLowerCase() === 'cancelled' ? 'Removed' : String(status);
+}
+
 export function RiskBadge({ riskLevel }: { riskLevel: AlertRiskLevel | string }) {
   const tone = toneForRisk(riskLevel);
 
@@ -81,10 +85,11 @@ export function RiskBadge({ riskLevel }: { riskLevel: AlertRiskLevel | string })
 
 export function AlertStatusBadge({ status }: { status: AlertStatus | string }) {
   const tone = toneForStatus(status);
+  const label = alertStatusDisplayLabel(status);
 
   return (
     <View style={[styles.badge, { backgroundColor: tone.backgroundColor, borderColor: tone.borderColor }]}>
-      <Text style={[styles.badgeText, { color: tone.color }]}>{String(status).toUpperCase()}</Text>
+      <Text style={[styles.badgeText, { color: tone.color }]}>{label.toUpperCase()}</Text>
     </View>
   );
 }
