@@ -313,4 +313,24 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_basic_phone_residents_phone_number
 CREATE INDEX IF NOT EXISTS idx_basic_phone_residents_area
     ON basic_phone_residents(LOWER(TRIM(area)));
 
+CREATE TABLE IF NOT EXISTS sms_alert_logs (
+    id SERIAL PRIMARY KEY,
+    alert_id INTEGER NOT NULL REFERENCES alerts(id) ON DELETE CASCADE,
+    basic_phone_resident_id INTEGER REFERENCES basic_phone_residents(id) ON DELETE SET NULL,
+    phone_number VARCHAR(20) NOT NULL,
+    status VARCHAR(30) NOT NULL CHECK (status IN ('PENDING', 'SENT_TO_GATEWAY', 'FAILED')),
+    provider VARCHAR(30) NOT NULL DEFAULT 'TEXTBEE',
+    provider_batch_id VARCHAR(150),
+    error_message VARCHAR(500),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(alert_id, phone_number)
+);
+
+CREATE INDEX IF NOT EXISTS idx_sms_alert_logs_alert_id
+    ON sms_alert_logs(alert_id);
+
+CREATE INDEX IF NOT EXISTS idx_sms_alert_logs_status
+    ON sms_alert_logs(status);
+
 
