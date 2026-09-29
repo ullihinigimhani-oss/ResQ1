@@ -213,28 +213,6 @@ function EmptyRows({ body, title }: { body: string; title: string }) {
   );
 }
 
-function AssistancePanel() {
-  return (
-    <View style={[styles.panel, styles.assistancePanel]}>
-      <PanelHeader
-        subtitle="Resident emergency support queue"
-        title="Assistance Requests Requiring Attention"
-      />
-      <View style={styles.assistanceState}>
-        <View style={styles.assistanceIcon}>
-          <AppIcon fallback="+" name="cross.case.fill" size={23} tintColor={colors.amber} />
-        </View>
-        <View style={styles.assistanceCopy}>
-          <Text style={styles.assistanceTitle}>Request data is unavailable</Text>
-          <Text style={styles.assistanceBody}>
-            No assistance request data is available from the server, so no pending count or request details are shown.
-          </Text>
-        </View>
-      </View>
-    </View>
-  );
-}
-
 function IncidentRow({ incident, last }: { incident: Incident; last: boolean }) {
   const router = useRouter();
 
@@ -565,7 +543,6 @@ export function AuthorityDashboard({
           />
         </View>
 
-        <AssistancePanel />
         <IncidentPanel incidents={incidents} loading={loading} />
         <AlertPanel alerts={alerts} loading={loading} />
         <ShelterPanel loading={loading} shelters={shelters} />
@@ -776,9 +753,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     overflow: 'hidden',
   },
-  assistancePanel: {
-    borderColor: colors.warningBorder,
-  },
   panelHeader: {
     alignItems: 'flex-start',
     borderBottomColor: colors.border,
@@ -847,39 +821,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     lineHeight: 18,
-  },
-  assistanceState: {
-    alignItems: 'center',
-    backgroundColor: colors.amberSoft,
-    flexDirection: 'row',
-    gap: spacing.md,
-    padding: spacing.lg,
-  },
-  assistanceIcon: {
-    alignItems: 'center',
-    backgroundColor: colors.white,
-    borderColor: colors.warningBorder,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    height: 46,
-    justifyContent: 'center',
-    width: 46,
-  },
-  assistanceCopy: {
-    flex: 1,
-    gap: spacing.xs,
-  },
-  assistanceTitle: {
-    color: colors.navy,
-    fontSize: 14,
-    fontWeight: '700',
-    lineHeight: 19,
-  },
-  assistanceBody: {
-    color: colors.text,
-    fontSize: 12,
-    fontWeight: '600',
-    lineHeight: 17,
   },
   listRow: {
     flexDirection: 'row',
