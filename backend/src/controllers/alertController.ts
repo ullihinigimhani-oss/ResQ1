@@ -14,6 +14,7 @@ import {
   searchSchoolsByArea,
   updateAlert,
 } from '../services/alertService.js';
+import { dispatchBasicPhoneAlertSms } from '../services/alertSmsService.js';
 import { sendAlertPushNotifications } from '../services/notificationService.js';
 
 const AUTHORIZED_ALERT_ROLES = new Set(['admin', 'authority']);
@@ -230,6 +231,20 @@ export async function createEmergencyAlert(req: Request, res: Response) {
     sendAlertPushNotifications(alert).catch((error) => {
       console.error('Alert push notification dispatch failed:', error);
     });
+
+    dispatchBasicPhoneAlertSms(alert)
+      .then((result) => {
+        if (result.status === 'SENT_TO_GATEWAY') {
+          console.info(
+            `Basic phone alert SMS accepted by the gateway for alert ${alert.id}: ${result.recipientCount} recipient(s).`,
+          );
+        }
+      })
+      .catch((error) => {
+        const message = error instanceof Error ? error.message : 'Unexpected SMS dispatch failure.';
+
+        console.error(`Basic phone alert SMS dispatch failed for alert ${alert.id}:`, message);
+      });
 
     return res.status(201).json({
       success: true,
