@@ -1598,7 +1598,7 @@ export async function updateAlert(alertId: string, input: UpdateAlertInput, chan
   await ensureAlertSchoolSchema();
 
   const numericId = numericAlertId(alertId);
-  const alert = await validateUpdateAlertInput(input);
+  const requestedStatus = canonicalOption(trimmedText(input.status), alertStatuses);
   const auditActionOverride = canonicalOption(trimmedText(input.auditAction), alertAuditActions);
   const requestedAuditAction = auditActionOverride === 'PUBLISHED' ? null : auditActionOverride;
 
@@ -1629,6 +1629,35 @@ export async function updateAlert(alertId: string, input: UpdateAlertInput, chan
   if (!previousAlert) {
     throw new AlertServiceError(404, 'Emergency alert not found.');
   }
+
+  if (requestedStatus === 'Cancelled') {
+    const rows = await sql`
+      UPDATE alerts
+      SET status = ${requestedStatus},
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = ${numericId}
+      RETURNING id, title, disaster_type, affected_area, alert_audience, risk_level, message, safety_instructions, status, expires_at, created_by, created_at, updated_at
+    `;
+    const removedAlert = rows[0] as AlertRow | undefined;
+
+    if (!removedAlert) {
+      throw new AlertServiceError(404, 'Emergency alert not found.');
+    }
+
+    await recordAlertAuditEvent({
+      action: auditActionForUpdate(previousAlert, removedAlert, requestedAuditAction),
+      alertId: removedAlert.id,
+      changedBy,
+      newRiskLevel: riskLevelText(removedAlert),
+      newStatus: statusText(removedAlert),
+      previousRiskLevel: riskLevelText(previousAlert),
+      previousStatus: statusText(previousAlert),
+    });
+
+    return getAlertById(String(removedAlert.id));
+  }
+
+  const alert = await validateUpdateAlertInput(input);
 
   const rows = await sql`
     UPDATE alerts

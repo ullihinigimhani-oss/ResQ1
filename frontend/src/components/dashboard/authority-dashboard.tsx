@@ -283,6 +283,16 @@ function AlertPanel({ alerts, loading }: Pick<AuthorityDashboardProps, 'alerts' 
         subtitle="Current official warnings"
         title="Active Alerts"
       />
+      <View style={styles.alertPanelActions}>
+        <Pressable
+          accessibilityLabel="Create emergency alert"
+          accessibilityRole="button"
+          onPress={() => router.push('/alerts/create' as Href)}
+          style={({ pressed }) => [styles.createAlertButton, pressed && styles.pressed]}>
+          <AppIcon fallback="+" name="plus.circle.fill" size={18} tintColor={colors.onPrimary} />
+          <Text style={styles.createAlertButtonText}>Create Alert</Text>
+        </Pressable>
+      </View>
       {loading ? <LoadingRows label="Loading active alerts..." /> : null}
       {!loading && activeAlerts.length === 0 ? (
         <EmptyRows body="No official alerts are active right now." title="No active alerts" />
@@ -793,6 +803,28 @@ const styles = StyleSheet.create({
   textActionArrow: {
     color: colors.deepBlue,
     fontSize: 16,
+    fontWeight: '700',
+  },
+  alertPanelActions: {
+    alignItems: 'flex-start',
+    borderBottomColor: colors.border,
+    borderBottomWidth: 1,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  createAlertButton: {
+    alignItems: 'center',
+    backgroundColor: colors.redAction,
+    borderRadius: radius.md,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    justifyContent: 'center',
+    minHeight: 42,
+    paddingHorizontal: spacing.lg,
+  },
+  createAlertButtonText: {
+    color: colors.onPrimary,
+    fontSize: 13,
     fontWeight: '700',
   },
   stateRow: {
