@@ -83,10 +83,12 @@ export default function IncidentDetailsScreen() {
     const performUpdate = async () => {
       setUpdatingStatus(true);
       try {
-        const updatedIncident = await updateIncidentStatus(Number(incidentId), newStatus, token);
-        setIncident(updatedIncident);
+        const result = await updateIncidentStatus(Number(incidentId), newStatus, token);
+        setIncident(result.incident);
         if (Platform.OS === 'web') {
-          window.alert(`Status updated to ${newStatus}.`);
+          window.alert(result.message);
+        } else {
+          Alert.alert('Success', result.message);
         }
       } catch (error) {
         const message = isIncidentApiError(error) ? error.message : 'Unable to update status.';

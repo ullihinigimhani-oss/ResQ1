@@ -29,8 +29,14 @@ import {
   type ValidatedUpdateAlertInput,
 } from '../types/alert.js';
 import type { AuthenticatedUser } from '../types/auth.js';
+import type { Incident } from '../types/incident.js';
 import { isResidentRole } from '../utils/roles.js';
 import { ensureAlertSubscriptionSchema } from './alertAreaSubscriptionService.js';
+import {
+  mapVerifiedIncidentToAlert,
+  type GeneratedIncidentAlertValues,
+  type GeneratedIncidentAlertResult,
+} from './verifiedIncidentAlertService.js';
 
 const ACTIVE_ALERT_STATUS: AlertStatus = 'Active';
 const DEFAULT_ALERT_AUDIENCE: AlertAudience = 'GENERAL_PUBLIC';
@@ -55,6 +61,7 @@ const SCHOOL_SEARCH_STALE_DURATION_MS = 24 * 60 * 60 * 1000;
 let auditTableReady: Promise<void> | null = null;
 let alertSchemaReady: Promise<void> | null = null;
 let acknowledgementTableReady: Promise<void> | null = null;
+let incidentAlertSourceSchemaReady: Promise<void> | null = null;
 const schoolSearchCache = new Map<string, {
   expiresAt: number;
   schools: SchoolSearchResult[];
@@ -318,6 +325,23 @@ async function ensureAlertSchoolSchema() {
   })();
 
   await alertSchemaReady;
+}
+
+export async function ensureIncidentAlertSourceSchema() {
+  incidentAlertSourceSchemaReady ??= (async () => {
+    await sql`
+      ALTER TABLE alerts
+      ADD COLUMN IF NOT EXISTS source_incident_id INTEGER REFERENCES incidents(id) ON DELETE SET NULL
+    `;
+
+    await sql`
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_alerts_source_incident_id
+      ON alerts(source_incident_id)
+      WHERE source_incident_id IS NOT NULL
+    `;
+  })();
+
+  await incidentAlertSourceSchemaReady;
 }
 
 function toAuditEvent(row: AlertAuditRow): AlertAuditEvent {
@@ -1483,6 +1507,91 @@ export async function createAlert(senderId: number, input: CreateAlertInput) {
   });
 
   return getAlertById(String(createdAlert.id));
+}
+
+export async function createAlertFromVerifiedIncident(
+  senderId: number,
+  incident: Incident,
+): Promise<GeneratedIncidentAlertResult> {
+  await ensureAlertSchoolSchema();
+  await ensureIncidentAlertSourceSchema();
+
+  let alertValues: GeneratedIncidentAlertValues;
+
+  try {
+    alertValues = mapVerifiedIncidentToAlert(incident);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Invalid verified incident data.';
+
+    throw new AlertServiceError(422, message);
+  }
+
+  const rows = await sql`
+    INSERT INTO alerts (
+      title,
+      disaster_type,
+      affected_area,
+      alert_audience,
+      risk_level,
+      message,
+      safety_instructions,
+      status,
+      expires_at,
+      created_by,
+      source_incident_id
+    )
+    VALUES (
+      ${alertValues.title},
+      ${alertValues.disasterType},
+      ${alertValues.affectedArea},
+      ${alertValues.alertAudience},
+      ${alertValues.riskLevel},
+      ${alertValues.message},
+      ${alertValues.safetyInstructions},
+      ${ACTIVE_ALERT_STATUS},
+      ${alertValues.expiresAt},
+      ${senderId},
+      ${incident.id}
+    )
+    ON CONFLICT DO NOTHING
+    RETURNING id, title, disaster_type, affected_area, alert_audience, risk_level, message, safety_instructions, status, expires_at, created_by, created_at, updated_at
+  `;
+
+  const createdAlert = rows[0] as AlertRow | undefined;
+
+  if (createdAlert) {
+    await recordAlertAuditEvent({
+      action: 'PUBLISHED',
+      alertId: createdAlert.id,
+      changedBy: senderId,
+      newRiskLevel: riskLevelText(createdAlert),
+      newStatus: statusText(createdAlert),
+      previousRiskLevel: null,
+      previousStatus: null,
+    });
+
+    return {
+      alert: await getAlertById(String(createdAlert.id)),
+      created: true,
+    };
+  }
+
+  const existingRows = await sql`
+    SELECT id
+    FROM alerts
+    WHERE source_incident_id = ${incident.id}
+    LIMIT 1
+  `;
+  const existingAlertId = Number((existingRows[0] as { id?: number } | undefined)?.id);
+
+  if (!Number.isInteger(existingAlertId) || existingAlertId <= 0) {
+    throw new AlertServiceError(500, 'Emergency alert could not be generated from the verified incident.');
+  }
+
+  return {
+    alert: await getAlertById(String(existingAlertId)),
+    created: false,
+  };
 }
 
 export async function updateAlert(alertId: string, input: UpdateAlertInput, changedBy: number | null = null) {

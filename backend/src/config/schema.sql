@@ -208,6 +208,13 @@ CREATE TABLE IF NOT EXISTS incidents (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+ALTER TABLE alerts
+    ADD COLUMN IF NOT EXISTS source_incident_id INTEGER REFERENCES incidents(id) ON DELETE SET NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_alerts_source_incident_id
+    ON alerts(source_incident_id)
+    WHERE source_incident_id IS NOT NULL;
+
 CREATE INDEX IF NOT EXISTS idx_community_notifications_status_created_at
     ON community_notifications(status, created_at DESC);
 

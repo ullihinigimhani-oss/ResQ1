@@ -17,6 +17,8 @@ type ApiErrorBody = {
 };
 
 type ApiIncidentResponse = ApiErrorBody & {
+  alertGenerated?: boolean;
+  generatedAlertId?: number | null;
   success: boolean;
   message: string;
   incident?: Incident;
@@ -267,7 +269,12 @@ export async function updateIncidentStatus(incidentId: number, status: IncidentS
     throw new IncidentApiError(500, 'The server returned an unexpected response.');
   }
 
-  return response.incident;
+  return {
+    alertGenerated: Boolean(response.alertGenerated),
+    generatedAlertId: response.generatedAlertId ?? null,
+    incident: response.incident,
+    message: response.message,
+  };
 }
 
 type ApiGeocodeResponse = ApiErrorBody & {

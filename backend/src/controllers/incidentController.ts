@@ -16,6 +16,7 @@ import {
   geocodeLocation,
   reverseGeocodeLocation,
 } from '../services/incidentService.js';
+import { dispatchPublishedAlertDeliveries } from '../services/alertDeliveryService.js';
 
 function sendIncidentError(error: unknown, res: Response) {
   if (error instanceof IncidentServiceError) {
@@ -118,19 +119,31 @@ export async function getMyIncidentReport(req: Request, res: Response) {
 
 export async function updateIncidentStatus(req: Request, res: Response) {
   try {
-    requireIncidentManager(req);
+    const user = requireIncidentManager(req);
     const incidentId = firstParam(req.params.id);
 
     if (!incidentId) {
       throw new IncidentServiceError(400, "Invalid incident id.");
     }
 
-    const incident = await updateIncidentStatusService(incidentId, req.body);
+    const result = await updateIncidentStatusService(incidentId, req.body, user.id);
+
+    if (result.alertCreated && result.generatedAlert) {
+      dispatchPublishedAlertDeliveries(result.generatedAlert);
+    }
+
+    const message = result.incident.status === 'Verified'
+      ? result.alertCreated
+        ? 'Incident verified and emergency alert generated successfully.'
+        : 'Incident verified. The emergency alert for this incident is already available.'
+      : 'Incident status updated successfully.';
 
     return res.status(200).json({
       success: true,
-      message: "Incident status updated successfully.",
-      incident,
+      message,
+      incident: result.incident,
+      alertGenerated: result.alertCreated,
+      generatedAlertId: result.generatedAlert?.id ?? null,
     });
   } catch (error) {
     return sendIncidentError(error, res);
