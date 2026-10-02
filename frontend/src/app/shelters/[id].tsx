@@ -3,6 +3,7 @@ import { Redirect, useLocalSearchParams, useRouter, type Href } from 'expo-route
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -15,7 +16,7 @@ import { AuthButton, BackButton, StatusBanner } from '@/components/common/auth-c
 import { CapacityIndicator, ShelterStatusBadge } from '@/components/shelters/shelter-ui';
 import { BrandColors } from '@/constants/brand';
 import { useAuth } from '@/context/auth-context';
-import { getShelterById, isShelterApiError } from '@/services/shelterService';
+import { deleteShelter, getShelterById, isShelterApiError } from '@/services/shelterService';
 import type { Shelter } from '@/types/shelter';
 
 function firstParam(value: string | string[] | undefined) {
@@ -129,6 +130,35 @@ export default function ShelterDetailsScreen() {
     }
   }, [loadShelter, shelterId, token]);
 
+  const handleDeleteShelter = async () => {
+    if (!token || !shelterId) return;
+
+    Alert.alert(
+      'Delete Shelter',
+      'Are you sure you want to delete this shelter? This action cannot be undone.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteShelter(shelterId, token);
+              alert('Shelter deleted successfully.');
+              router.replace('/shelters' as Href);
+            } catch (error) {
+              console.error('Failed to delete shelter:', error);
+              alert('Failed to delete shelter. Please try again.');
+            }
+          },
+        },
+      ],
+    );
+  };
+
   if (!isLoading && !user) {
     return <Redirect href={'/auth/welcome' as Href} />;
   }
@@ -172,15 +202,23 @@ export default function ShelterDetailsScreen() {
         </View>
 
         {userCanEditShelters && shelter ? (
-          <AuthButton
-            onPress={() => router.push({
-              pathname: '/shelters/[id]/edit',
-              params: { id: String(shelter.id) },
-            } as unknown as Href)}
-            style={styles.editButton}
-            title="Edit Shelter"
-            variant="primary"
-          />
+          <View style={styles.buttonRow}>
+            <AuthButton
+              onPress={() => router.push({
+                pathname: '/shelters/[id]/edit',
+                params: { id: String(shelter.id) },
+              } as unknown as Href)}
+              style={styles.editButtonSmall}
+              title="Edit"
+              variant="primary"
+            />
+            <AuthButton
+              onPress={() => handleDeleteShelter()}
+              style={styles.deleteButton}
+              title="Delete"
+              variant="secondary"
+            />
+          </View>
         ) : null}
 
         {errorMessage && shelter ? <StatusBanner message={errorMessage} type="error" /> : null}
@@ -297,6 +335,18 @@ const styles = StyleSheet.create({
   },
   editButton: {
     marginTop: 4,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 4,
+  },
+  editButtonSmall: {
+    flex: 1,
+  },
+  deleteButton: {
+    flex: 1,
+    backgroundColor: BrandColors.red,
   },
   summaryPanel: {
     backgroundColor: BrandColors.white,

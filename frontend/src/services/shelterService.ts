@@ -49,7 +49,7 @@ async function shelterRequest<T>(
   path: string,
   token: string,
   options: {
-    method?: 'GET' | 'POST' | 'PUT';
+    method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
     body?: unknown;
   } = {},
 ) {
@@ -152,4 +152,10 @@ export async function updateShelter(id: string, payload: UpdateShelterPayload, t
   }
 
   return response.shelter;
+}
+
+export async function deleteShelter(id: string, token: string) {
+  await shelterRequest<{ success: boolean; message: string }>(`/api/shelters/${id}`, token, {
+    method: 'DELETE',
+  });
 }
