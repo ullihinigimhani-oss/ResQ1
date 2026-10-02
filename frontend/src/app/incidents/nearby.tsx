@@ -18,7 +18,7 @@ import { colors, radius, spacing } from '@/constants/design';
 import { useAuth } from '@/context/auth-context';
 import { getAllIncidents, getNearbyIncidents } from '@/services/incidentService';
 import type { Incident, IncidentSeverity } from '@/types/incident';
-import { formatDateTime, normalize } from '@/utils/format';
+import { formatDateTimeColombo as formatDateTime, normalize } from '@/utils/format';
 
 const SEVERITY_ORDER: IncidentSeverity[] = ['Low', 'Medium', 'High', 'Critical'];
 const RADIUS_OPTIONS = [2, 5, 10] as const;

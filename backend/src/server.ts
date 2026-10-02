@@ -14,6 +14,10 @@ import sosRoutes from './routes/sosRoutes.js';
 
 dotenv.config();
 
+if (!process.env.TZ) {
+  process.env.TZ = 'UTC';
+}
+
 const app = express();
 const PORT = Number(process.env.PORT || 5000);
 const HOST = process.env.HOST || '0.0.0.0';

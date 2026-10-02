@@ -19,25 +19,10 @@ import { BrandColors } from '@/constants/brand';
 import { useAuth } from '@/context/auth-context';
 import { getMyIncidents, isIncidentApiError } from '@/services/incidentService';
 import type { Incident } from '@/types/incident';
+import { formatDateTimeColombo as formatDateTime } from '@/utils/format';
 
 function firstParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
-}
-
-function formatDateTime(value: string) {
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return date.toLocaleString(undefined, {
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
 }
 
 function CardDetail({ label, value }: { label: string; value: string }) {

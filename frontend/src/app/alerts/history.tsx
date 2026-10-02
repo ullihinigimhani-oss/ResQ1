@@ -12,22 +12,10 @@ import { colors, radius, shadows, spacing, typography } from '@/constants/design
 import { useAuth } from '@/context/auth-context';
 import { getAlertHistory, isAlertApiError } from '@/services/alertService';
 import type { AlertAuditEvent } from '@/types/alert';
-import { isAuthorityRole } from '@/utils/format';
+import { formatDateTime, isAuthorityRole } from '@/utils/format';
 
 function formatAuditDateTime(value: string) {
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return date.toLocaleString(undefined, {
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  }).replace(',', ' -');
+  return formatDateTime(value);
 }
 
 function displayValue(value: string | null | undefined, fallback = 'Not available') {

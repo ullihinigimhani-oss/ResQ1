@@ -77,7 +77,11 @@ function optionalCoordinate(value: unknown, field: 'latitude' | 'longitude', err
 }
 
 function formatTimestamp(value: Date | string) {
-  return value instanceof Date ? value.toISOString() : String(value);
+  if (value instanceof Date) {
+    return new Date(value.getTime() - value.getTimezoneOffset() * 60_000).toISOString();
+  }
+
+  return String(value);
 }
 
 function optionalNumber(value: number | string | null) {

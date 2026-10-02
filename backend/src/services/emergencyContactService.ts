@@ -83,8 +83,12 @@ function formatContactRow(row: any): EmergencyContact {
     relationship: row.relationship,
     isPrimary: Boolean(row.is_primary),
     notes: row.notes || null,
-    createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at),
-    updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : String(row.updated_at),
+    createdAt: row.created_at instanceof Date
+      ? new Date(row.created_at.getTime() - row.created_at.getTimezoneOffset() * 60_000).toISOString()
+      : String(row.created_at),
+    updatedAt: row.updated_at instanceof Date
+      ? new Date(row.updated_at.getTime() - row.updated_at.getTimezoneOffset() * 60_000).toISOString()
+      : String(row.updated_at),
   };
 }
 

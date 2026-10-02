@@ -51,7 +51,11 @@ function optionalTimestamp(value: Date | string | null) {
     return null;
   }
 
-  return value instanceof Date ? value.toISOString() : String(value);
+  if (value instanceof Date) {
+    return new Date(value.getTime() - value.getTimezoneOffset() * 60_000).toISOString();
+  }
+
+  return String(value);
 }
 
 function numericShelterId(shelterId: string) {

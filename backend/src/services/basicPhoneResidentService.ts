@@ -29,7 +29,11 @@ export function normalizeSriLankanMobileNumber(value: unknown) {
 }
 
 function formatTimestamp(value: Date | string) {
-  return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
+  if (value instanceof Date) {
+    return new Date(value.getTime() - value.getTimezoneOffset() * 60_000).toISOString();
+  }
+
+  return new Date(value).toISOString();
 }
 
 function toBasicPhoneResident(row: BasicPhoneResidentRow): BasicPhoneResident {

@@ -37,7 +37,7 @@ function trimmedText(value: unknown) {
 
 function formatTimestamp(value: Date | string) {
   if (value instanceof Date) {
-    return value.toISOString();
+    return new Date(value.getTime() - value.getTimezoneOffset() * 60_000).toISOString();
   }
 
   const timestamp = String(value).trim();
