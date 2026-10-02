@@ -1,0 +1,464 @@
+import { StatusBar } from 'expo-status-bar';
+import { useRouter, type Href } from 'expo-router';
+import { useMemo, useState } from 'react';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+import {
+  AuthButton,
+  AuthTextField,
+  BackButton,
+  LanguageSelector,
+  LinkButton,
+  PasswordField,
+  StatusBanner,
+} from '@/components/common/auth-components';
+import { BrandColors } from '@/constants/brand';
+import { radius, spacing } from '@/constants/design';
+import { isAuthApiError, registerResident } from '@/services/authService';
+import type { FieldErrors, PreferredLanguage, RegisterResidentPayload } from '@/types/auth';
+
+interface PasswordCriteria {
+  label: string;
+  met: boolean;
+}
+
+type RegistrationForm = Omit<RegisterResidentPayload, 'preferredLanguage'> & {
+  confirmPassword: string;
+  preferredLanguage: PreferredLanguage | '';
+  isVolunteer: boolean;
+};
+
+const initialForm: RegistrationForm = {
+  fullName: '',
+  email: '',
+  password: '',
+  confirmPassword: '',
+  phoneNumber: '',
+  location: '',
+  preferredLanguage: '',
+  isVolunteer: false,
+};
+
+function validateForm(form: RegistrationForm) {
+  const payload = {
+    fullName: form.fullName.trim(),
+    email: form.email.trim().toLowerCase(),
+    password: form.password,
+    phoneNumber: form.phoneNumber?.trim() || '',
+    location: form.location.trim(),
+    preferredLanguage: form.preferredLanguage,
+    isVolunteer: form.isVolunteer,
+  };
+  const errors: FieldErrors & { confirmPassword?: string } = {};
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  if (!payload.fullName) {
+    errors.fullName = 'Full name is required.';
+  }
+
+  if (!payload.email) {
+    errors.email = 'Email address is required.';
+  } else if (!emailPattern.test(payload.email)) {
+    errors.email = 'Enter a valid email address.';
+  }
+
+  if (!payload.password) {
+    errors.password = 'Password is required.';
+  } else if (payload.password.length < 8) {
+    errors.password = 'Password must be at least 8 characters.';
+  } else if (!/[A-Z]/.test(payload.password)) {
+    errors.password = 'Password must include at least one uppercase letter.';
+  } else if (!/[a-z]/.test(payload.password)) {
+    errors.password = 'Password must include at least one lowercase letter.';
+  } else if (!/\d/.test(payload.password)) {
+    errors.password = 'Password must include at least one number.';
+  }
+
+  if (!form.confirmPassword) {
+    errors.confirmPassword = 'Confirm your password.';
+  } else if (form.confirmPassword !== payload.password) {
+    errors.confirmPassword = 'Passwords must match.';
+  }
+
+  if (!payload.location) {
+    errors.location = 'Location or area is required.';
+  }
+
+  if (!payload.preferredLanguage) {
+    errors.preferredLanguage = 'Preferred language is required.';
+  }
+
+  return {
+    payload: payload as RegisterResidentPayload,
+    errors,
+  };
+}
+
+export default function RegisterScreen() {
+  const router = useRouter();
+  const [form, setForm] = useState<RegistrationForm>(initialForm);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors & { confirmPassword?: string }>({});
+  const [message, setMessage] = useState<string | null>(null);
+
+  const criteria = useMemo<PasswordCriteria[]>(() => {
+    return [
+      { label: 'At least 8 characters', met: form.password.length >= 8 },
+      { label: 'At least one uppercase letter (A-Z)', met: /[A-Z]/.test(form.password) },
+      { label: 'At least one lowercase letter (a-z)', met: /[a-z]/.test(form.password) },
+      { label: 'At least one number (0-9)', met: /\d/.test(form.password) },
+    ];
+  }, [form.password]);
+
+  const passwordsMatch = useMemo(() => {
+    return Boolean(form.password && form.confirmPassword && form.password === form.confirmPassword);
+  }, [form.confirmPassword, form.password]);
+
+  const updateField = (field: keyof RegistrationForm, value: string) => {
+    setForm((current) => ({ ...current, [field]: value }));
+    setFieldErrors((current) => ({ ...current, [field]: undefined }));
+  };
+
+  const handleRegister = async () => {
+    const validation = validateForm(form);
+    setMessage(null);
+
+    if (Object.keys(validation.errors).length > 0) {
+      setFieldErrors(validation.errors);
+      return;
+    }
+
+    setSubmitting(true);
+
+    try {
+      await registerResident(validation.payload);
+      router.replace({
+        pathname: '/auth/login',
+        params: {
+          registered: '1',
+          email: validation.payload.email,
+        },
+      } as unknown as Href);
+    } catch (error) {
+      if (isAuthApiError(error)) {
+        setFieldErrors(error.fieldErrors ?? {});
+        setMessage(error.message);
+      } else {
+        if (__DEV__) {
+          console.warn('Unexpected registration error:', error);
+        }
+
+        setMessage('Registration could not be completed. Please try again.');
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar style="auto" />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.keyboardView}>
+        <ScrollView
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}>
+          <BackButton onPress={() => router.replace('/auth/welcome' as Href)} />
+
+          <View style={styles.header}>
+            <Text style={styles.eyebrow}>Resident Registration</Text>
+            <Text style={styles.title}>Create your ResQ1 account</Text>
+            <Text style={styles.subtitle}>
+              Join your local early-warning network with a resident profile.
+            </Text>
+          </View>
+
+          {message ? <StatusBanner message={message} type="error" /> : null}
+
+          <View style={styles.form}>
+            <AuthTextField
+              autoCapitalize="words"
+              autoComplete="name"
+              error={fieldErrors.fullName}
+              label="Full Name"
+              onChangeText={(value) => updateField('fullName', value)}
+              placeholder="Sample Resident"
+              textContentType="name"
+              value={form.fullName}
+            />
+            <AuthTextField
+              autoCapitalize="words"
+              autoComplete="email"
+              error={fieldErrors.email}
+              keyboardType="email-address"
+              label="Email Address"
+              onChangeText={(value) => updateField('email', value)}
+              placeholder="resident@example.com"
+              textContentType="emailAddress"
+              value={form.email}
+            />
+            <AuthTextField
+              autoCapitalize="none"
+              autoComplete="tel"
+              error={fieldErrors.phoneNumber}
+              keyboardType="phone-pad"
+              label="Phone Number (Optional)"
+              onChangeText={(value) => updateField('phoneNumber', value)}
+              placeholder="+94 7X XXX XXXX"
+              textContentType="telephoneNumber"
+              value={form.phoneNumber}
+            />
+            <PasswordField
+              autoCapitalize="none"
+              autoComplete="new-password"
+              error={fieldErrors.password}
+              label="Password"
+              onChangeText={(value) => updateField('password', value)}
+              placeholder="••••••••"
+              textContentType="newPassword"
+              value={form.password}
+              visible={showPassword}
+              onToggleVisible={() => setShowPassword((current) => !current)}
+            />
+            <View style={styles.criteriaCard}>
+              <Text style={styles.criteriaHeading}>Password Requirements:</Text>
+              {criteria.map((item, index) => (
+                <View key={index} style={styles.criteriaItem}>
+                  <Text style={[styles.criteriaDot, item.met && styles.criteriaDotMet]}>
+                    {item.met ? '✓' : '○'}
+                  </Text>
+                  <Text style={[styles.criteriaLabel, item.met && styles.criteriaLabelMet]}>
+                    {item.label}
+                  </Text>
+                </View>
+              ))}
+            </View>
+            <PasswordField
+              autoCapitalize="none"
+              autoComplete="new-password"
+              error={fieldErrors.confirmPassword}
+              label="Confirm Password"
+              onChangeText={(value) => updateField('confirmPassword', value)}
+              placeholder="••••••••"
+              textContentType="newPassword"
+              value={form.confirmPassword}
+              visible={showConfirmPassword}
+              onToggleVisible={() => setShowConfirmPassword((current) => !current)}
+            />
+            {form.confirmPassword.length > 0 && (
+              <View style={styles.matchStatusRow}>
+                <Text
+                  style={[
+                    styles.matchStatusText,
+                    passwordsMatch ? styles.matchSuccessText : styles.matchErrorText,
+                  ]}>
+                  {passwordsMatch ? '✓ Passwords match' : '✗ Passwords do not match'}
+                </Text>
+              </View>
+            )}
+            <AuthTextField
+              autoCapitalize="words"
+              error={fieldErrors.location}
+              label="Location / Area"
+              onChangeText={(value) => updateField('location', value)}
+              placeholder="Panadura"
+              textContentType="addressCity"
+              value={form.location}
+            />
+            <View style={styles.volunteerSection}>
+              <Text style={styles.volunteerText}>
+                I want to be an emergency volunteer
+              </Text>
+              <Pressable
+                onPress={() => setForm((current) => ({ ...current, isVolunteer: !current.isVolunteer }))}
+                style={({ pressed }) => [
+                  styles.checkboxContainer,
+                  pressed && styles.checkboxPressed,
+                ]}>
+                <View style={[styles.checkbox, form.isVolunteer && styles.checkboxChecked]}>
+                  {form.isVolunteer && <Text style={styles.checkmark}>✓</Text>}
+                </View>
+                <Text style={styles.checkboxLabel}>Emergency Volunteer</Text>
+              </Pressable>
+            </View>
+            <LanguageSelector
+              error={fieldErrors.preferredLanguage}
+              value={form.preferredLanguage}
+              onChange={(language: PreferredLanguage) => updateField('preferredLanguage', language)}
+            />
+          </View>
+
+          <View style={styles.actions}>
+            <AuthButton
+              disabled={submitting}
+              loading={submitting}
+              title="Create Account"
+              onPress={handleRegister}
+            />
+            <LinkButton
+              title="Already have an account? Login"
+              onPress={() => router.replace('/auth/login' as Href)}
+            />
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safeArea: {
+    backgroundColor: BrandColors.background,
+    flex: 1,
+  },
+  keyboardView: {
+    flex: 1,
+  },
+  content: {
+    flexGrow: 1,
+    gap: 22,
+    paddingHorizontal: 22,
+    paddingVertical: 18,
+  },
+  header: {
+    gap: 8,
+  },
+  eyebrow: {
+    color: BrandColors.red,
+    fontSize: 13,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  title: {
+    color: BrandColors.navy,
+    fontSize: 24,
+    fontWeight: '700',
+    lineHeight: 30,
+  },
+  subtitle: {
+    color: BrandColors.muted,
+    fontSize: 16,
+    fontWeight: '600',
+    lineHeight: 23,
+  },
+  form: {
+    gap: 16,
+  },
+  volunteerSection: {
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  volunteerText: {
+    color: BrandColors.muted,
+    fontSize: 14,
+    fontWeight: '500',
+    lineHeight: 20,
+    marginBottom: 8,
+  },
+  checkboxContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 8,
+  },
+  checkboxPressed: {
+    opacity: 0.7,
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: BrandColors.muted,
+    backgroundColor: BrandColors.white,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkboxChecked: {
+    backgroundColor: BrandColors.emergencyDeep,
+    borderColor: BrandColors.emergencyDeep,
+  },
+  checkmark: {
+    color: BrandColors.onPrimary,
+    fontSize: 16,
+    fontWeight: '700',
+    lineHeight: 20,
+  },
+  checkboxLabel: {
+    color: BrandColors.text,
+    fontSize: 16,
+    fontWeight: '600',
+    lineHeight: 22,
+  },
+  actions: {
+    gap: 14,
+    paddingBottom: 12,
+  },
+  criteriaCard: {
+    backgroundColor: BrandColors.controlSurface,
+    borderRadius: radius.md,
+    padding: spacing.sm,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: BrandColors.border,
+  },
+  criteriaHeading: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: BrandColors.muted,
+    marginBottom: 2,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  criteriaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  criteriaDot: {
+    fontSize: 13,
+    color: BrandColors.muted,
+    fontWeight: '800',
+    width: 16,
+    textAlign: 'center',
+  },
+  criteriaDotMet: {
+    color: BrandColors.success,
+  },
+  criteriaLabel: {
+    fontSize: 13,
+    color: BrandColors.muted,
+    fontWeight: '500',
+  },
+  criteriaLabelMet: {
+    color: BrandColors.text,
+    fontWeight: '600',
+  },
+  matchStatusRow: {
+    paddingHorizontal: 4,
+    marginTop: -4,
+  },
+  matchStatusText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  matchSuccessText: {
+    color: BrandColors.success,
+  },
+  matchErrorText: {
+    color: BrandColors.red,
+  },
+});
