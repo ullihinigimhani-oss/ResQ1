@@ -503,3 +503,15 @@ export async function updateShelter(id: string, input: UpdateShelterInput) {
 
   return toShelter(updatedShelter);
 }
+
+export async function deleteShelter(id: string) {
+  const rows = await sql`
+    DELETE FROM shelters
+    WHERE id = ${id}
+    RETURNING id
+  `;
+
+  if (rows.length === 0) {
+    throw new ShelterServiceError(404, 'Shelter not found.');
+  }
+}
