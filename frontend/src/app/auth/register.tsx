@@ -280,22 +280,18 @@ export default function RegisterScreen() {
             />
             <View style={styles.volunteerSection}>
               <Text style={styles.volunteerText}>
-                If you can volunteer and act as emergency helper please tap this button.
+                I want to be an emergency volunteer
               </Text>
               <Pressable
                 onPress={() => setForm((current) => ({ ...current, isVolunteer: !current.isVolunteer }))}
                 style={({ pressed }) => [
-                  styles.volunteerButton,
-                  form.isVolunteer ? styles.volunteerButtonActive : styles.volunteerButtonInactive,
-                  pressed && styles.volunteerButtonPressed,
+                  styles.checkboxContainer,
+                  pressed && styles.checkboxPressed,
                 ]}>
-                <Text
-                  style={[
-                    styles.volunteerButtonText,
-                    form.isVolunteer ? styles.volunteerButtonTextActive : styles.volunteerButtonTextInactive,
-                  ]}>
-                  Emergency Volunteer
-                </Text>
+                <View style={[styles.checkbox, form.isVolunteer && styles.checkboxChecked]}>
+                  {form.isVolunteer && <Text style={styles.checkmark}>✓</Text>}
+                </View>
+                <Text style={styles.checkboxLabel}>Emergency Volunteer</Text>
               </Pressable>
             </View>
             <LanguageSelector
@@ -370,36 +366,42 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     lineHeight: 20,
-    marginBottom: 12,
+    marginBottom: 8,
   },
-  volunteerButton: {
-    borderRadius: 8,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+  checkboxContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 12,
+    paddingVertical: 8,
+  },
+  checkboxPressed: {
+    opacity: 0.7,
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 4,
     borderWidth: 2,
-  },
-  volunteerButtonInactive: {
-    backgroundColor: BrandColors.background,
     borderColor: BrandColors.muted,
+    backgroundColor: BrandColors.white,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  volunteerButtonActive: {
+  checkboxChecked: {
     backgroundColor: BrandColors.emergencyDeep,
     borderColor: BrandColors.emergencyDeep,
   },
-  volunteerButtonPressed: {
-    opacity: 0.8,
-  },
-  volunteerButtonText: {
+  checkmark: {
+    color: BrandColors.onPrimary,
     fontSize: 16,
     fontWeight: '700',
+    lineHeight: 20,
+  },
+  checkboxLabel: {
+    color: BrandColors.text,
+    fontSize: 16,
+    fontWeight: '600',
     lineHeight: 22,
-  },
-  volunteerButtonTextInactive: {
-    color: BrandColors.muted,
-  },
-  volunteerButtonTextActive: {
-    color: BrandColors.onPrimary,
   },
   actions: {
     gap: 14,

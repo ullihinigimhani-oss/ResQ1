@@ -265,6 +265,7 @@ function validateProfileInput(input: UpdateProfileInput) {
   const phoneNumber = trimmedText(input.phoneNumber);
   const location = trimmedText(input.location);
   const preferredLanguage = trimmedText(input.preferredLanguage);
+  const isVolunteer = input.isVolunteer === true;
   const fieldErrors: Record<string, string> = {};
 
   if (!fullName) {
@@ -297,6 +298,7 @@ function validateProfileInput(input: UpdateProfileInput) {
     phoneNumber,
     location,
     preferredLanguage: preferredLanguage as PreferredLanguage,
+    isVolunteer,
   };
 }
 
@@ -737,6 +739,7 @@ export async function updateResidentProfile(
       phone_number = ${profile.phoneNumber || null},
       location = ${profile.location},
       preferred_language = ${profile.preferredLanguage},
+      is_volunteer = ${profile.isVolunteer},
       updated_at = CURRENT_TIMESTAMP
     WHERE id = ${userId}
     RETURNING id, full_name, email, phone_number, role, location, preferred_language, is_volunteer, volunteer_area_latitude, volunteer_area_longitude, is_volunteering_active, created_at, updated_at

@@ -78,6 +78,7 @@ export interface UpdateProfileInput {
   phoneNumber?: unknown;
   location?: unknown;
   preferredLanguage?: unknown;
+  isVolunteer?: unknown;
 }
 
 export interface UpdateVolunteerStatusInput {

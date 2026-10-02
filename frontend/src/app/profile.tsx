@@ -16,7 +16,7 @@ import {
 import { colors, radius, spacing } from '@/constants/design';
 import { useAuth } from '@/context/auth-context';
 import { useCurrentLocation } from '@/hooks/use-current-location';
-import { updateVolunteerStatus as updateVolunteerStatusApi, API_BASE_URL } from '@/services/authService';
+import { updateVolunteerStatus as updateVolunteerStatusApi, updateProfile, API_BASE_URL } from '@/services/authService';
 import { getUserSOSStatus } from '@/services/sosService';
 import { formatRole, initials, isAuthorityRole } from '@/utils/format';
 import type { SOSRequestWithVolunteer } from '@/types/sos';
@@ -59,6 +59,7 @@ export default function ProfileScreen() {
   const [selectedRegion, setSelectedRegion] = useState<{ latitude: number; longitude: number; latitudeDelta: number; longitudeDelta: number } | null>(null);
   const [sosRequest, setSosRequest] = useState<SOSRequestWithVolunteer | null>(null);
   const [volunteerSOSRequest, setVolunteerSOSRequest] = useState<any>(null);
+  const [volunteerToggleModalVisible, setVolunteerToggleModalVisible] = useState(false);
   const previousSOSStatusRef = useRef<string | null>(null);
   const isWeb = Platform.OS === 'web';
   const authenticatedUserId = user?.id ?? null;
@@ -137,6 +138,36 @@ export default function ProfileScreen() {
 
   const handleSignOut = async () => {
     await signOut();
+  };
+
+  const handleToggleVolunteer = () => {
+    setVolunteerToggleModalVisible(true);
+  };
+
+  const handleConfirmVolunteerToggle = async () => {
+    setVolunteerToggleModalVisible(false);
+    if (!token || !user) return;
+
+    try {
+      const newVolunteerStatus = !user.isVolunteer;
+      await updateProfile(token, {
+        fullName: user.fullName,
+        email: user.email,
+        phoneNumber: user.phoneNumber || undefined,
+        location: user.location || '',
+        preferredLanguage: user.preferredLanguage as 'English' | 'Sinhala' | 'Tamil',
+        isVolunteer: newVolunteerStatus,
+      });
+      // Logout after updating volunteer status
+      await signOut();
+    } catch (error) {
+      console.error('Failed to update volunteer status:', error);
+      alert('Failed to update volunteer status. Please try again.');
+    }
+  };
+
+  const handleCancelVolunteerToggle = () => {
+    setVolunteerToggleModalVisible(false);
   };
 
   const handleVolunteerNow = async () => {
@@ -312,6 +343,18 @@ export default function ProfileScreen() {
           onPress={() => router.push('/emergency-contacts' as Href)}
         />
         <ActionRow label="Settings" onPress={() => router.push('/settings' as Href)} />
+        <View style={styles.volunteerToggleSection}>
+          <Text style={styles.volunteerToggleLabel}>Emergency Volunteer</Text>
+          <Pressable
+            onPress={handleToggleVolunteer}
+            style={({ pressed }) => [
+              styles.volunteerToggle,
+              user.isVolunteer ? styles.volunteerToggleOn : styles.volunteerToggleOff,
+              pressed && styles.volunteerTogglePressed,
+            ]}>
+            <View style={[styles.toggleKnob, user.isVolunteer ? styles.toggleKnobOn : styles.toggleKnobOff]} />
+          </Pressable>
+        </View>
         {!isAuthorityRole(user.role) ? (
           <ActionRow
             icon="arrow.down.circle.fill"
@@ -322,6 +365,37 @@ export default function ProfileScreen() {
       </SectionCard>
 
       <PrimaryButton title="Sign Out" tone="red" onPress={handleSignOut} />
+
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={volunteerToggleModalVisible}
+        onRequestClose={handleCancelVolunteerToggle}>
+        <View style={styles.volunteerToggleModalOverlay}>
+          <View style={styles.volunteerToggleModalContent}>
+            <Text style={styles.volunteerToggleModalTitle}>
+              {user?.isVolunteer ? 'Disable Emergency Volunteer' : 'Enable Emergency Volunteer'}
+            </Text>
+            <Text style={styles.volunteerToggleModalMessage}>
+              {user?.isVolunteer 
+                ? 'You will be logged out after disabling emergency volunteer status. Please log in again to continue.'
+                : 'You will be logged out after enabling emergency volunteer status. Please log in again to continue.'}
+            </Text>
+            <View style={styles.volunteerToggleModalButtons}>
+              <Pressable
+                style={({ pressed }) => [styles.volunteerToggleCancelButton, pressed && styles.volunteerToggleButtonPressed]}
+                onPress={handleCancelVolunteerToggle}>
+                <Text style={styles.volunteerToggleCancelButtonText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [styles.volunteerToggleConfirmButton, pressed && styles.volunteerToggleButtonPressed]}
+                onPress={handleConfirmVolunteerToggle}>
+                <Text style={styles.volunteerToggleConfirmButtonText}>Confirm & Logout</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <Modal
         animationType="slide"
@@ -600,7 +674,117 @@ const styles = StyleSheet.create({
   mapConfirmButtonText: {
     color: colors.onPrimary,
     fontSize: 16,
+    fontWeight: '600',
+    lineHeight: 22,
+  },
+  volunteerToggleSection: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  volunteerToggleLabel: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: '600',
+    lineHeight: 22,
+  },
+  volunteerToggle: {
+    width: 48,
+    height: 28,
+    borderRadius: 14,
+    padding: 2,
+  },
+  volunteerToggleOn: {
+    backgroundColor: colors.emergencyDeep,
+  },
+  volunteerToggleOff: {
+    backgroundColor: colors.border,
+  },
+  volunteerTogglePressed: {
+    opacity: 0.8,
+  },
+  toggleKnob: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.white,
+    shadowColor: colors.cardShadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  toggleKnobOn: {
+    alignSelf: 'flex-end',
+  },
+  toggleKnobOff: {
+    alignSelf: 'flex-start',
+  },
+  volunteerToggleModalOverlay: {
+    backgroundColor: colors.modalBackdrop,
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  volunteerToggleModalContent: {
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    padding: 24,
+    margin: 20,
+    maxWidth: 320,
+  },
+  volunteerToggleModalTitle: {
+    color: colors.navy,
+    fontSize: 20,
     fontWeight: '700',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  volunteerToggleModalMessage: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: '500',
+    lineHeight: 22,
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  volunteerToggleModalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  volunteerToggleCancelButton: {
+    flex: 1,
+    backgroundColor: colors.background,
+    borderRadius: 8,
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  volunteerToggleConfirmButton: {
+    flex: 1,
+    backgroundColor: colors.emergencyDeep,
+    borderRadius: 8,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  volunteerToggleButtonPressed: {
+    opacity: 0.8,
+  },
+  volunteerToggleCancelButtonText: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: '600',
+    lineHeight: 22,
+  },
+  volunteerToggleConfirmButtonText: {
+    color: colors.onPrimary,
+    fontSize: 16,
+    fontWeight: '600',
     lineHeight: 22,
   },
 });

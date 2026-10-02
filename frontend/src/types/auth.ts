@@ -37,6 +37,7 @@ export interface UpdateProfilePayload {
   phoneNumber?: string;
   location: string;
   preferredLanguage: PreferredLanguage;
+  isVolunteer?: boolean;
 }
 
 export interface AuthSession {
