@@ -114,10 +114,9 @@ function validateRegistrationInput(input: RegisterResidentInput) {
     fieldErrors.email = 'Enter a valid email address.';
   }
 
-  if (!password) {
-    fieldErrors.password = 'Password is required.';
-  } else if (password.length < 8) {
-    fieldErrors.password = 'Password must be at least 8 characters.';
+  const passwordError = validateNewPassword(password);
+  if (passwordError) {
+    fieldErrors.password = passwordError;
   }
 
   if (!location) {
