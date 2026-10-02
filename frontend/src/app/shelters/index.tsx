@@ -22,6 +22,7 @@ import { BottomNavigation } from '@/components/ui/app-components';
 import { ShelterStatusBadge } from '@/components/shelters/shelter-ui';
 import { BrandColors } from '@/constants/brand';
 import { useAuth } from '@/context/auth-context';
+import { useCurrentLocation } from '@/hooks/use-current-location';
 import { getShelters, isShelterApiError } from '@/services/shelterService';
 import { createSOSRequest, getUserSOSStatus, updateEvacuationStatus } from '@/services/sosService';
 import type { Shelter } from '@/types/shelter';
@@ -149,6 +150,7 @@ function ShelterCard({
 export default function NearbySheltersScreen() {
   const router = useRouter();
   const { isLoading, token, user } = useAuth();
+  const { currentArea } = useCurrentLocation();
   const [shelters, setShelters] = useState<Shelter[]>([]);
   const [loadingShelters, setLoadingShelters] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -157,6 +159,7 @@ export default function NearbySheltersScreen() {
   const [sosModalVisible, setSosModalVisible] = useState(false);
   const [sosRequest, setSosRequest] = useState<SOSRequestWithVolunteer | null>(null);
   const [evacuationStatusModalVisible, setEvacuationStatusModalVisible] = useState(false);
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
 
   // Disable SOS polling on web to prevent network errors
   const isWeb = Platform.OS === 'web';
@@ -220,17 +223,61 @@ export default function NearbySheltersScreen() {
     }
   }, [token, isWeb]);
 
+  useEffect(() => {
+    const getUserLocation = async () => {
+      if (Platform.OS === 'web') {
+        return;
+      }
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          const location = await Location.getCurrentPositionAsync({});
+          setUserLocation({
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+          });
+        }
+      } catch (error) {
+        console.error('Failed to get user location:', error);
+      }
+    };
+
+    void getUserLocation();
+  }, []);
+
   const filteredShelters = useMemo(() => {
     const query = normalizedText(searchQuery);
 
-    return (shelters || []).filter((shelter) => {
+    let filtered = (shelters || []).filter((shelter) => {
       return (
         !query ||
         normalizedText(shelter.name).includes(query) ||
         normalizedText(shelter.area).includes(query)
       );
     });
-  }, [searchQuery, shelters]);
+
+    // Sort by distance from user location if available
+    if (userLocation && userLocation.latitude && userLocation.longitude) {
+      filtered = filtered.map(shelter => {
+        let distance = Infinity;
+        if (shelter.latitude && shelter.longitude) {
+          // Calculate distance using Haversine formula
+          const R = 6371; // Earth's radius in km
+          const dLat = (shelter.latitude - userLocation.latitude) * Math.PI / 180;
+          const dLon = (shelter.longitude - userLocation.longitude) * Math.PI / 180;
+          const a = 
+            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(userLocation.latitude * Math.PI / 180) * Math.cos(shelter.latitude * Math.PI / 180) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+          distance = R * c;
+        }
+        return { ...shelter, distance };
+      }).sort((a, b) => (a.distance || Infinity) - (b.distance || Infinity));
+    }
+
+    return filtered;
+  }, [searchQuery, shelters, userLocation]);
 
   const handleShareLocation = async () => {
     if (!token) return;
@@ -377,6 +424,10 @@ export default function NearbySheltersScreen() {
             variant="primary"
           />
         ) : null}
+
+        <View style={styles.currentLocationSection}>
+          <Text style={styles.currentLocationText}>Current Location: {currentArea || 'Detecting location...'}</Text>
+        </View>
 
         <View style={styles.searchPanel}>
           <TextInput
@@ -551,7 +602,20 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   createButton: {
-    marginTop: 4,
+    marginBottom: 16,
+  },
+  currentLocationSection: {
+    marginBottom: 8,
+  },
+  currentLocationLabel: {
+    color: BrandColors.muted,
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  currentLocationText: {
+    color: BrandColors.text,
+    fontSize: 12,
+    fontWeight: '600',
   },
   emergencyButton: {
     backgroundColor: BrandColors.redAction,
