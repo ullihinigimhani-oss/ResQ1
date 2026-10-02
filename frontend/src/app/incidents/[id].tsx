@@ -28,27 +28,12 @@ import { useAuth } from '@/context/auth-context';
 import { getIncidentById, isIncidentApiError, updateIncidentStatus } from '@/services/incidentService';
 import { API_BASE_URL } from '@/services/authService';
 import { incidentStatusWorkflow, type Incident, type IncidentStatus } from '@/types/incident';
+import { formatDateTimeColombo as formatDateTime } from '@/utils/format';
 
 const authorityStatusOptions = incidentStatusWorkflow.filter((status) => status !== 'Reported');
 
 function firstParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
-}
-
-function formatDateTime(value: string) {
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return date.toLocaleString(undefined, {
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
 }
 
 function DetailRow({ label, value }: { label: string; value: string }) {
@@ -234,7 +219,7 @@ export default function IncidentDetailsScreen() {
               </View>
             </View>
 
-            {incident.status === 'Reported' && (
+            {incident && incident.status === 'Reported' && incident.userId === user?.id && (
               <View style={styles.editActionContainer}>
                 <AuthButton
                   title="Edit Report"
@@ -285,6 +270,10 @@ export default function IncidentDetailsScreen() {
               <DetailRow label="Location" value={incident.location} />
               <DetailRow label="Incident Type" value={incident.incidentType} />
               <DetailRow label="Severity" value={incident.severity} />
+              <DetailRow
+                label="Submitted By"
+                value={incident.submittedByRole === 'authority' ? 'Authority' : 'Resident'}
+              />
               <DetailRow label="Submitted Date" value={formatDateTime(incident.createdAt)} />
               <DetailRow label="Last Updated" value={formatDateTime(incident.updatedAt)} />
             </View>

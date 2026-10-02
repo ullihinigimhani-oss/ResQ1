@@ -17,6 +17,7 @@ import {
   reverseGeocodeLocation,
 } from '../services/incidentService.js';
 import { dispatchPublishedAlertDeliveries } from '../services/alertDeliveryService.js';
+import { createAlertFromVerifiedIncident } from '../services/alertService.js';
 
 function sendIncidentError(error: unknown, res: Response) {
   if (error instanceof IncidentServiceError) {
@@ -71,12 +72,30 @@ function firstQueryParam(value: unknown) {
 export async function createIncidentReport(req: Request, res: Response) {
   try {
     const user = requireAuthenticatedUser(req);
-    const incident = await createIncident(user.id, req.body);
+    const incident = await createIncident(user.id, String(user.role), req.body);
+
+    let alertGenerated = false;
+
+    if (incident.status === 'Verified') {
+      const generatedIncidentAlert = await createAlertFromVerifiedIncident(user.id, incident);
+
+      if (generatedIncidentAlert.created && generatedIncidentAlert.alert) {
+        alertGenerated = true;
+        dispatchPublishedAlertDeliveries(generatedIncidentAlert.alert);
+      }
+    }
+
+    const message = incident.status === 'Verified'
+      ? alertGenerated
+        ? 'Incident report submitted and verified. Emergency alert generated successfully.'
+        : 'Incident report submitted and verified.'
+      : 'Incident report submitted successfully.';
 
     return res.status(201).json({
       success: true,
-      message: "Incident report submitted successfully.",
+      message,
       incident,
+      alertGenerated,
     });
   } catch (error) {
     return sendIncidentError(error, res);
@@ -205,31 +224,7 @@ export async function uploadIncidentPhoto(req: Request, res: Response) {
       );
     }
 
-    const uploadedImage = await new Promise<{
-      public_id: string;
-      secure_url: string;
-      bytes: number;
-      width: number;
-      height: number;
-    }>((resolve, reject) => {
-      const uploadStream = cloudinary.uploader.upload_stream(
-        {
-          folder: `resq1/incidents/${incidentId}`,
-          resource_type: "image",
-          allowed_formats: ["jpg", "jpeg", "png", "webp"],
-        },
-        (error, result) => {
-          if (error || !result) {
-            reject(error ?? new Error("Cloudinary upload failed."));
-            return;
-          }
-
-          resolve(result);
-        },
-      );
-
-      uploadStream.end(file.buffer);
-    });
+    const uploadedImage = await uploadImageToCloudinary(file.buffer, incidentId);
 
     const photo = await addIncidentPhoto(user.id, incidentId, {
       filename: uploadedImage.public_id, // Cloudinary storage identifier
@@ -244,6 +239,111 @@ export async function uploadIncidentPhoto(req: Request, res: Response) {
         message: "Photo evidence uploaded successfully.",
         photo,
       });
+  } catch (error) {
+    return sendIncidentError(error, res);
+  }
+}
+
+const INCIDENT_PHOTO_MIME_TYPES = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp']);
+
+function normalizePhotoMimeType(mimeType: unknown) {
+  if (typeof mimeType === 'string' && INCIDENT_PHOTO_MIME_TYPES.has(mimeType)) {
+    return mimeType === 'image/jpg' ? 'image/jpeg' : mimeType;
+  }
+
+  return 'image/jpeg';
+}
+
+function sanitizePhotoFilename(filename: unknown) {
+  if (typeof filename !== 'string') {
+    return 'photo.jpg';
+  }
+
+  const sanitized = filename.replace(/[^\w.\-]/g, '_').slice(0, 200);
+
+  return sanitized || 'photo.jpg';
+}
+
+async function uploadImageToCloudinary(
+  buffer: Buffer,
+  incidentId: string,
+): Promise<{
+  public_id: string;
+  secure_url: string;
+  bytes: number;
+  width: number;
+  height: number;
+}> {
+  return new Promise((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(
+      {
+        folder: `resq1/incidents/${incidentId}`,
+        resource_type: "image",
+        allowed_formats: ["jpg", "jpeg", "png", "webp"],
+      },
+      (error, result) => {
+        if (error || !result) {
+          reject(error ?? new Error("Cloudinary upload failed."));
+          return;
+        }
+
+        resolve(result as {
+          public_id: string;
+          secure_url: string;
+          bytes: number;
+          width: number;
+          height: number;
+        });
+      },
+    );
+
+    uploadStream.end(buffer);
+  });
+}
+
+export async function uploadIncidentPhotoBase64(req: Request, res: Response) {
+  try {
+    const user = requireAuthenticatedUser(req);
+    const incidentId = firstParam(req.params.id);
+    const rawBase64 = req.body?.base64;
+
+    if (!incidentId || typeof rawBase64 !== 'string' || !rawBase64) {
+      throw new IncidentServiceError(
+        400,
+        "Please provide the photo data to upload.",
+      );
+    }
+
+    const buffer = Buffer.from(rawBase64, 'base64');
+
+    if (buffer.length === 0) {
+      throw new IncidentServiceError(
+        400,
+        "The photo data could not be decoded.",
+      );
+    }
+
+    if (buffer.length > 8 * 1024 * 1024) {
+      throw new IncidentServiceError(
+        413,
+        "Photo evidence must be 8 MB or smaller.",
+      );
+    }
+
+    const uploadedImage = await uploadImageToCloudinary(buffer, incidentId);
+
+    const photo = await addIncidentPhoto(user.id, incidentId, {
+      filename: uploadedImage.public_id,
+      originalname: sanitizePhotoFilename(req.body?.filename),
+      mimetype: normalizePhotoMimeType(req.body?.mimeType),
+      size: uploadedImage.bytes,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Photo evidence uploaded successfully.",
+      photo,
+    });
   } catch (error) {
     return sendIncidentError(error, res);
   }

@@ -23,7 +23,7 @@ function formatTimestamp(timestamp: Date | string): string {
   if (typeof timestamp === 'string') {
     return timestamp;
   }
-  return timestamp.toISOString();
+  return new Date(timestamp.getTime() - timestamp.getTimezoneOffset() * 60_000).toISOString();
 }
 
 function toSOSRequest(row: SOSRequestRow): SOSRequest {

@@ -26,9 +26,9 @@ export function formatRole(role: string) {
     .join(' ');
 }
 
-export function formatDateTime(value: string | null | undefined) {
+export function parseDateValue(value: string | null | undefined) {
   if (!value) {
-    return 'Not available';
+    return null;
   }
 
   const timestamp = value.trim();
@@ -36,17 +36,76 @@ export function formatDateTime(value: string | null | undefined) {
   const normalizedTimestamp = timestamp.replace(' ', 'T');
   const date = new Date(hasTimezone ? normalizedTimestamp : `${normalizedTimestamp}Z`);
 
-  if (Number.isNaN(date.getTime())) {
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+const COLOMBO_OFFSET_MS = (5 * 60 + 30) * 60 * 1000;
+const SHORT_MONTHS = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+];
+
+function renderSriLankaTime(date: Date) {
+  const colombo = new Date(date.getTime() + COLOMBO_OFFSET_MS);
+  const day = colombo.getUTCDate();
+  const month = SHORT_MONTHS[colombo.getUTCMonth()];
+  const year = colombo.getUTCFullYear();
+  const hours = colombo.getUTCHours();
+  const minutes = String(colombo.getUTCMinutes()).padStart(2, '0');
+  const period = hours >= 12 ? 'PM' : 'AM';
+  const hour12 = hours % 12 || 12;
+
+  return `${day} ${month} ${year}, ${hour12}:${minutes} ${period}`;
+}
+
+function sriLankaDateTime(value: string | null | undefined) {
+  if (!value) {
+    return 'Not available';
+  }
+
+  const date = parseDateValue(value);
+
+  return date ? renderSriLankaTime(date) : value;
+}
+
+export function formatDateTime(value: string | null | undefined) {
+  return sriLankaDateTime(value);
+}
+
+export function formatDateTimeColombo(value: string | null | undefined) {
+  return sriLankaDateTime(value);
+}
+
+export function formatDateTimeColomboShort(value: string | null | undefined) {
+  if (!value) {
+    return 'Not available';
+  }
+
+  const date = parseDateValue(value);
+
+  if (!date) {
     return value;
   }
 
-  return date.toLocaleString(undefined, {
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
+  const colombo = new Date(date.getTime() + COLOMBO_OFFSET_MS);
+  const day = colombo.getUTCDate();
+  const month = SHORT_MONTHS[colombo.getUTCMonth()];
+  const hours = colombo.getUTCHours();
+  const minutes = String(colombo.getUTCMinutes()).padStart(2, '0');
+  const period = hours >= 12 ? 'PM' : 'AM';
+  const hour12 = hours % 12 || 12;
+
+  return `${day} ${month}, ${hour12}:${minutes} ${period}`;
 }
 
 export function plural(value: number, singular: string, pluralValue: string) {

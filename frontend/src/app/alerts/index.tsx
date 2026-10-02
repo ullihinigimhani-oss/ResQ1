@@ -29,7 +29,7 @@ import {
   normalizeAlertArea,
   type AlertDisplayTheme,
 } from '@/utils/alert-display';
-import { formatDateTime, isAuthorityRole } from '@/utils/format';
+import { formatDateTime, formatDateTimeColomboShort as formatCompactDateTime, isAuthorityRole } from '@/utils/format';
 import {
   preferredLanguageLabels,
   preferredLanguageOrNull,
@@ -100,21 +100,6 @@ function compareAlertsBySeverity(left: Alert, right: Alert) {
   }
 
   return issuedTimestamp(right) - issuedTimestamp(left);
-}
-
-function formatCompactDateTime(value: string) {
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return date.toLocaleString(undefined, {
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    month: 'short',
-  });
 }
 
 function disasterTypeFilterFor(disasterType: string): DisasterTypeFilterValue {

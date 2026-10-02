@@ -38,6 +38,7 @@ import { RiskBadge } from '@/components/alerts/alert-badges';
 import { BrandColors } from '@/constants/brand';
 import { useAuth } from '@/context/auth-context';
 import { createAlert, isAlertApiError } from '@/services/alertService';
+import { formatDateTime } from '@/utils/format';
 import {
   alertRiskLevels,
   type AlertAudience,
@@ -86,19 +87,7 @@ function formatExpiration(value: string) {
     return 'No expiration set';
   }
 
-  const date = new Date(trimmedValue);
-
-  if (Number.isNaN(date.getTime())) {
-    return trimmedValue;
-  }
-
-  return date.toLocaleString(undefined, {
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
+  return formatDateTime(trimmedValue);
 }
 
 function previewText(value: string) {
