@@ -11,27 +11,12 @@ import { useEffect } from 'react';
 
 import '@/global.css';
 import { BrandColors } from '@/constants/brand';
-import { AuthProvider, useAuth } from '@/context/auth-context';
+import { AuthProvider } from '@/context/auth-context';
 import { SOSProvider } from '@/context/sos-context';
 import { ThemeProvider } from '@/context/theme-context';
-import {
-  configureForegroundNotificationHandler,
-  registerResidentDeviceForPushNotifications,
-} from '@/services/pushNotificationService';
 import { SOSModal } from '@/components/sos/SOSModal';
 
 SplashScreen.preventAutoHideAsync().catch(() => null);
-void configureForegroundNotificationHandler();
-
-function ResidentPushNotificationRegistration() {
-  const { token, user } = useAuth();
-
-  useEffect(() => {
-    void registerResidentDeviceForPushNotifications(user, token);
-  }, [token, user]);
-
-  return null;
-}
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
@@ -51,7 +36,6 @@ export default function RootLayout() {
     <ThemeProvider>
       <AuthProvider>
         <SOSProvider>
-          <ResidentPushNotificationRegistration />
           <Stack
             screenOptions={{
               headerShown: false,
@@ -82,6 +66,9 @@ export default function RootLayout() {
           <Stack.Screen name="alerts/areas/add" />
           <Stack.Screen name="offline-safety/index" />
           <Stack.Screen name="offline-safety/[alertId]" />
+          <Stack.Screen name="basic-phone-residents/index" />
+          <Stack.Screen name="basic-phone-residents/add" />
+          <Stack.Screen name="basic-phone-residents/[id]/edit" />
           <Stack.Screen name="community-notifications/index" />
           <Stack.Screen name="community-notifications/[id]" />
           <Stack.Screen name="community-notifications/create" />

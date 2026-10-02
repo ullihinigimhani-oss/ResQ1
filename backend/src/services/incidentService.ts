@@ -15,6 +15,8 @@ import type {
   UpdateIncidentStatusInput,
   ValidatedIncidentInput,
 } from '../types/incident.js';
+import { createAlertFromVerifiedIncident } from './alertService.js';
+import { processIncidentStatusChange } from './verifiedIncidentAlertService.js';
 
 const INCIDENT_TYPES = new Set<IncidentType>(['Flood', 'Fire', 'Landslide', 'Cyclone', 'Tsunami', 'Other']);
 const INCIDENT_SEVERITIES = new Set<IncidentSeverity>(['Low', 'Medium', 'High', 'Critical']);
@@ -450,25 +452,62 @@ export async function updateIncident(userId: number, incidentId: string, input: 
   return toIncident(updatedIncident, photosByIncidentId.get(updatedIncident.id) ?? []);
 }
 
-export async function updateIncidentStatus(incidentId: string, input: UpdateIncidentStatusInput) {
+export async function updateIncidentStatus(
+  incidentId: string,
+  input: UpdateIncidentStatusInput,
+  changedBy: number,
+) {
   const numericId = numericIncidentId(incidentId);
   const status = validateIncidentStatus(input);
 
-  const rows = await sql`
-    UPDATE incidents
-    SET status = ${status},
-        updated_at = CURRENT_TIMESTAMP
-    WHERE id = ${numericId}
-    RETURNING id, incident_type, title, description, location, latitude, longitude, severity, photo_url, status, created_at, updated_at
-  `;
+  return processIncidentStatusChange(status, {
+    createAlertForIncident: (incident) => createAlertFromVerifiedIncident(changedBy, incident),
+    setNonVerifiedStatus: async (nextStatus) => {
+      const rows = await sql`
+        UPDATE incidents
+        SET status = ${nextStatus},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ${numericId}
+        RETURNING id, incident_type, title, description, location, latitude, longitude, severity, photo_url, status, created_at, updated_at
+      `;
+      const incident = rows[0] as IncidentRow | undefined;
 
-  const incident = rows[0] as IncidentRow | undefined;
+      if (!incident) {
+        throw new IncidentServiceError(404, 'Incident report not found.');
+      }
 
-  if (!incident) {
-    throw new IncidentServiceError(404, 'Incident report not found.');
-  }
+      return toIncident(incident);
+    },
+    setVerifiedStatus: async () => {
+      const transitionedRows = await sql`
+        UPDATE incidents
+        SET status = 'Verified',
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ${numericId}
+          AND status <> 'Verified'
+        RETURNING id, incident_type, title, description, location, latitude, longitude, severity, photo_url, status, created_at, updated_at
+      `;
+      const transitionedIncident = transitionedRows[0] as IncidentRow | undefined;
 
-  return toIncident(incident);
+      if (transitionedIncident) {
+        return toIncident(transitionedIncident);
+      }
+
+      const existingRows = await sql`
+        SELECT id, incident_type, title, description, location, latitude, longitude, severity, photo_url, status, created_at, updated_at
+        FROM incidents
+        WHERE id = ${numericId}
+        LIMIT 1
+      `;
+      const existingIncident = existingRows[0] as IncidentRow | undefined;
+
+      if (!existingIncident) {
+        throw new IncidentServiceError(404, 'Incident report not found.');
+      }
+
+      return toIncident(existingIncident);
+    },
+  });
 }
 
 export async function getAllIncidents(role: string) {

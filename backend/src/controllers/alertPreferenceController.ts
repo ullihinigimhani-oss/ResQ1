@@ -5,6 +5,7 @@ import {
   getAlertPreferencesForUser,
   updateAlertPreferencesForUser,
 } from '../services/alertPreferenceService.js';
+import { isResidentRole } from '../utils/roles.js';
 
 function sendPreferenceError(error: unknown, res: Response) {
   if (error instanceof AlertServiceError) {
@@ -30,7 +31,7 @@ function requireResident(req: Request) {
     throw new AlertServiceError(401, 'Authentication is required.');
   }
 
-  if (String(user.role).toLowerCase() !== 'resident') {
+  if (!isResidentRole(user.role)) {
     throw new AlertServiceError(403, 'Alert preferences are available for resident users only.');
   }
 

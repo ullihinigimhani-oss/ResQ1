@@ -20,6 +20,7 @@ import type {
   VerifyPasswordInput,
   VerifyResetOtpInput,
 } from '../types/auth.js';
+import { canonicalRole } from '../utils/roles.js';
 
 const PASSWORD_SALT_ROUNDS = 12;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -81,7 +82,7 @@ function toSafeUser(row: UserRow): SafeUser {
     fullName: row.full_name,
     email: row.email,
     phoneNumber: row.phone_number,
-    role: row.role,
+    role: canonicalRole(row.role) as UserRow['role'],
     location: row.location,
     preferredLanguage: row.preferred_language,
     isVolunteer: row.is_volunteer,

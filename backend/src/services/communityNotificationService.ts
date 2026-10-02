@@ -1,5 +1,6 @@
 import { sql } from '../config/database.js';
 import type { AuthenticatedUser } from '../types/auth.js';
+import { isResidentRole } from '../utils/roles.js';
 import {
   communityNotificationCategories,
   communityNotificationStatuses,
@@ -89,7 +90,7 @@ function isRelevantToResident(targetArea: string, residentLocation: string | nul
 }
 
 function isResidentUser(user: AuthenticatedUser) {
-  return String(user.role).toLowerCase() === 'resident';
+  return isResidentRole(user.role);
 }
 
 function isAuthorityUser(user: AuthenticatedUser) {

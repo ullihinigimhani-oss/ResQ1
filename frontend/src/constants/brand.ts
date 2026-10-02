@@ -1,5 +1,81 @@
 import { DynamicColorIOS, Platform, PlatformColor } from 'react-native';
 
+function androidColorFallbacks(variable: string): string[] {
+  if (
+    variable.endsWith('-soft')
+    || variable.startsWith('surface-')
+    || variable === 'background-secondary'
+    || variable === 'control-surface-subtle'
+    || variable === 'primary-muted'
+    || variable === 'neutral-soft'
+    || variable === 'chart-surface'
+    || variable === 'map-overlay'
+  ) {
+    return ['?android:attr/colorBackgroundFloating', '?android:attr/colorBackground'];
+  }
+
+  if (variable === 'background') {
+    return ['?android:attr/colorBackground'];
+  }
+
+  if (variable === 'surface' || variable === 'surface-elevated' || variable === 'control-surface') {
+    return ['?android:attr/colorBackgroundFloating', '?android:attr/colorBackground'];
+  }
+
+  if (variable === 'text-strong' || variable === 'text' || variable === 'route-alternate') {
+    return ['?android:attr/colorForeground', '@android:color/black'];
+  }
+
+  if (
+    variable === 'text-muted'
+    || variable === 'text-subtle'
+    || variable === 'placeholder'
+    || variable === 'slate'
+  ) {
+    return ['?android:attr/colorForeground', '@android:color/black'];
+  }
+
+  if (variable === 'on-primary' || variable === 'on-primary-muted' || variable === 'critical-text') {
+    return ['@android:color/white'];
+  }
+
+  if (variable === 'border' || variable === 'switch-track') {
+    return ['?android:attr/colorForeground', '@android:color/black'];
+  }
+
+  if (variable === 'switch-thumb') {
+    return ['?android:attr/colorForeground', '@android:color/black'];
+  }
+
+  if (variable.includes('success') || variable === 'route-safe' || variable === 'safe-bright') {
+    return ['@android:color/holo_green_dark'];
+  }
+
+  if (
+    variable.includes('warning')
+    || variable.includes('orange')
+    || variable.includes('amber')
+    || variable === 'gold-accent'
+  ) {
+    return ['@android:color/holo_orange_dark'];
+  }
+
+  if (
+    variable.includes('red')
+    || variable.includes('danger')
+    || variable.startsWith('critical-')
+    || variable.startsWith('emergency-')
+  ) {
+    return ['@android:color/holo_red_dark'];
+  }
+
+  if (variable.includes('backdrop') || variable.includes('overlay') || variable === 'card-shadow') {
+    return ['@android:color/transparent'];
+  }
+
+  return ['?android:attr/colorAccent', '?android:attr/colorForeground', '@android:color/black'];
+}
+
 function themedColor(variable: string, lightFallback: string, darkFallback: string): string {
   if (Platform.OS === 'web') {
     return `var(--resq1-${variable}, ${lightFallback})`;
@@ -10,7 +86,10 @@ function themedColor(variable: string, lightFallback: string, darkFallback: stri
   }
 
   if (Platform.OS === 'android') {
-    return PlatformColor(`@color/resq1_${variable.replaceAll('-', '_')}`) as unknown as string;
+    return PlatformColor(
+      `@color/resq1_${variable.replaceAll('-', '_')}`,
+      ...androidColorFallbacks(variable),
+    ) as unknown as string;
   }
 
   return lightFallback;

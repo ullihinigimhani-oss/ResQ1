@@ -907,19 +907,19 @@ const riskLevelText: Record<PreferredLanguage, Record<AlertRiskLevel, string>> =
 const statusText: Record<PreferredLanguage, Record<string, string>> = {
   English: {
     Active: 'ACTIVE',
-    Cancelled: 'CANCELLED',
+    Cancelled: 'REMOVED',
     Expired: 'EXPIRED',
     Resolved: 'RESOLVED',
   },
   Sinhala: {
     Active: 'සක්‍රීය',
-    Cancelled: 'අවලංගු කර ඇත',
+    Cancelled: 'ඉවත් කර ඇත',
     Expired: 'කල් ඉකුත් වී ඇත',
     Resolved: 'විසඳී ඇත',
   },
   Tamil: {
     Active: 'செயலில்',
-    Cancelled: 'ரத்து செய்யப்பட்டது',
+    Cancelled: 'நீக்கப்பட்டது',
     Expired: 'காலாவதியானது',
     Resolved: 'தீர்க்கப்பட்டது',
   },

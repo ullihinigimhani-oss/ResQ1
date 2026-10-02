@@ -2,6 +2,7 @@ import type { RequestHandler } from 'express';
 import jwt from 'jsonwebtoken';
 
 import { sql } from '../config/database.js';
+import { canonicalRole } from '../utils/roles.js';
 
 type AuthTokenPayload = jwt.JwtPayload & {
   sub?: string;
@@ -89,7 +90,7 @@ export const authenticateRequest: RequestHandler = async (req, res, next) => {
     req.authUser = {
       id: user.id,
       email: user.email,
-      role: user.role,
+      role: canonicalRole(user.role),
       location: user.location,
       preferredLanguage: user.preferred_language ?? 'English',
     };
