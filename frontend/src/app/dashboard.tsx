@@ -1,4 +1,4 @@
-import { Redirect, type Href } from 'expo-router';
+import { Redirect, useFocusEffect, type Href } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Text } from 'react-native';
 
@@ -14,7 +14,7 @@ import {
   setCachedDashboardSummary,
   type DashboardSummary,
 } from '@/services/dashboardSummaryService';
-import { isAuthorityRole, normalize } from '@/utils/format';
+import { isAuthorityRole, isResidentRole } from '@/utils/format';
 
 export default function DashboardScreen() {
   const { isLoading, token, user } = useAuth();
@@ -106,11 +106,9 @@ export default function DashboardScreen() {
     setLoadingSummary(false);
   }, [applySummary, dashboardCacheKey, token, userRole]);
 
-  useEffect(() => {
-    if (token && userRole) {
-      void loadSummary();
-    }
-  }, [loadSummary, token, userRole]);
+  useFocusEffect(useCallback(() => {
+    void loadSummary();
+  }, [loadSummary]));
 
   if (!isLoading && !user) {
     return <Redirect href={'/auth/welcome' as Href} />;
@@ -124,12 +122,11 @@ export default function DashboardScreen() {
     );
   }
 
-  const normalizedRole = normalize(user.role);
   const initialLoading = loadingSummary && !hasLoadedSummary;
   const refreshing = loadingSummary && hasLoadedSummary;
   const visibleSummaryWarning = Boolean(summaryWarning) && !refreshing ? summaryWarning : null;
 
-  if (normalizedRole === 'resident') {
+  if (isResidentRole(user.role)) {
     return (
       <ResidentDashboard
         alerts={alerts}
@@ -144,7 +141,7 @@ export default function DashboardScreen() {
     );
   }
 
-  if (isAuthorityRole(normalizedRole)) {
+  if (isAuthorityRole(user.role)) {
     return (
       <AuthorityDashboard
         alerts={alerts}

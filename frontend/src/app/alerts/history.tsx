@@ -12,26 +12,24 @@ import { colors, radius, shadows, spacing, typography } from '@/constants/design
 import { useAuth } from '@/context/auth-context';
 import { getAlertHistory, isAlertApiError } from '@/services/alertService';
 import type { AlertAuditEvent } from '@/types/alert';
-import { isAuthorityRole } from '@/utils/format';
+import { formatDateTime, isAuthorityRole } from '@/utils/format';
 
 function formatAuditDateTime(value: string) {
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return date.toLocaleString(undefined, {
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  }).replace(',', ' -');
+  return formatDateTime(value);
 }
 
 function displayValue(value: string | null | undefined, fallback = 'Not available') {
   return value?.trim() || fallback;
+}
+
+function displayAlertStatus(value: string | null | undefined, fallback = 'Unknown') {
+  const status = displayValue(value, fallback);
+
+  return status.toLowerCase() === 'cancelled' ? 'Removed' : status;
+}
+
+function displayAuditAction(action: string) {
+  return action === 'CANCELLED' ? 'REMOVED' : action;
 }
 
 function actionTone(action: string) {
@@ -134,7 +132,7 @@ function finalStatus(event: AlertAuditEvent) {
   const action = displayValue(event.action, '').toUpperCase();
 
   if (action === 'CANCELLED') {
-    return 'Cancelled';
+    return 'Removed';
   }
 
   if (action === 'EXPIRED') {
@@ -144,10 +142,10 @@ function finalStatus(event: AlertAuditEvent) {
   const currentStatus = event.currentStatus?.trim();
 
   if (currentStatus && currentStatus !== 'Active') {
-    return currentStatus;
+    return displayAlertStatus(currentStatus);
   }
 
-  return displayValue(event.newStatus ?? currentStatus, 'Unknown');
+  return displayAlertStatus(event.newStatus ?? currentStatus);
 }
 
 function severityTone(riskLevel: string | null) {
@@ -200,7 +198,9 @@ function riskLabel(event: AlertAuditEvent) {
 }
 
 function statusChangeLabel(event: AlertAuditEvent) {
-  const previousStatus = event.previousStatus;
+  const previousStatus = event.previousStatus
+    ? displayAlertStatus(event.previousStatus)
+    : null;
   const newStatus = finalStatus(event);
 
   if (previousStatus && newStatus && previousStatus !== newStatus) {
@@ -217,8 +217,8 @@ function statusTimingLabel(event: AlertAuditEvent, status: string) {
     return `Expired: ${formatAuditDateTime(event.expiresAt)}`;
   }
 
-  if (status === 'Cancelled' && action === 'CANCELLED') {
-    return `Cancelled: ${formatAuditDateTime(event.createdAt)}`;
+  if (status === 'Removed' && action === 'CANCELLED') {
+    return `Removed: ${formatAuditDateTime(event.createdAt)}`;
   }
 
   if (event.expiresAt) {
@@ -245,6 +245,7 @@ function AlertHistoryRow({
   onOpen: (alertId: number) => void;
 }) {
   const action = displayValue(event.action, 'UPDATED').toUpperCase();
+  const actionLabel = displayAuditAction(action);
   const resultingStatus = finalStatus(event);
   const statusChange = statusChangeLabel(event);
   const timingLabel = statusTimingLabel(event, resultingStatus);
@@ -271,7 +272,7 @@ function AlertHistoryRow({
         </Text>
 
         <View style={styles.badgeRow}>
-          <AuditBadge label={action} tone={actionTone(action)} />
+          <AuditBadge label={actionLabel} tone={actionTone(action)} />
           <AuditBadge label={resultingStatus} tone={statusTone(resultingStatus)} />
           <AuditBadge label={riskLabel(event)} tone={severityTone(event.newRiskLevel)} />
         </View>
@@ -385,7 +386,7 @@ export default function AlertHistoryScreen() {
       {showEmpty ? (
         <EmptyState
           title="No Alert History"
-          body="Published, updated, and cancelled emergency alert activity will appear here."
+          body="Published, updated, and removed emergency alert activity will appear here."
         />
       ) : null}
 

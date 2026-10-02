@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS sos_requests (
     latitude DECIMAL(10, 7) NOT NULL,
     longitude DECIMAL(10, 7) NOT NULL,
     status VARCHAR(50) DEFAULT 'pending',
+    evacuation_status VARCHAR(50) DEFAULT 'pending',
     volunteer_id INTEGER REFERENCES users(id),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -122,6 +123,9 @@ CREATE TABLE IF NOT EXISTS alert_subscriptions (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE INDEX IF NOT EXISTS idx_alert_subscriptions_user_id
+    ON alert_subscriptions(user_id);
+
 CREATE TABLE IF NOT EXISTS alert_push_tokens (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -203,6 +207,13 @@ CREATE TABLE IF NOT EXISTS incidents (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+ALTER TABLE alerts
+    ADD COLUMN IF NOT EXISTS source_incident_id INTEGER REFERENCES incidents(id) ON DELETE SET NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_alerts_source_incident_id
+    ON alerts(source_incident_id)
+    WHERE source_incident_id IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_community_notifications_status_created_at
     ON community_notifications(status, created_at DESC);
@@ -289,5 +300,44 @@ CREATE TABLE IF NOT EXISTS emergency_contacts (
 
 CREATE INDEX IF NOT EXISTS idx_emergency_contacts_user_id
     ON emergency_contacts(user_id);
+
+CREATE TABLE IF NOT EXISTS basic_phone_residents (
+    id SERIAL PRIMARY KEY,
+    full_name VARCHAR(100) NOT NULL,
+    phone_number VARCHAR(10) NOT NULL,
+    area VARCHAR(150) NOT NULL,
+    registered_by INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_basic_phone_residents_registered_by
+    ON basic_phone_residents(registered_by);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_basic_phone_residents_phone_number
+    ON basic_phone_residents(phone_number);
+
+CREATE INDEX IF NOT EXISTS idx_basic_phone_residents_area
+    ON basic_phone_residents(LOWER(TRIM(area)));
+
+CREATE TABLE IF NOT EXISTS sms_alert_logs (
+    id SERIAL PRIMARY KEY,
+    alert_id INTEGER NOT NULL REFERENCES alerts(id) ON DELETE CASCADE,
+    basic_phone_resident_id INTEGER REFERENCES basic_phone_residents(id) ON DELETE SET NULL,
+    phone_number VARCHAR(20) NOT NULL,
+    status VARCHAR(30) NOT NULL CHECK (status IN ('PENDING', 'SENT_TO_GATEWAY', 'FAILED')),
+    provider VARCHAR(30) NOT NULL DEFAULT 'TEXTBEE',
+    provider_batch_id VARCHAR(150),
+    error_message VARCHAR(500),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(alert_id, phone_number)
+);
+
+CREATE INDEX IF NOT EXISTS idx_sms_alert_logs_alert_id
+    ON sms_alert_logs(alert_id);
+
+CREATE INDEX IF NOT EXISTS idx_sms_alert_logs_status
+    ON sms_alert_logs(status);
 
 

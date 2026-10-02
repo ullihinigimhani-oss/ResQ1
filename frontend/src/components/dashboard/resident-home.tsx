@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
-import { useRouter, type Href } from 'expo-router';
-import { useMemo } from 'react';
+import { useFocusEffect, useRouter, type Href } from 'expo-router';
+import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -20,12 +20,23 @@ import {
   StatusBadge,
 } from '@/components/ui/app-components';
 import { colors, radius, shadows, spacing, typography } from '@/constants/design';
+import { useAuth } from '@/context/auth-context';
+import { getAlertAreaSubscriptions } from '@/services/alertService';
 import type { DashboardSummary } from '@/services/dashboardSummaryService';
 import type { Alert, AlertRiskLevel } from '@/types/alert';
+import type { AlertAreaSubscription } from '@/types/alertAreaSubscription';
 import type { AuthUser } from '@/types/auth';
 import type { CommunityNotification } from '@/types/communityNotification';
-import { getCurrentRiskAlert } from '@/utils/alert-risk';
-import { firstName, formatDateTime, initials, preview, userArea } from '@/utils/format';
+import { alertAffectsResidentArea } from '@/utils/alert-display';
+import { compareAlertsByCurrentRisk, getCurrentRiskAlert } from '@/utils/alert-risk';
+import {
+  firstName,
+  formatDateTime,
+  initials,
+  isCommunityMemberRole,
+  preview,
+  userArea,
+} from '@/utils/format';
 
 type ResidentHomeProps = {
   alerts: DashboardSummary['alerts'];
@@ -306,6 +317,110 @@ function UpdatePreview({ update }: { update: LatestUpdate | null }) {
   );
 }
 
+function SubscribedAreaRisks({ alerts }: { alerts: Alert[] }) {
+  const router = useRouter();
+
+  if (alerts.length === 0) {
+    return null;
+  }
+
+  return (
+    <View style={styles.subscribedRiskCard}>
+      <View style={styles.sectionHeadingRow}>
+        <View style={styles.subscribedRiskHeading}>
+          <View style={styles.subscribedRiskIcon}>
+            <AppIcon
+              fallback="!"
+              name="exclamationmark.triangle.fill"
+              size={20}
+              tintColor={colors.amberStrong}
+            />
+          </View>
+          <View style={styles.sectionHeadingCopy}>
+            <Text style={styles.sectionTitle}>
+              {alerts.length === 1 ? 'Risk in a Subscribed Area' : 'Subscribed Area Risks'}
+            </Text>
+            <Text style={styles.subscribedRiskSubtitle}>
+              {alerts.length === 1
+                ? 'An active emergency alert is affecting an area you follow.'
+                : 'Active emergency alerts are affecting areas you follow.'}
+            </Text>
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.subscribedRiskList}>
+        {alerts.map((alert) => {
+          const accent = riskAccent(alert.riskLevel);
+
+          return (
+            <View key={alert.id} style={[styles.subscribedRiskItem, { borderLeftColor: accent }]}>
+              <View style={styles.subscribedRiskTopRow}>
+                <View style={styles.subscribedRiskAreaRow}>
+                  <AppIcon fallback="L" name="location.fill" size={15} tintColor={accent} />
+                  <Text numberOfLines={1} style={styles.subscribedRiskArea}>{alert.affectedArea}</Text>
+                </View>
+                <StatusBadge label={alert.riskLevel.toUpperCase()} tone={riskTone(alert.riskLevel)} />
+              </View>
+              <Text numberOfLines={2} style={styles.subscribedRiskTitle}>{alert.title}</Text>
+              <Text numberOfLines={1} style={styles.subscribedRiskMeta}>
+                {alert.disasterType} {'\u2022'} {alert.status.toUpperCase()} {'\u2022'} Issued {formatDateTime(alert.createdAt)}
+              </Text>
+              <Pressable
+                accessibilityLabel={`View ${alert.title}`}
+                accessibilityRole="button"
+                onPress={() => router.push({
+                  pathname: '/alerts/[id]',
+                  params: { id: String(alert.id) },
+                } as unknown as Href)}
+                style={({ pressed }) => [styles.subscribedRiskAction, pressed && styles.pressed]}>
+                <Text style={styles.subscribedRiskActionLabel}>View Alert</Text>
+                <Text style={styles.subscribedRiskActionArrow}>{'>'}</Text>
+              </Pressable>
+            </View>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+function BasicPhoneResidentAccess() {
+  const router = useRouter();
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={() => router.push('/basic-phone-residents' as Href)}
+      style={({ pressed }) => [styles.communityMemberCard, pressed && styles.pressed]}>
+      <View style={styles.communityMemberIcon}>
+        <AppIcon fallback="P" name="person.3.fill" size={21} tintColor={colors.deepBlue} />
+      </View>
+      <View style={styles.communityMemberCopy}>
+        <Text style={styles.communityMemberTitle}>Basic Phone Residents</Text>
+        <Text style={styles.communityMemberBody}>
+          Register residents without smartphones for emergency SMS alerts.
+        </Text>
+      </View>
+      <Text style={styles.communityMemberArrow}>{'>'}</Text>
+    </Pressable>
+  );
+}
+
+function isCurrentActiveAlert(alert: Alert) {
+  if (alert.status !== 'Active') {
+    return false;
+  }
+
+  if (!alert.expiresAt) {
+    return true;
+  }
+
+  const expirationTime = new Date(alert.expiresAt).getTime();
+
+  return Number.isFinite(expirationTime) && expirationTime > Date.now();
+}
+
 function PreparednessSection({ wideLayout }: { wideLayout: boolean }) {
   return (
     <View style={[styles.visualSection, wideLayout && styles.visualSectionWide]}>
@@ -375,7 +490,9 @@ export function ResidentHome({
   summaryWarning,
   user,
 }: ResidentHomeProps) {
+  const { token } = useAuth();
   const { width } = useWindowDimensions();
+  const [alertAreas, setAlertAreas] = useState<AlertAreaSubscription[]>([]);
   const wideLayout = width >= 760;
   const contentWidth = Math.min(Math.max(width - spacing.xl * 2, 280), 920);
   const heroHeight = Math.min(380, contentWidth / 1.5);
@@ -389,6 +506,32 @@ export function ResidentHome({
     : communityUpdate
       ? { kind: 'community' as const, value: communityUpdate }
       : null;
+  const subscribedAreaAlerts = useMemo(() => alerts
+    .filter((alert) => (
+      alert.isSubscribedArea
+      && isCurrentActiveAlert(alert)
+      && alertAreas.some((subscription) => (
+        alertAffectsResidentArea(subscription.areaName, alert.affectedArea)
+      ))
+    ))
+    .sort(compareAlertsByCurrentRisk), [alertAreas, alerts]);
+
+  const loadAlertAreas = useCallback(async () => {
+    if (!token) {
+      setAlertAreas([]);
+      return;
+    }
+
+    try {
+      setAlertAreas(await getAlertAreaSubscriptions(token));
+    } catch {
+      return;
+    }
+  }, [token]);
+
+  useFocusEffect(useCallback(() => {
+    void loadAlertAreas();
+  }, [loadAlertAreas]));
 
   return (
     <ScreenContainer>
@@ -419,6 +562,10 @@ export function ResidentHome({
             <Text style={styles.warningText}>{summaryWarning}</Text>
           </View>
         ) : null}
+
+        <SubscribedAreaRisks alerts={subscribedAreaAlerts} />
+
+        {isCommunityMemberRole(user.role) ? <BasicPhoneResidentAccess /> : null}
 
         {!loading && !initialError ? <UpdatePreview update={latestUpdate} /> : null}
 
@@ -619,6 +766,142 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '400',
     lineHeight: 18,
+  },
+  subscribedRiskCard: {
+    backgroundColor: colors.amberSoft,
+    borderColor: colors.amber,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    gap: spacing.md,
+    padding: spacing.lg,
+    ...shadows.card,
+  },
+  subscribedRiskHeading: {
+    alignItems: 'flex-start',
+    flex: 1,
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  subscribedRiskIcon: {
+    alignItems: 'center',
+    backgroundColor: colors.white,
+    borderColor: colors.amber,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    height: 34,
+    justifyContent: 'center',
+    width: 34,
+  },
+  subscribedRiskSubtitle: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '400',
+    lineHeight: 18,
+  },
+  subscribedRiskList: {
+    gap: spacing.sm,
+  },
+  subscribedRiskItem: {
+    backgroundColor: colors.white,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderLeftWidth: 4,
+    gap: spacing.xs,
+    padding: spacing.md,
+  },
+  subscribedRiskTopRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.sm,
+    justifyContent: 'space-between',
+  },
+  subscribedRiskAreaRow: {
+    alignItems: 'center',
+    flex: 1,
+    flexDirection: 'row',
+    gap: spacing.xs,
+    minWidth: 0,
+  },
+  subscribedRiskArea: {
+    color: colors.navy,
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 18,
+  },
+  subscribedRiskTitle: {
+    color: colors.navy,
+    fontSize: 15,
+    fontWeight: '700',
+    lineHeight: 20,
+  },
+  subscribedRiskMeta: {
+    color: colors.muted,
+    fontSize: 11,
+    fontWeight: '600',
+    lineHeight: 16,
+  },
+  subscribedRiskAction: {
+    alignItems: 'center',
+    alignSelf: 'flex-end',
+    flexDirection: 'row',
+    gap: spacing.xs,
+    minHeight: 32,
+    paddingLeft: spacing.sm,
+  },
+  subscribedRiskActionLabel: {
+    color: colors.deepBlue,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 16,
+  },
+  subscribedRiskActionArrow: {
+    color: colors.deepBlue,
+    fontSize: 15,
+    fontWeight: '700',
+    lineHeight: 18,
+  },
+  communityMemberCard: {
+    alignItems: 'center',
+    backgroundColor: colors.white,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.md,
+    minHeight: 78,
+    padding: spacing.md,
+    ...shadows.card,
+  },
+  communityMemberIcon: {
+    alignItems: 'center',
+    backgroundColor: colors.lightBlue,
+    borderRadius: radius.md,
+    height: 42,
+    justifyContent: 'center',
+    width: 42,
+  },
+  communityMemberCopy: {
+    flex: 1,
+    gap: 2,
+    minWidth: 0,
+  },
+  communityMemberTitle: {
+    color: colors.navy,
+    fontSize: 15,
+    fontWeight: '700',
+    lineHeight: 20,
+  },
+  communityMemberBody: {
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  communityMemberArrow: {
+    color: colors.deepBlue,
+    fontSize: 18,
+    fontWeight: '700',
   },
   viewAllButton: {
     alignItems: 'center',

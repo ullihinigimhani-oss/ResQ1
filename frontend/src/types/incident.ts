@@ -11,12 +11,15 @@ export type IncidentSeverity = (typeof incidentSeverityOptions)[number];
 
 export type IncidentStatus = (typeof incidentStatusWorkflow)[number];
 
-export const incidentTypeOptions = ['Flood', 'Fire', 'Landslide', 'Cyclone', 'Tsunami', 'Other'] as const;
+export const incidentTypeOptions = ['Flood', 'Fire', 'Landslide', 'Cyclone', 'Other'] as const;
 
 export type IncidentType = (typeof incidentTypeOptions)[number];
 
+export type IncidentSubmitterRole = 'resident' | 'authority';
+
 export interface Incident {
   id: number;
+  userId: number;
   incidentType: IncidentType;
   title: string;
   description: string;
@@ -28,6 +31,7 @@ export interface Incident {
   status: IncidentStatus;
   createdAt: string;
   updatedAt: string;
+  submittedByRole?: IncidentSubmitterRole;
   photos: IncidentPhoto[];
   distanceKm?: number;
 }

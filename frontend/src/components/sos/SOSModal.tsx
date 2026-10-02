@@ -44,7 +44,7 @@ export function SOSModal() {
 
 const styles = StyleSheet.create({
   modalOverlay: {
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: BrandColors.modalBackdrop,
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
@@ -93,7 +93,7 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
   notReadyButtonText: {
-    color: BrandColors.text,
+    color: BrandColors.onPrimary,
     fontSize: 16,
     fontWeight: '600',
     textAlign: 'center',

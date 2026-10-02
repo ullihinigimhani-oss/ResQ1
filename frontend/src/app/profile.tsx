@@ -1,6 +1,6 @@
 import { Redirect, useRouter, type Href } from 'expo-router';
 import { Linking, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useState, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 
 import {
@@ -16,18 +16,12 @@ import {
 import { colors, radius, spacing } from '@/constants/design';
 import { useAuth } from '@/context/auth-context';
 import { useCurrentLocation } from '@/hooks/use-current-location';
-import { updateVolunteerStatus as updateVolunteerStatusApi, API_BASE_URL } from '@/services/authService';
+import { updateVolunteerStatus as updateVolunteerStatusApi, updateProfile, API_BASE_URL } from '@/services/authService';
 import { getUserSOSStatus } from '@/services/sosService';
 import { formatRole, initials, isAuthorityRole } from '@/utils/format';
 import type { SOSRequestWithVolunteer } from '@/types/sos';
 
-let MapView: any, Circle: any, Marker: any;
-if (Platform.OS !== 'web') {
-  const nativeMap = require('@/components/shelters/native-map');
-  MapView = nativeMap.default;
-  Circle = nativeMap.Circle;
-  Marker = nativeMap.Marker;
-}
+import OpenStreetMap from '@/components/shelters/openstreet-map';
 
 function ActionRow({
   icon,
@@ -64,7 +58,71 @@ export default function ProfileScreen() {
   const [mapModalVisible, setMapModalVisible] = useState(false);
   const [selectedRegion, setSelectedRegion] = useState<{ latitude: number; longitude: number; latitudeDelta: number; longitudeDelta: number } | null>(null);
   const [sosRequest, setSosRequest] = useState<SOSRequestWithVolunteer | null>(null);
+  const [volunteerSOSRequest, setVolunteerSOSRequest] = useState<any>(null);
+  const [volunteerToggleModalVisible, setVolunteerToggleModalVisible] = useState(false);
+  const previousSOSStatusRef = useRef<string | null>(null);
   const isWeb = Platform.OS === 'web';
+  const authenticatedUserId = user?.id ?? null;
+
+  useEffect(() => {
+    if (isLoading || !authenticatedUserId || !token || isWeb) {
+      return;
+    }
+
+    const checkSOSStatus = async () => {
+      try {
+        const status = await getUserSOSStatus(token);
+        setSosRequest(status);
+      } catch (error) {
+        console.error('Failed to check SOS status:', error);
+      }
+    };
+
+    void checkSOSStatus();
+    const interval = setInterval(() => void checkSOSStatus(), 5000);
+
+    return () => clearInterval(interval);
+  }, [authenticatedUserId, isLoading, isWeb, token]);
+
+  useEffect(() => {
+    if (!token || isWeb || !user?.isVolunteer || !user.isVolunteeringActive) {
+      return;
+    }
+
+    const checkVolunteerSOSStatus = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/sos/volunteer-accepted`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+        const data = await response.json();
+        const currentSOS = data.request;
+        console.log('Volunteer SOS status:', currentSOS);
+
+        // Check if SOS status changed from accepted to completed
+        if (currentSOS && currentSOS.status === 'completed' && previousSOSStatusRef.current === 'accepted') {
+          const statusMessages: Record<string, string> = {
+            'assistant_came': 'Emergency Assistant Came',
+            'rescued': 'Rescued',
+            'safe_shelter': 'Safe Shelter',
+          };
+          const statusMessage = statusMessages[currentSOS.evacuationStatus] || 'Safe';
+          alert(`The disaster victim has been marked as ${statusMessage}. They are safe now.`);
+        }
+
+        previousSOSStatusRef.current = currentSOS?.status || null;
+        setVolunteerSOSRequest(currentSOS);
+      } catch (error) {
+        console.error('Failed to check volunteer SOS status:', error);
+      }
+    };
+
+    void checkVolunteerSOSStatus();
+    const interval = setInterval(() => void checkVolunteerSOSStatus(), 5000);
+
+    return () => clearInterval(interval);
+  }, [isWeb, token, user?.isVolunteer, user?.isVolunteeringActive]);
 
   if (!isLoading && !user) {
     return <Redirect href={'/auth/welcome' as Href} />;
@@ -80,7 +138,36 @@ export default function ProfileScreen() {
 
   const handleSignOut = async () => {
     await signOut();
-    router.replace('/auth/welcome' as Href);
+  };
+
+  const handleToggleVolunteer = () => {
+    setVolunteerToggleModalVisible(true);
+  };
+
+  const handleConfirmVolunteerToggle = async () => {
+    setVolunteerToggleModalVisible(false);
+    if (!token || !user) return;
+
+    try {
+      const newVolunteerStatus = !user.isVolunteer;
+      await updateProfile(token, {
+        fullName: user.fullName,
+        email: user.email,
+        phoneNumber: user.phoneNumber || undefined,
+        location: user.location || '',
+        preferredLanguage: user.preferredLanguage as 'English' | 'Sinhala' | 'Tamil',
+        isVolunteer: newVolunteerStatus,
+      });
+      // Logout after updating volunteer status
+      await signOut();
+    } catch (error) {
+      console.error('Failed to update volunteer status:', error);
+      alert('Failed to update volunteer status. Please try again.');
+    }
+  };
+
+  const handleCancelVolunteerToggle = () => {
+    setVolunteerToggleModalVisible(false);
   };
 
   const handleVolunteerNow = async () => {
@@ -130,25 +217,8 @@ export default function ProfileScreen() {
     });
   };
 
-  useEffect(() => {
-    if (token && !isWeb) {
-      const checkSOSStatus = async () => {
-        try {
-          const status = await getUserSOSStatus(token);
-          setSosRequest(status);
-        } catch (error) {
-          console.error('Failed to check SOS status:', error);
-        }
-      };
-
-      checkSOSStatus();
-      const interval = setInterval(checkSOSStatus, 5000);
-
-      return () => clearInterval(interval);
-    }
-  }, [token, isWeb]);
-
   const handleRouteToVictim = async () => {
+    console.log('handleRouteToVictim called');
     if (!user?.volunteerAreaLatitude || !user?.volunteerAreaLongitude) {
       alert('Please set your volunteer area first by clicking Volunteer Now.');
       return;
@@ -176,7 +246,19 @@ export default function ProfileScreen() {
       const sosRequest = data.request;
 
       if (!sosRequest) {
-        alert('No active SOS request to respond to. Please wait for an SOS alert and click "Emergency Rescue Team is Ready" to accept it.');
+        alert('No any Victims to rescue');
+        return;
+      }
+
+      // Check if the SOS request is completed (user is safe)
+      if (sosRequest.status === 'completed') {
+        const statusMessages: Record<string, string> = {
+          'assistant_came': 'Emergency Assistant Came',
+          'rescued': 'Rescued',
+          'safe_shelter': 'Safe Shelter',
+        };
+        const statusMessage = statusMessages[sosRequest.evacuationStatus] || 'Safe';
+        alert(`The disaster victim has been marked as ${statusMessage}. They are safe now.`);
         return;
       }
 
@@ -229,7 +311,7 @@ export default function ProfileScreen() {
         </Pressable>
       )}
 
-      {user.isVolunteer && user.isVolunteeringActive && user?.volunteerAreaLatitude && user?.volunteerAreaLongitude ? (
+      {user.isVolunteer && user.isVolunteeringActive && user?.volunteerAreaLatitude && user?.volunteerAreaLongitude && volunteerSOSRequest?.status === 'accepted' ? (
         <PrimaryButton
           onPress={handleRouteToVictim}
           title="Route to Disaster Victim"
@@ -261,6 +343,18 @@ export default function ProfileScreen() {
           onPress={() => router.push('/emergency-contacts' as Href)}
         />
         <ActionRow label="Settings" onPress={() => router.push('/settings' as Href)} />
+        <View style={styles.volunteerToggleSection}>
+          <Text style={styles.volunteerToggleLabel}>Emergency Volunteer</Text>
+          <Pressable
+            onPress={handleToggleVolunteer}
+            style={({ pressed }) => [
+              styles.volunteerToggle,
+              user.isVolunteer ? styles.volunteerToggleOn : styles.volunteerToggleOff,
+              pressed && styles.volunteerTogglePressed,
+            ]}>
+            <View style={[styles.toggleKnob, user.isVolunteer ? styles.toggleKnobOn : styles.toggleKnobOff]} />
+          </Pressable>
+        </View>
         {!isAuthorityRole(user.role) ? (
           <ActionRow
             icon="arrow.down.circle.fill"
@@ -273,6 +367,37 @@ export default function ProfileScreen() {
       <PrimaryButton title="Sign Out" tone="red" onPress={handleSignOut} />
 
       <Modal
+        animationType="fade"
+        transparent={true}
+        visible={volunteerToggleModalVisible}
+        onRequestClose={handleCancelVolunteerToggle}>
+        <View style={styles.volunteerToggleModalOverlay}>
+          <View style={styles.volunteerToggleModalContent}>
+            <Text style={styles.volunteerToggleModalTitle}>
+              {user?.isVolunteer ? 'Disable Emergency Volunteer' : 'Enable Emergency Volunteer'}
+            </Text>
+            <Text style={styles.volunteerToggleModalMessage}>
+              {user?.isVolunteer 
+                ? 'You will be logged out after disabling emergency volunteer status. Please log in again to continue.'
+                : 'You will be logged out after enabling emergency volunteer status. Please log in again to continue.'}
+            </Text>
+            <View style={styles.volunteerToggleModalButtons}>
+              <Pressable
+                style={({ pressed }) => [styles.volunteerToggleCancelButton, pressed && styles.volunteerToggleButtonPressed]}
+                onPress={handleCancelVolunteerToggle}>
+                <Text style={styles.volunteerToggleCancelButtonText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [styles.volunteerToggleConfirmButton, pressed && styles.volunteerToggleButtonPressed]}
+                onPress={handleConfirmVolunteerToggle}>
+                <Text style={styles.volunteerToggleConfirmButtonText}>Confirm & Logout</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
         animationType="slide"
         transparent={true}
         visible={mapModalVisible}
@@ -282,36 +407,27 @@ export default function ProfileScreen() {
             <Text style={styles.mapModalTitle}>Select Volunteer Area</Text>
             <Text style={styles.mapModalSubtitle}>Tap on the map to select your volunteer area</Text>
             <View style={styles.mapContainer}>
-              {Platform.OS !== 'web' && MapView ? (
-                <MapView
-                  style={styles.map}
+              {Platform.OS !== 'web' ? (
+                <OpenStreetMap
                   initialRegion={{
                     latitude: 6.9271,
                     longitude: 79.8612,
                     latitudeDelta: 0.0922,
                     longitudeDelta: 0.0421,
                   }}
-                  onPress={handleMapPress}>
-                  {selectedRegion && (
-                    <>
-                      <Circle
-                        center={{
-                          latitude: selectedRegion.latitude,
-                          longitude: selectedRegion.longitude,
-                        }}
-                        radius={8000}
-                        strokeColor="rgba(255, 0, 0, 0.5)"
-                        fillColor="rgba(255, 0, 0, 0.1)"
-                      />
-                      <Marker
-                        coordinate={{
-                          latitude: selectedRegion.latitude,
-                          longitude: selectedRegion.longitude,
-                        }}
-                      />
-                    </>
-                  )}
-                </MapView>
+                  markers={selectedRegion ? [{ latitude: selectedRegion.latitude, longitude: selectedRegion.longitude, title: 'Volunteer Area', color: '#ff0000' }] : []}
+                  circles={selectedRegion ? [{
+                    center: {
+                      latitude: selectedRegion.latitude,
+                      longitude: selectedRegion.longitude
+                    },
+                    radius: 8000,
+                    strokeColor: 'rgba(255, 0, 0, 0.5)',
+                    fillColor: 'rgba(255, 0, 0, 0.1)'
+                  }] : []}
+                  onMapPress={handleMapPress}
+                  style={styles.map}
+                />
               ) : (
                 <View style={styles.webMapPlaceholder}>
                   <Text style={styles.webMapPlaceholderText}>
@@ -436,21 +552,24 @@ const styles = StyleSheet.create({
     opacity: 0.72,
   },
   volunteerNowButton: {
-    backgroundColor: '#8B0000',
+    backgroundColor: colors.emergencyDeep,
     borderRadius: 8,
     paddingVertical: 16,
     paddingHorizontal: 24,
     alignItems: 'center',
     marginBottom: 16,
-    shadowColor: '#000',
+    shadowColor: colors.cardShadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'center',
   },
   volunteerNowButtonShining: {
-    backgroundColor: '#FF0000',
-    shadowColor: '#FF0000',
+    backgroundColor: colors.emergencyBright,
+    shadowColor: colors.emergencyBright,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.8,
     shadowRadius: 10,
@@ -460,13 +579,15 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
   volunteerNowButtonText: {
-    color: '#FFFFFF',
+    color: colors.onPrimary,
     fontSize: 18,
     fontWeight: '700',
     lineHeight: 24,
+    textAlign: 'center',
+    flexWrap: 'nowrap',
   },
   mapModalOverlay: {
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: colors.modalBackdrop,
     flex: 1,
     justifyContent: 'flex-end',
   },
@@ -551,9 +672,119 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
   mapConfirmButtonText: {
-    color: colors.white,
+    color: colors.onPrimary,
     fontSize: 16,
+    fontWeight: '600',
+    lineHeight: 22,
+  },
+  volunteerToggleSection: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  volunteerToggleLabel: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: '600',
+    lineHeight: 22,
+  },
+  volunteerToggle: {
+    width: 48,
+    height: 28,
+    borderRadius: 14,
+    padding: 2,
+  },
+  volunteerToggleOn: {
+    backgroundColor: colors.emergencyDeep,
+  },
+  volunteerToggleOff: {
+    backgroundColor: colors.border,
+  },
+  volunteerTogglePressed: {
+    opacity: 0.8,
+  },
+  toggleKnob: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.white,
+    shadowColor: colors.cardShadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  toggleKnobOn: {
+    alignSelf: 'flex-end',
+  },
+  toggleKnobOff: {
+    alignSelf: 'flex-start',
+  },
+  volunteerToggleModalOverlay: {
+    backgroundColor: colors.modalBackdrop,
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  volunteerToggleModalContent: {
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    padding: 24,
+    margin: 20,
+    maxWidth: 320,
+  },
+  volunteerToggleModalTitle: {
+    color: colors.navy,
+    fontSize: 20,
     fontWeight: '700',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  volunteerToggleModalMessage: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: '500',
+    lineHeight: 22,
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  volunteerToggleModalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  volunteerToggleCancelButton: {
+    flex: 1,
+    backgroundColor: colors.background,
+    borderRadius: 8,
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  volunteerToggleConfirmButton: {
+    flex: 1,
+    backgroundColor: colors.emergencyDeep,
+    borderRadius: 8,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  volunteerToggleButtonPressed: {
+    opacity: 0.8,
+  },
+  volunteerToggleCancelButtonText: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: '600',
+    lineHeight: 22,
+  },
+  volunteerToggleConfirmButtonText: {
+    color: colors.onPrimary,
+    fontSize: 16,
+    fontWeight: '600',
     lineHeight: 22,
   },
 });

@@ -55,6 +55,7 @@ type ResidentAlertUiKey =
   | 'schoolEmergencyContext'
   | 'schoolsTargeted'
   | 'searchPlaceholder'
+  | 'subscribedArea'
   | 'subtitle'
   | 'unableLoadAlerts'
   | 'viewAlert'
@@ -266,6 +267,7 @@ export const residentAlertUiText: Record<PreferredLanguage, Record<ResidentAlert
     schoolEmergencyContext: 'SCHOOL EMERGENCY',
     schoolsTargeted: 'Schools Targeted',
     searchPlaceholder: 'Search by alert type or area...',
+    subscribedArea: 'SUBSCRIBED AREA',
     subtitle: 'Verified emergency warnings for your area',
     unableLoadAlerts: 'Unable to load emergency alerts.',
     viewAlert: 'View Alert',
@@ -304,6 +306,7 @@ export const residentAlertUiText: Record<PreferredLanguage, Record<ResidentAlert
     schoolEmergencyContext: 'පාසල් හදිසි',
     schoolsTargeted: 'ඉලක්ක කළ පාසල්',
     searchPlaceholder: 'අනතුරු ඇඟවීමේ වර්ගය හෝ ප්‍රදේශය සොයන්න...',
+    subscribedArea: 'දායක වූ ප්‍රදේශය',
     subtitle: 'ඔබගේ ප්‍රදේශය සඳහා තහවුරු කළ හදිසි අනතුරු ඇඟවීම්',
     unableLoadAlerts: 'හදිසි අනතුරු ඇඟවීම් පූරණය කළ නොහැක.',
     viewAlert: 'අනතුරු ඇඟවීම බලන්න',
@@ -342,6 +345,7 @@ export const residentAlertUiText: Record<PreferredLanguage, Record<ResidentAlert
     schoolEmergencyContext: 'பள்ளி அவசரம்',
     schoolsTargeted: 'இலக்கு பள்ளிகள்',
     searchPlaceholder: 'எச்சரிக்கை வகை அல்லது பகுதியால் தேடவும்...',
+    subscribedArea: 'சந்தா பகுதி',
     subtitle: 'உங்கள் பகுதிக்கான உறுதிப்படுத்தப்பட்ட அவசர எச்சரிக்கைகள்',
     unableLoadAlerts: 'அவசர எச்சரிக்கைகளை ஏற்ற முடியவில்லை.',
     viewAlert: 'எச்சரிக்கையை பார்க்க',
@@ -903,19 +907,19 @@ const riskLevelText: Record<PreferredLanguage, Record<AlertRiskLevel, string>> =
 const statusText: Record<PreferredLanguage, Record<string, string>> = {
   English: {
     Active: 'ACTIVE',
-    Cancelled: 'CANCELLED',
+    Cancelled: 'REMOVED',
     Expired: 'EXPIRED',
     Resolved: 'RESOLVED',
   },
   Sinhala: {
     Active: 'සක්‍රීය',
-    Cancelled: 'අවලංගු කර ඇත',
+    Cancelled: 'ඉවත් කර ඇත',
     Expired: 'කල් ඉකුත් වී ඇත',
     Resolved: 'විසඳී ඇත',
   },
   Tamil: {
     Active: 'செயலில்',
-    Cancelled: 'ரத்து செய்யப்பட்டது',
+    Cancelled: 'நீக்கப்பட்டது',
     Expired: 'காலாவதியானது',
     Resolved: 'தீர்க்கப்பட்டது',
   },

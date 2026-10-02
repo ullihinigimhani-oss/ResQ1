@@ -43,6 +43,18 @@ const MAX_INCIDENT_PHOTOS = 5;
 const MAX_PHOTO_SIZE_BYTES = 8 * 1024 * 1024;
 const SUPPORTED_PHOTO_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
+function normalizePhotoMimeType(mimeType: string | null | undefined) {
+  if (!mimeType) {
+    return 'image/jpeg';
+  }
+
+  if (mimeType === 'image/jpg') {
+    return 'image/jpeg';
+  }
+
+  return mimeType;
+}
+
 
 type IncidentForm = {
   incidentType: IncidentType | '';
@@ -237,13 +249,13 @@ export default function ReportIncidentScreen() {
     const accepted = assets
       .filter((asset) =>
         (asset.fileSize === undefined || asset.fileSize <= MAX_PHOTO_SIZE_BYTES) &&
-        (asset.mimeType === null || asset.mimeType === undefined || SUPPORTED_PHOTO_TYPES.has(asset.mimeType)),
+        SUPPORTED_PHOTO_TYPES.has(normalizePhotoMimeType(asset.mimeType)),
       )
       .slice(0, remainingSlots)
       .map((asset, index) => ({
         uri: asset.uri,
         fileName: asset.fileName || `incident-evidence-${Date.now()}-${index}.jpg`,
-        mimeType: asset.mimeType || 'image/jpeg',
+        mimeType: normalizePhotoMimeType(asset.mimeType),
         fileSize: asset.fileSize ?? null,
         width: asset.width,
         height: asset.height,
@@ -299,11 +311,13 @@ export default function ReportIncidentScreen() {
     try {
       const incident = await createIncident(validation.payload, token);
       let photoUploadFailed = false;
+      let photoUploadMessage: string | null = null;
 
       try {
         await Promise.all(photos.map((photo) => uploadIncidentPhoto(incident.id, photo, token)));
       } catch (error) {
         photoUploadFailed = true;
+        photoUploadMessage = isIncidentApiError(error) && error.statusCode > 0 ? error.message : null;
         if (__DEV__) {
           console.warn('Incident photo upload failed:', error);
         }
@@ -311,7 +325,11 @@ export default function ReportIncidentScreen() {
 
       router.replace({
         pathname: '/incidents',
-        params: { submitted: '1', photoUploadFailed: photoUploadFailed ? '1' : '0' },
+        params: {
+          submitted: '1',
+          photoUploadFailed: photoUploadFailed ? '1' : '0',
+          ...(photoUploadMessage ? { photoUploadMessage } : {}),
+        },
       } as unknown as Href);
     } catch (error) {
       if (isIncidentApiError(error)) {
@@ -346,7 +364,6 @@ export default function ReportIncidentScreen() {
           <BackButton onPress={() => router.replace('/incidents' as Href)} />
 
           <View style={styles.header}>
-            <Text style={styles.eyebrow}>Resident Incident Report</Text>
             <Text style={styles.title}>Report Disaster Incident</Text>
             <Text style={styles.subtitle}>
               Share accurate information to help emergency teams respond quickly.
@@ -368,13 +385,47 @@ export default function ReportIncidentScreen() {
           <View style={styles.form}>
             <View style={styles.fieldGroup}>
               <Text style={styles.label}>Disaster Type</Text>
-              <Pressable
-                style={[styles.dropdownButton, fieldErrors.incidentType && styles.selectorError]}
-                onPress={() => setIsTypeDropdownVisible(true)}>
-                <Text style={[styles.dropdownButtonText, !form.incidentType && styles.dropdownPlaceholder]}>
-                  {form.incidentType || 'Select disaster type...'}
-                </Text>
-              </Pressable>
+              <View style={styles.dropdownWrapper}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityState={{ expanded: isTypeDropdownVisible }}
+                  onPress={() => setIsTypeDropdownVisible((visible) => !visible)}
+                  style={[styles.dropdownButton, fieldErrors.incidentType && styles.selectorError, isTypeDropdownVisible && styles.dropdownButtonOpen]}>
+                  <Text style={[styles.dropdownButtonText, !form.incidentType && styles.dropdownPlaceholder]}>
+                    {form.incidentType || 'Select disaster type...'}
+                  </Text>
+                  <Text style={styles.dropdownCaret}>
+                    {isTypeDropdownVisible ? '▲' : '▼'}
+                  </Text>
+                </Pressable>
+                {isTypeDropdownVisible ? (
+                  <View style={styles.dropdownPanel}>
+                    {incidentTypeOptions.map((type) => {
+                      const selected = form.incidentType === type;
+
+                      return (
+                        <Pressable
+                          accessibilityRole="button"
+                          key={type}
+                          onPress={() => {
+                            setForm((current) => ({ ...current, incidentType: type }));
+                            setFieldErrors((current) => ({ ...current, incidentType: undefined }));
+                            setIsTypeDropdownVisible(false);
+                          }}
+                          style={({ pressed }) => [
+                            styles.dropdownItem,
+                            selected && styles.dropdownItemSelected,
+                            pressed && styles.pressed,
+                          ]}>
+                          <Text style={[styles.dropdownItemText, selected && styles.dropdownItemTextSelected]}>
+                            {type}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                ) : null}
+              </View>
               {fieldErrors.incidentType ? <Text style={styles.errorText}>{fieldErrors.incidentType}</Text> : null}
             </View>
 
@@ -492,28 +543,6 @@ export default function ReportIncidentScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      <Modal visible={isTypeDropdownVisible} transparent animationType="fade">
-        <Pressable style={styles.modalOverlay} onPress={() => setIsTypeDropdownVisible(false)}>
-          <View style={styles.dropdownMenu}>
-            <Text style={styles.dropdownTitle}>Select Disaster Type</Text>
-            {incidentTypeOptions.map((type) => (
-              <Pressable
-                key={type}
-                style={styles.dropdownItem}
-                onPress={() => {
-                  setForm((current) => ({ ...current, incidentType: type }));
-                  setFieldErrors((current) => ({ ...current, incidentType: undefined }));
-                  setIsTypeDropdownVisible(false);
-                }}>
-                <Text style={[styles.dropdownItemText, form.incidentType === type && styles.dropdownItemTextSelected]}>
-                  {type}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        </Pressable>
-      </Modal>
-
       <Modal
         animationType="slide"
         onRequestClose={() => setIsCameraVisible(false)}
@@ -574,12 +603,6 @@ const styles = StyleSheet.create({
   },
   header: {
     gap: 8,
-  },
-  eyebrow: {
-    color: BrandColors.red,
-    fontSize: 13,
-    fontWeight: '700',
-    textTransform: 'uppercase',
   },
   title: {
     color: BrandColors.navy,
@@ -692,13 +715,19 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   dropdownButton: {
+    alignItems: 'center',
     backgroundColor: BrandColors.white,
     borderColor: BrandColors.border,
-    borderRadius: 8,
+    borderRadius: 16,
     borderWidth: 1,
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'space-between',
     minHeight: 52,
-    justifyContent: 'center',
     paddingHorizontal: 14,
+  },
+  dropdownButtonOpen: {
+    borderColor: BrandColors.accentAction,
   },
   dropdownButtonText: {
     color: BrandColors.navy,
@@ -708,21 +737,31 @@ const styles = StyleSheet.create({
   dropdownPlaceholder: {
     color: BrandColors.muted,
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: BrandColors.dropdownBackdrop,
-    justifyContent: 'center',
-    padding: 24,
+  dropdownCaret: {
+    color: BrandColors.muted,
+    fontSize: 12,
+    fontWeight: '700',
   },
-  dropdownMenu: {
+  dropdownWrapper: {
+    position: 'relative',
+  },
+  dropdownPanel: {
     backgroundColor: BrandColors.white,
-    borderRadius: 8,
+    borderColor: BrandColors.border,
+    borderRadius: 16,
+    borderWidth: 1,
+    elevation: 8,
+    left: 0,
+    marginTop: 6,
     overflow: 'hidden',
-    padding: 8,
+    padding: 4,
+    position: 'absolute',
+    right: 0,
+    top: '100%',
+    zIndex: 20,
     ...Platform.select({
       web: { boxShadow: '0 2px 6px rgba(8, 29, 56, 0.08)' },
       default: {
-        elevation: 2,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.06,
@@ -730,21 +769,13 @@ const styles = StyleSheet.create({
       },
     }),
   },
-  dropdownTitle: {
-    color: BrandColors.navy,
-    fontSize: 18,
-    fontWeight: '700',
-    paddingHorizontal: 12,
-    paddingVertical: 16,
-    textAlign: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: BrandColors.border,
-    marginBottom: 8,
-  },
   dropdownItem: {
     paddingVertical: 14,
     paddingHorizontal: 16,
-    borderRadius: 8,
+    borderRadius: 16,
+  },
+  dropdownItemSelected: {
+    backgroundColor: BrandColors.lightBlue,
   },
   dropdownItemText: {
     color: BrandColors.text,

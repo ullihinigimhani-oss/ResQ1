@@ -98,6 +98,12 @@
   --resq1-splash-blue-bottom: #0274df;
   --resq1-splash-blue: #208aef;
   --resq1-slate: #24344d;
+  --resq1-switch-track: #d1d5db;
+  --resq1-switch-thumb: #f4f3f4;
+  --resq1-emergency-deep: #8b0000;
+  --resq1-emergency-bright: #ff0000;
+  --resq1-safe-bright: #00ff00;
+  --resq1-on-primary: #ffffff;
   --font-ui: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-display: var(--font-ui);
   --font-mono:
@@ -178,6 +184,12 @@
   --resq1-splash-blue-bottom: #315f83;
   --resq1-splash-blue: #3f7199;
   --resq1-slate: #94a3b8;
+  --resq1-switch-track: #354456;
+  --resq1-switch-thumb: #cbd5e1;
+  --resq1-emergency-deep: #4c1d2a;
+  --resq1-emergency-bright: #be4455;
+  --resq1-safe-bright: #2a9d8f;
+  --resq1-on-primary: #ffffff;
 }
 
 html,

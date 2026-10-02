@@ -213,28 +213,6 @@ function EmptyRows({ body, title }: { body: string; title: string }) {
   );
 }
 
-function AssistancePanel() {
-  return (
-    <View style={[styles.panel, styles.assistancePanel]}>
-      <PanelHeader
-        subtitle="Resident emergency support queue"
-        title="Assistance Requests Requiring Attention"
-      />
-      <View style={styles.assistanceState}>
-        <View style={styles.assistanceIcon}>
-          <AppIcon fallback="+" name="cross.case.fill" size={23} tintColor={colors.amber} />
-        </View>
-        <View style={styles.assistanceCopy}>
-          <Text style={styles.assistanceTitle}>Request data is unavailable</Text>
-          <Text style={styles.assistanceBody}>
-            No assistance request data is available from the server, so no pending count or request details are shown.
-          </Text>
-        </View>
-      </View>
-    </View>
-  );
-}
-
 function IncidentRow({ incident, last }: { incident: Incident; last: boolean }) {
   const router = useRouter();
 
@@ -305,6 +283,16 @@ function AlertPanel({ alerts, loading }: Pick<AuthorityDashboardProps, 'alerts' 
         subtitle="Current official warnings"
         title="Active Alerts"
       />
+      <View style={styles.alertPanelActions}>
+        <Pressable
+          accessibilityLabel="Create emergency alert"
+          accessibilityRole="button"
+          onPress={() => router.push('/alerts/create' as Href)}
+          style={({ pressed }) => [styles.createAlertButton, pressed && styles.pressed]}>
+          <AppIcon fallback="+" name="plus.circle.fill" size={18} tintColor={colors.onPrimary} />
+          <Text style={styles.createAlertButtonText}>Create Alert</Text>
+        </Pressable>
+      </View>
       {loading ? <LoadingRows label="Loading active alerts..." /> : null}
       {!loading && activeAlerts.length === 0 ? (
         <EmptyRows body="No official alerts are active right now." title="No active alerts" />
@@ -565,7 +553,6 @@ export function AuthorityDashboard({
           />
         </View>
 
-        <AssistancePanel />
         <IncidentPanel incidents={incidents} loading={loading} />
         <AlertPanel alerts={alerts} loading={loading} />
         <ShelterPanel loading={loading} shelters={shelters} />
@@ -776,9 +763,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     overflow: 'hidden',
   },
-  assistancePanel: {
-    borderColor: colors.warningBorder,
-  },
   panelHeader: {
     alignItems: 'flex-start',
     borderBottomColor: colors.border,
@@ -821,6 +805,28 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
   },
+  alertPanelActions: {
+    alignItems: 'flex-start',
+    borderBottomColor: colors.border,
+    borderBottomWidth: 1,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  createAlertButton: {
+    alignItems: 'center',
+    backgroundColor: colors.redAction,
+    borderRadius: radius.md,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    justifyContent: 'center',
+    minHeight: 42,
+    paddingHorizontal: spacing.lg,
+  },
+  createAlertButtonText: {
+    color: colors.onPrimary,
+    fontSize: 13,
+    fontWeight: '700',
+  },
   stateRow: {
     alignItems: 'center',
     flexDirection: 'row',
@@ -847,39 +853,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     lineHeight: 18,
-  },
-  assistanceState: {
-    alignItems: 'center',
-    backgroundColor: colors.amberSoft,
-    flexDirection: 'row',
-    gap: spacing.md,
-    padding: spacing.lg,
-  },
-  assistanceIcon: {
-    alignItems: 'center',
-    backgroundColor: colors.white,
-    borderColor: colors.warningBorder,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    height: 46,
-    justifyContent: 'center',
-    width: 46,
-  },
-  assistanceCopy: {
-    flex: 1,
-    gap: spacing.xs,
-  },
-  assistanceTitle: {
-    color: colors.navy,
-    fontSize: 14,
-    fontWeight: '700',
-    lineHeight: 19,
-  },
-  assistanceBody: {
-    color: colors.text,
-    fontSize: 12,
-    fontWeight: '600',
-    lineHeight: 17,
   },
   listRow: {
     flexDirection: 'row',

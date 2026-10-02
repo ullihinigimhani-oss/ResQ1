@@ -20,6 +20,7 @@ import type {
   VerifyPasswordInput,
   VerifyResetOtpInput,
 } from '../types/auth.js';
+import { canonicalRole } from '../utils/roles.js';
 
 const PASSWORD_SALT_ROUNDS = 12;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -72,7 +73,11 @@ function normalizeEmail(value: unknown): string {
 }
 
 function formatTimestamp(value: Date | string): string {
-  return value instanceof Date ? value.toISOString() : String(value);
+  if (value instanceof Date) {
+    return new Date(value.getTime() - value.getTimezoneOffset() * 60_000).toISOString();
+  }
+
+  return String(value);
 }
 
 function toSafeUser(row: UserRow): SafeUser {
@@ -81,7 +86,7 @@ function toSafeUser(row: UserRow): SafeUser {
     fullName: row.full_name,
     email: row.email,
     phoneNumber: row.phone_number,
-    role: row.role,
+    role: canonicalRole(row.role) as UserRow['role'],
     location: row.location,
     preferredLanguage: row.preferred_language,
     isVolunteer: row.is_volunteer,
@@ -260,6 +265,7 @@ function validateProfileInput(input: UpdateProfileInput) {
   const phoneNumber = trimmedText(input.phoneNumber);
   const location = trimmedText(input.location);
   const preferredLanguage = trimmedText(input.preferredLanguage);
+  const isVolunteer = input.isVolunteer === true;
   const fieldErrors: Record<string, string> = {};
 
   if (!fullName) {
@@ -292,6 +298,7 @@ function validateProfileInput(input: UpdateProfileInput) {
     phoneNumber,
     location,
     preferredLanguage: preferredLanguage as PreferredLanguage,
+    isVolunteer,
   };
 }
 
@@ -732,6 +739,7 @@ export async function updateResidentProfile(
       phone_number = ${profile.phoneNumber || null},
       location = ${profile.location},
       preferred_language = ${profile.preferredLanguage},
+      is_volunteer = ${profile.isVolunteer},
       updated_at = CURRENT_TIMESTAMP
     WHERE id = ${userId}
     RETURNING id, full_name, email, phone_number, role, location, preferred_language, is_volunteer, volunteer_area_latitude, volunteer_area_longitude, is_volunteering_active, created_at, updated_at

@@ -22,33 +22,18 @@ import {
   StatusBadge,
   StatusTimeline,
 } from '@/components/incidents/incident-badges';
-import MapView, { Marker, PROVIDER_GOOGLE } from '@/components/shelters/native-map';
+import OpenStreetMap from '@/components/shelters/openstreet-map';
 import { BrandColors } from '@/constants/brand';
 import { useAuth } from '@/context/auth-context';
 import { getIncidentById, isIncidentApiError, updateIncidentStatus } from '@/services/incidentService';
 import { API_BASE_URL } from '@/services/authService';
 import { incidentStatusWorkflow, type Incident, type IncidentStatus } from '@/types/incident';
+import { formatDateTimeColombo as formatDateTime } from '@/utils/format';
 
 const authorityStatusOptions = incidentStatusWorkflow.filter((status) => status !== 'Reported');
 
 function firstParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
-}
-
-function formatDateTime(value: string) {
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return date.toLocaleString(undefined, {
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
 }
 
 function DetailRow({ label, value }: { label: string; value: string }) {
@@ -83,10 +68,12 @@ export default function IncidentDetailsScreen() {
     const performUpdate = async () => {
       setUpdatingStatus(true);
       try {
-        const updatedIncident = await updateIncidentStatus(Number(incidentId), newStatus, token);
-        setIncident(updatedIncident);
+        const result = await updateIncidentStatus(Number(incidentId), newStatus, token);
+        setIncident(result.incident);
         if (Platform.OS === 'web') {
-          window.alert(`Status updated to ${newStatus}.`);
+          window.alert(result.message);
+        } else {
+          Alert.alert('Success', result.message);
         }
       } catch (error) {
         const message = isIncidentApiError(error) ? error.message : 'Unable to update status.';
@@ -232,7 +219,7 @@ export default function IncidentDetailsScreen() {
               </View>
             </View>
 
-            {incident.status === 'Reported' && (
+            {incident && incident.status === 'Reported' && incident.userId === user?.id && (
               <View style={styles.editActionContainer}>
                 <AuthButton
                   title="Edit Report"
@@ -251,22 +238,23 @@ export default function IncidentDetailsScreen() {
                   </View>
                 ) : (
                   <View style={styles.mapContainer}>
-                    <MapView
-                      provider={PROVIDER_GOOGLE}
-                      style={styles.map}
+                    <OpenStreetMap
                       initialRegion={{
                         latitude: incidentLatitude,
                         longitude: incidentLongitude,
                         latitudeDelta: 0.05,
                         longitudeDelta: 0.05,
-                      }}>
-                      <Marker
-                        coordinate={{ latitude: incidentLatitude, longitude: incidentLongitude }}
-                        description={incident.location}
-                        pinColor={BrandColors.red}
-                        title="Incident Location"
-                      />
-                    </MapView>
+                      }}
+                      markers={[
+                        {
+                          latitude: incidentLatitude,
+                          longitude: incidentLongitude,
+                          title: 'Incident Location',
+                          color: '#D71920'
+                        }
+                      ]}
+                      style={styles.map}
+                    />
                   </View>
                 )
               ) : (
@@ -283,6 +271,10 @@ export default function IncidentDetailsScreen() {
               <DetailRow label="Location" value={incident.location} />
               <DetailRow label="Incident Type" value={incident.incidentType} />
               <DetailRow label="Severity" value={incident.severity} />
+              <DetailRow
+                label="Submitted By"
+                value={incident.submittedByRole === 'authority' ? 'Authority' : 'Resident'}
+              />
               <DetailRow label="Submitted Date" value={formatDateTime(incident.createdAt)} />
               <DetailRow label="Last Updated" value={formatDateTime(incident.updatedAt)} />
             </View>

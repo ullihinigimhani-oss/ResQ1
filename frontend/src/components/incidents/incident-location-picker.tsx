@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 
 import { AuthTextField } from '@/components/common/auth-components';
-import MapView, { Marker, PROVIDER_GOOGLE } from '@/components/shelters/native-map';
+import OpenStreetMap from '@/components/shelters/openstreet-map';
 import { BrandColors } from '@/constants/brand';
 import { useAuth } from '@/context/auth-context';
 import {
@@ -333,31 +333,12 @@ export function IncidentLocationPicker({
       ) : null}
 
       <View style={styles.mapContainer}>
-        <MapView
-          provider={PROVIDER_GOOGLE}
-          region={region}
-          onPress={handleMapPress}
-          showsUserLocation
-          style={styles.map}>
-          {marker ? (
-            <Marker
-              coordinate={marker}
-              title="Incident Location"
-              description="Drag or tap to set the incident position"
-              pinColor={BrandColors.red}
-              draggable
-              onDragEnd={(event) => {
-                applyCoordinates(
-                  {
-                    latitude: event.nativeEvent.coordinate.latitude,
-                    longitude: event.nativeEvent.coordinate.longitude,
-                  },
-                  'Location updated.',
-                );
-              }}
-            />
-          ) : null}
-        </MapView>
+        <OpenStreetMap
+          initialRegion={region}
+          markers={marker ? [{ latitude: marker.latitude, longitude: marker.longitude, title: 'Incident Location', color: '#D71920' }] : []}
+          onMapPress={handleMapPress}
+          style={styles.map}
+        />
 
         <Pressable
           accessibilityRole="button"

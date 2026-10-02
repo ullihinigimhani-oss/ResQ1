@@ -4,6 +4,7 @@ export interface SOSRequest {
   latitude: number;
   longitude: number;
   status: 'pending' | 'accepted' | 'completed';
+  evacuationStatus: 'pending' | 'assistant_came' | 'rescued' | 'safe_shelter' | 'still_in_disaster';
   volunteerId: number | null;
   createdAt: string;
   updatedAt: string;

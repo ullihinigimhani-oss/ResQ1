@@ -2,6 +2,7 @@ import type { Request, Response } from 'express';
 
 import { AlertServiceError } from '../services/alertService.js';
 import { registerResidentPushToken } from '../services/notificationService.js';
+import { isResidentRole } from '../utils/roles.js';
 
 function sendNotificationError(error: unknown, res: Response) {
   if (error instanceof AlertServiceError) {
@@ -27,7 +28,7 @@ function requireResident(req: Request) {
     throw new AlertServiceError(401, 'Authentication is required.');
   }
 
-  if (String(user.role).toLowerCase() !== 'resident') {
+  if (!isResidentRole(user.role)) {
     throw new AlertServiceError(403, 'Push notifications are available for resident users only.');
   }
 

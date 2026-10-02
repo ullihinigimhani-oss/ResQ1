@@ -51,7 +51,11 @@ function optionalTimestamp(value: Date | string | null) {
     return null;
   }
 
-  return value instanceof Date ? value.toISOString() : String(value);
+  if (value instanceof Date) {
+    return new Date(value.getTime() - value.getTimezoneOffset() * 60_000).toISOString();
+  }
+
+  return String(value);
 }
 
 function numericShelterId(shelterId: string) {
@@ -498,4 +502,16 @@ export async function updateShelter(id: string, input: UpdateShelterInput) {
   }
 
   return toShelter(updatedShelter);
+}
+
+export async function deleteShelter(id: string) {
+  const rows = await sql`
+    DELETE FROM shelters
+    WHERE id = ${id}
+    RETURNING id
+  `;
+
+  if (rows.length === 0) {
+    throw new ShelterServiceError(404, 'Shelter not found.');
+  }
 }

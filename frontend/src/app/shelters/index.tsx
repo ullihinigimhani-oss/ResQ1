@@ -22,10 +22,12 @@ import { BottomNavigation } from '@/components/ui/app-components';
 import { ShelterStatusBadge } from '@/components/shelters/shelter-ui';
 import { BrandColors } from '@/constants/brand';
 import { useAuth } from '@/context/auth-context';
+import { useCurrentLocation } from '@/hooks/use-current-location';
 import { getShelters, isShelterApiError } from '@/services/shelterService';
-import { createSOSRequest, getUserSOSStatus } from '@/services/sosService';
+import { createSOSRequest, getUserSOSStatus, updateEvacuationStatus } from '@/services/sosService';
 import type { Shelter } from '@/types/shelter';
 import type { SOSRequestWithVolunteer } from '@/types/sos';
+import { EvacuationStatusModal } from '@/components/sos/EvacuationStatusModal';
 
 type FilterKey = 'Nearest' | 'Available' | 'Medical Support' | 'Family Friendly' | 'Area';
 
@@ -148,6 +150,7 @@ function ShelterCard({
 export default function NearbySheltersScreen() {
   const router = useRouter();
   const { isLoading, token, user } = useAuth();
+  const { currentArea } = useCurrentLocation();
   const [shelters, setShelters] = useState<Shelter[]>([]);
   const [loadingShelters, setLoadingShelters] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -155,6 +158,8 @@ export default function NearbySheltersScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sosModalVisible, setSosModalVisible] = useState(false);
   const [sosRequest, setSosRequest] = useState<SOSRequestWithVolunteer | null>(null);
+  const [evacuationStatusModalVisible, setEvacuationStatusModalVisible] = useState(false);
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
 
   // Disable SOS polling on web to prevent network errors
   const isWeb = Platform.OS === 'web';
@@ -198,7 +203,14 @@ export default function NearbySheltersScreen() {
       const checkSOSStatus = async () => {
         try {
           const status = await getUserSOSStatus(token);
-          setSosRequest(status);
+          console.log('User SOS status:', status);
+          // Only set SOS request if it's still active (pending or accepted)
+          // If status is completed, clear it to show SOS button
+          if (status && status.status === 'completed') {
+            setSosRequest(null);
+          } else {
+            setSosRequest(status);
+          }
         } catch (error) {
           console.error('Failed to check SOS status:', error);
         }
@@ -211,17 +223,61 @@ export default function NearbySheltersScreen() {
     }
   }, [token, isWeb]);
 
+  useEffect(() => {
+    const getUserLocation = async () => {
+      if (Platform.OS === 'web') {
+        return;
+      }
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          const location = await Location.getCurrentPositionAsync({});
+          setUserLocation({
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+          });
+        }
+      } catch (error) {
+        console.error('Failed to get user location:', error);
+      }
+    };
+
+    void getUserLocation();
+  }, []);
+
   const filteredShelters = useMemo(() => {
     const query = normalizedText(searchQuery);
 
-    return (shelters || []).filter((shelter) => {
+    let filtered = (shelters || []).filter((shelter) => {
       return (
         !query ||
         normalizedText(shelter.name).includes(query) ||
         normalizedText(shelter.area).includes(query)
       );
     });
-  }, [searchQuery, shelters]);
+
+    // Sort by distance from user location if available
+    if (userLocation && userLocation.latitude && userLocation.longitude) {
+      filtered = filtered.map(shelter => {
+        let distance = Infinity;
+        if (shelter.latitude && shelter.longitude) {
+          // Calculate distance using Haversine formula
+          const R = 6371; // Earth's radius in km
+          const dLat = (shelter.latitude - userLocation.latitude) * Math.PI / 180;
+          const dLon = (shelter.longitude - userLocation.longitude) * Math.PI / 180;
+          const a = 
+            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(userLocation.latitude * Math.PI / 180) * Math.cos(shelter.latitude * Math.PI / 180) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+          distance = R * c;
+        }
+        return { ...shelter, distance };
+      }).sort((a, b) => (a.distance || Infinity) - (b.distance || Infinity));
+    }
+
+    return filtered;
+  }, [searchQuery, shelters, userLocation]);
 
   const handleShareLocation = async () => {
     if (!token) return;
@@ -248,6 +304,44 @@ export default function NearbySheltersScreen() {
     } catch (error) {
       console.error('Failed to create SOS request:', error);
       alert('Failed to share location. Please try again.');
+    }
+  };
+
+  const handleUpdateEvacuationStatus = async (status: 'assistant_came' | 'rescued' | 'safe_shelter' | 'still_in_disaster') => {
+    if (!token || !sosRequest) return;
+
+    console.log('handleUpdateEvacuationStatus called with:', status);
+    console.log('Current SOS request:', sosRequest);
+
+    try {
+      if (status === 'still_in_disaster') {
+        // Create a new SOS request
+        const location = await Location.getCurrentPositionAsync({});
+        await createSOSRequest(token, {
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+        });
+        alert('New SOS request has been created. Help is on the way!');
+      } else {
+        // Update the evacuation status - this will mark SOS as completed
+        const updated = await updateEvacuationStatus(token, sosRequest.id, status);
+        console.log('Updated SOS request:', updated);
+        alert('Evacuation status updated successfully. Your rescue team has been notified.');
+        // Clear the SOS request so SOS button reappears
+        setSosRequest(null);
+      }
+    } catch (error) {
+      console.error('Failed to update evacuation status:', error);
+      alert('Failed to update evacuation status. Please try again.');
+    }
+  };
+
+  const handleCallVolunteer = (phoneNumber: string) => {
+    const cleaned = phoneNumber.replace(/[^0-9+]/g, '');
+    if (cleaned) {
+      Linking.openURL(`tel:${cleaned}`).catch(() => {
+        alert(`Could not dial ${phoneNumber} automatically.`);
+      });
     }
   };
 
@@ -296,11 +390,18 @@ export default function NearbySheltersScreen() {
               <View style={styles.volunteerContact}>
                 <Text style={styles.volunteerContactLabel}>Rescue Team:</Text>
                 <Text style={styles.volunteerName}>{sosRequest.volunteerName}</Text>
-                <Pressable
-                  onPress={() => Linking.openURL(`tel:${sosRequest.volunteerPhone}`)}
-                  style={({ pressed }) => [styles.callVolunteerButton, pressed && styles.callVolunteerButtonPressed]}>
-                  <Text style={styles.callVolunteerButtonText}>Call</Text>
-                </Pressable>
+                <View style={styles.volunteerButtons}>
+                  <Pressable
+                    onPress={() => handleCallVolunteer(sosRequest.volunteerPhone || '')}
+                    style={({ pressed }) => [styles.callVolunteerButton, pressed && styles.callVolunteerButtonPressed]}>
+                    <Text style={styles.callVolunteerButtonText}>Call</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => setEvacuationStatusModalVisible(true)}
+                    style={({ pressed }) => [styles.updateStatusButton, pressed && styles.updateStatusButtonPressed]}>
+                    <Text style={styles.updateStatusButtonText}>Update</Text>
+                  </Pressable>
+                </View>
               </View>
             ) : (
               <Pressable
@@ -323,6 +424,10 @@ export default function NearbySheltersScreen() {
             variant="primary"
           />
         ) : null}
+
+        <View style={styles.currentLocationSection}>
+          <Text style={styles.currentLocationText}>Current Location: {currentArea || 'Detecting location...'}</Text>
+        </View>
 
         <View style={styles.searchPanel}>
           <TextInput
@@ -416,6 +521,12 @@ export default function NearbySheltersScreen() {
           </View>
         </View>
       </Modal>
+
+      <EvacuationStatusModal
+        visible={evacuationStatusModalVisible}
+        onClose={() => setEvacuationStatusModalVisible(false)}
+        onUpdateStatus={handleUpdateEvacuationStatus}
+      />
     </SafeAreaView>
   );
 }
@@ -469,13 +580,13 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   sosButton: {
-    backgroundColor: '#FF0000',
+    backgroundColor: BrandColors.emergencyBright,
     borderRadius: 30,
     width: 60,
     height: 60,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
+    shadowColor: BrandColors.cardShadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
@@ -485,13 +596,26 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
   sosButtonText: {
-    color: '#FFFFFF',
+    color: BrandColors.onPrimary,
     fontSize: 16,
     fontWeight: '700',
     lineHeight: 20,
   },
   createButton: {
-    marginTop: 4,
+    marginBottom: 16,
+  },
+  currentLocationSection: {
+    marginBottom: 8,
+  },
+  currentLocationLabel: {
+    color: BrandColors.muted,
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  currentLocationText: {
+    color: BrandColors.text,
+    fontSize: 12,
+    fontWeight: '600',
   },
   emergencyButton: {
     backgroundColor: BrandColors.redAction,
@@ -689,7 +813,7 @@ const styles = StyleSheet.create({
     opacity: 0.72,
   },
   modalOverlay: {
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: BrandColors.modalBackdrop,
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
@@ -729,7 +853,7 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
   shareLocationButtonText: {
-    color: BrandColors.white,
+    color: BrandColors.onPrimary,
     fontSize: 16,
     fontWeight: '700',
     lineHeight: 22,
@@ -753,7 +877,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   readyButton: {
-    backgroundColor: '#00FF00',
+    backgroundColor: BrandColors.safeBright,
     borderRadius: 8,
     paddingVertical: 14,
     paddingHorizontal: 16,
@@ -787,7 +911,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   volunteerContact: {
-    backgroundColor: '#00FF00',
+    backgroundColor: BrandColors.safeBright,
     borderRadius: 8,
     padding: 8,
     alignItems: 'center',
@@ -805,6 +929,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     lineHeight: 18,
   },
+  volunteerButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
   callVolunteerButton: {
     backgroundColor: BrandColors.navy,
     borderRadius: 6,
@@ -815,7 +943,22 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
   callVolunteerButtonText: {
-    color: BrandColors.white,
+    color: BrandColors.onPrimary,
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 18,
+  },
+  updateStatusButton: {
+    backgroundColor: BrandColors.success,
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  updateStatusButtonPressed: {
+    opacity: 0.8,
+  },
+  updateStatusButtonText: {
+    color: BrandColors.onPrimary,
     fontSize: 14,
     fontWeight: '700',
     lineHeight: 18,

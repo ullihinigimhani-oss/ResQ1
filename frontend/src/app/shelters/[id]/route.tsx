@@ -16,7 +16,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AuthButton, BackButton, StatusBanner } from '@/components/common/auth-components';
-import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from '@/components/shelters/native-map';
+import OpenStreetMap from '@/components/shelters/openstreet-map';
 import { ShelterStatusBadge } from '@/components/shelters/shelter-ui';
 import { BrandColors } from '@/constants/brand';
 import { useAuth } from '@/context/auth-context';
@@ -485,56 +485,26 @@ export default function ShelterRouteScreen() {
             </View>
           ) : (
             <View style={styles.mapContainer}>
-              <MapView
-                provider={PROVIDER_GOOGLE}
+              <OpenStreetMap
+                initialRegion={mapRegion}
+                markers={[
+                  ...(userLocation ? [{ latitude: userLocation.latitude, longitude: userLocation.longitude, title: 'Your Location', color: '#0B74C4' }] : []),
+                  ...(shelter?.latitude && shelter?.longitude ? [{ latitude: shelter.latitude, longitude: shelter.longitude, title: shelter.name, color: '#0F766E' }] : []),
+                  ...incidents.slice(0, 10).filter(i => i.latitude && i.longitude).map(incident => ({
+                    latitude: incident.latitude as number,
+                    longitude: incident.longitude as number,
+                    title: incident.title,
+                    color: '#D71920'
+                  }))
+                ]}
+                polylines={safeRoutes.map(route => ({
+                  coordinates: route.points,
+                  color: route.isSafest ? '#22C55E' : '#000000',
+                  strokeWidth: route.isSafest ? 5 : 3,
+                  lineDashPattern: route.isSafest ? undefined : [10, 5]
+                }))}
                 style={styles.map}
-                region={mapRegion}
-                showsUserLocation
-                showsMyLocationButton>
-              {/* User location marker */}
-              {userLocation && (
-                <Marker
-                  coordinate={userLocation}
-                  title="Your Location"
-                  description="Starting point"
-                  pinColor={BrandColors.blue}
-                />
-              )}
-
-              {/* Shelter marker */}
-              {shelter.latitude && shelter.longitude && (
-                <Marker
-                  coordinate={{ latitude: shelter.latitude, longitude: shelter.longitude }}
-                  title={shelter.name}
-                  description={shelter.area}
-                  pinColor={BrandColors.success}
-                />
-              )}
-
-              {/* Incident markers - limited to 10 to reduce map clutter */}
-              {incidents.slice(0, 10).map((incident) =>
-                incident.latitude && incident.longitude ? (
-                  <Marker
-                    key={incident.id}
-                    coordinate={{ latitude: incident.latitude, longitude: incident.longitude }}
-                    title={incident.title}
-                    description={incident.severity}
-                    pinColor={BrandColors.red}
-                  />
-                ) : null
-              )}
-
-              {/* Safe routes */}
-              {safeRoutes.map((route, index) => (
-                <Polyline
-                  key={route.id}
-                  coordinates={route.points}
-                  strokeColor={route.isSafest ? BrandColors.routeSafe : BrandColors.routeAlternate}
-                  strokeWidth={route.isSafest ? 5 : 3}
-                  lineDashPattern={route.isSafest ? undefined : [10, 5]}
-                />
-              ))}
-            </MapView>
+              />
 
             <View style={styles.mapOverlay}>
               <View style={styles.legend}>

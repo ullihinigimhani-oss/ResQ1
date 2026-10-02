@@ -2,6 +2,7 @@ import type { Request, Response } from 'express';
 
 import {
   createShelter,
+  deleteShelter,
   getShelterById,
   getShelterRoutes,
   getShelters,
@@ -132,6 +133,26 @@ export async function updateSafeShelter(req: Request, res: Response) {
       success: true,
       message: 'Safe shelter updated successfully.',
       shelter,
+    });
+  } catch (error) {
+    return sendShelterError(error, res);
+  }
+}
+
+export async function deleteSafeShelter(req: Request, res: Response) {
+  try {
+    requireAuthorityUser(req);
+    const shelterId = firstParam(req.params.id);
+
+    if (!shelterId) {
+      throw new ShelterServiceError(400, 'Invalid shelter id.');
+    }
+
+    await deleteShelter(shelterId);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Safe shelter deleted successfully.',
     });
   } catch (error) {
     return sendShelterError(error, res);
