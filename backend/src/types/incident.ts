@@ -8,6 +8,7 @@ export type IncidentStatus = 'Reported' | 'Under Review' | 'Verified' | 'Rejecte
 
 export interface IncidentRow {
   id: number;
+  user_id: number;
   incident_type: IncidentType | string;
   title: string;
   description: string;
@@ -25,6 +26,7 @@ export interface IncidentRow {
 
 export interface Incident {
   id: number;
+  userId: number;
   incidentType: string;
   title: string;
   description: string;

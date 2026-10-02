@@ -19,6 +19,7 @@ export type IncidentSubmitterRole = 'resident' | 'authority';
 
 export interface Incident {
   id: number;
+  userId: number;
   incidentType: IncidentType;
   title: string;
   description: string;

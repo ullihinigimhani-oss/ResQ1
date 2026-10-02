@@ -364,7 +364,6 @@ export default function ReportIncidentScreen() {
           <BackButton onPress={() => router.replace('/incidents' as Href)} />
 
           <View style={styles.header}>
-            <Text style={styles.eyebrow}>Resident Incident Report</Text>
             <Text style={styles.title}>Report Disaster Incident</Text>
             <Text style={styles.subtitle}>
               Share accurate information to help emergency teams respond quickly.
@@ -604,12 +603,6 @@ const styles = StyleSheet.create({
   },
   header: {
     gap: 8,
-  },
-  eyebrow: {
-    color: BrandColors.red,
-    fontSize: 13,
-    fontWeight: '700',
-    textTransform: 'uppercase',
   },
   title: {
     color: BrandColors.navy,

@@ -121,6 +121,7 @@ function normalizedSubmittedByRole(value: string | null | undefined): 'resident'
 function toIncident(row: IncidentRow, photos: IncidentPhoto[] = []): Incident {
   return {
     id: row.id,
+    userId: row.user_id,
     incidentType: row.incident_type,
     title: row.title,
     description: row.description,
@@ -274,7 +275,7 @@ export async function createIncident(userId: number, role: string, input: Create
       ${incident.photoUrl},
       ${status}
     )
-    RETURNING id, incident_type, title, description, location, latitude, longitude, severity, photo_url, status, created_at, updated_at
+    RETURNING id, user_id, incident_type, title, description, location, latitude, longitude, severity, photo_url, status, created_at, updated_at
   `;
 
   const createdIncident = rows[0] as IncidentRow | undefined;
@@ -290,7 +291,7 @@ export async function getMyIncidents(userId: number, role: string) {
   const isAuthority = role === 'admin' || role === 'authority';
 
   const rows = await sql`
-    SELECT i.id, i.incident_type, i.title, i.description, i.location, i.latitude, i.longitude, i.severity, i.photo_url, i.status, i.created_at, i.updated_at, u.role AS submitted_by_role
+    SELECT i.id, i.incident_type, i.title, i.description, i.location, i.latitude, i.longitude, i.severity, i.photo_url, i.status, i.created_at, i.updated_at, i.user_id, u.role AS submitted_by_role
     FROM incidents i
     INNER JOIN users u ON u.id = i.user_id
     WHERE (${isAuthority} OR i.user_id = ${userId})
@@ -308,7 +309,7 @@ export async function getIncidentById(userId: number, role: string, incidentId: 
   const isAuthority = role === 'admin' || role === 'authority';
 
   const rows = await sql`
-    SELECT i.id, i.incident_type, i.title, i.description, i.location, i.latitude, i.longitude, i.severity, i.photo_url, i.status, i.created_at, i.updated_at, u.role AS submitted_by_role
+    SELECT i.id, i.incident_type, i.title, i.description, i.location, i.latitude, i.longitude, i.severity, i.photo_url, i.status, i.created_at, i.updated_at, i.user_id, u.role AS submitted_by_role
     FROM incidents i
     INNER JOIN users u ON u.id = i.user_id
     WHERE i.id = ${numericId}
@@ -458,7 +459,7 @@ export async function updateIncident(userId: number, incidentId: string, input: 
     FROM users u
     WHERE i.id = ${numericId}
       AND u.id = i.user_id
-    RETURNING i.id, i.incident_type, i.title, i.description, i.location, i.latitude, i.longitude, i.severity, i.photo_url, i.status, i.created_at, i.updated_at, u.role AS submitted_by_role
+    RETURNING i.id, i.incident_type, i.title, i.description, i.location, i.latitude, i.longitude, i.severity, i.photo_url, i.status, i.created_at, i.updated_at, i.user_id, u.role AS submitted_by_role
   `;
 
   const updatedIncident = rows[0] as IncidentRow | undefined;
@@ -489,7 +490,7 @@ export async function updateIncidentStatus(
         FROM users u
         WHERE i.id = ${numericId}
           AND u.id = i.user_id
-        RETURNING i.id, i.incident_type, i.title, i.description, i.location, i.latitude, i.longitude, i.severity, i.photo_url, i.status, i.created_at, i.updated_at, u.role AS submitted_by_role
+        RETURNING i.id, i.incident_type, i.title, i.description, i.location, i.latitude, i.longitude, i.severity, i.photo_url, i.status, i.created_at, i.updated_at, i.user_id, u.role AS submitted_by_role
       `;
       const incident = rows[0] as IncidentRow | undefined;
 
@@ -508,7 +509,7 @@ export async function updateIncidentStatus(
         WHERE i.id = ${numericId}
           AND i.status <> 'Verified'
           AND u.id = i.user_id
-        RETURNING i.id, i.incident_type, i.title, i.description, i.location, i.latitude, i.longitude, i.severity, i.photo_url, i.status, i.created_at, i.updated_at, u.role AS submitted_by_role
+        RETURNING i.id, i.incident_type, i.title, i.description, i.location, i.latitude, i.longitude, i.severity, i.photo_url, i.status, i.created_at, i.updated_at, i.user_id, u.role AS submitted_by_role
       `;
       const transitionedIncident = transitionedRows[0] as IncidentRow | undefined;
 
@@ -517,7 +518,7 @@ export async function updateIncidentStatus(
       }
 
       const existingRows = await sql`
-        SELECT i.id, i.incident_type, i.title, i.description, i.location, i.latitude, i.longitude, i.severity, i.photo_url, i.status, i.created_at, i.updated_at, u.role AS submitted_by_role
+        SELECT i.id, i.incident_type, i.title, i.description, i.location, i.latitude, i.longitude, i.severity, i.photo_url, i.status, i.created_at, i.updated_at, i.user_id, u.role AS submitted_by_role
         FROM incidents i
         INNER JOIN users u ON u.id = i.user_id
         WHERE i.id = ${numericId}
@@ -538,7 +539,7 @@ export async function getAllIncidents(role: string) {
   const isAuthority = role === 'admin' || role === 'authority';
 
   const rows = await sql`
-    SELECT i.id, i.incident_type, i.title, i.description, i.location, i.latitude, i.longitude, i.severity, i.photo_url, i.status, i.created_at, i.updated_at, u.role AS submitted_by_role
+    SELECT i.id, i.incident_type, i.title, i.description, i.location, i.latitude, i.longitude, i.severity, i.photo_url, i.status, i.created_at, i.updated_at, i.user_id, u.role AS submitted_by_role
     FROM incidents i
     INNER JOIN users u ON u.id = i.user_id
     WHERE i.latitude IS NOT NULL
@@ -577,7 +578,7 @@ export async function getNearbyIncidents(
   `;
 
   const rows = await sql`
-    SELECT i.id, i.incident_type, i.title, i.description, i.location, i.latitude, i.longitude, i.severity, i.photo_url, i.status, i.created_at, i.updated_at, u.role AS submitted_by_role,
+    SELECT i.id, i.incident_type, i.title, i.description, i.location, i.latitude, i.longitude, i.severity, i.photo_url, i.status, i.created_at, i.updated_at, i.user_id, u.role AS submitted_by_role,
       ${distanceExpression} AS distance_km
     FROM incidents i
     INNER JOIN users u ON u.id = i.user_id

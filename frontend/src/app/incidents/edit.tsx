@@ -185,6 +185,10 @@ export default function EditIncidentScreen() {
           router.replace('/incidents' as Href);
           return;
         }
+        if (user && data.userId !== user.id) {
+          router.replace('/incidents' as Href);
+          return;
+        }
         setForm({
           incidentType: (data.incidentType as IncidentType) || '',
           title: data.title,
@@ -203,7 +207,7 @@ export default function EditIncidentScreen() {
     };
 
     void loadIncident();
-  }, [incidentId, token, router]);
+  }, [incidentId, token, router, user]);
 
   if (!isLoading && !user) {
     return <Redirect href={'/auth/welcome' as Href} />;

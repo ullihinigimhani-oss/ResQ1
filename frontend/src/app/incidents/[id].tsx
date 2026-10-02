@@ -219,7 +219,7 @@ export default function IncidentDetailsScreen() {
               </View>
             </View>
 
-            {incident.status === 'Reported' && (
+            {incident && incident.status === 'Reported' && incident.userId === user?.id && (
               <View style={styles.editActionContainer}>
                 <AuthButton
                   title="Edit Report"
