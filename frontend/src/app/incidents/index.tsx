@@ -116,7 +116,9 @@ function IncidentCard({ incident, onPress }: { incident: Incident; onPress: () =
 
       <View style={styles.cardFooter}>
         <View>
-          <Text style={styles.cardLabel}>Reported</Text>
+          <Text style={styles.cardLabel}>
+            Reported by {incident.submittedByRole === 'authority' ? 'Authority' : 'Resident'}
+          </Text>
           <Text style={styles.submittedText}>{formatDateTime(incident.createdAt)}</Text>
         </View>
         <Text style={styles.cardArrow}>{'>'}</Text>
@@ -135,15 +137,20 @@ export default function MyIncidentsScreen() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const submitted = firstParam(params.submitted) === '1';
   const photoUploadFailed = firstParam(params.photoUploadFailed) === '1';
+  const photoUploadMessage = firstParam(params.photoUploadMessage);
   const successMessage = useMemo(() => {
     if (!submitted) {
       return null;
     }
 
-    return photoUploadFailed
-      ? 'Incident report submitted, but some photo evidence could not be uploaded.'
-      : 'Incident report submitted successfully.';
-  }, [photoUploadFailed, submitted]);
+    if (!photoUploadFailed) {
+      return 'Incident report submitted successfully.';
+    }
+
+    return photoUploadMessage
+      ? `Incident report submitted, but some photo evidence could not be uploaded. Reason: ${photoUploadMessage}`
+      : 'Incident report submitted, but some photo evidence could not be uploaded.';
+  }, [photoUploadFailed, photoUploadMessage, submitted]);
 
   const loadIncidents = useCallback(async (refresh = false) => {
     if (!token) {
@@ -226,13 +233,6 @@ export default function MyIncidentsScreen() {
             title="Report New Incident"
             tone="red"
             onPress={() => router.push('/incidents/report' as Href)}
-          />
-          <ReportAction
-            body="Review your submitted reports and response progress."
-            fallback="M"
-            icon="clock.fill"
-            title="My Incident Reports"
-            onPress={() => router.push('/incidents' as Href)}
           />
           <ReportAction
             body="Check recent reports around your area."

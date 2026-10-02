@@ -285,6 +285,10 @@ export default function IncidentDetailsScreen() {
               <DetailRow label="Location" value={incident.location} />
               <DetailRow label="Incident Type" value={incident.incidentType} />
               <DetailRow label="Severity" value={incident.severity} />
+              <DetailRow
+                label="Submitted By"
+                value={incident.submittedByRole === 'authority' ? 'Authority' : 'Resident'}
+              />
               <DetailRow label="Submitted Date" value={formatDateTime(incident.createdAt)} />
               <DetailRow label="Last Updated" value={formatDateTime(incident.updatedAt)} />
             </View>
