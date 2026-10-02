@@ -763,7 +763,7 @@ export default function AlertDetailsScreen() {
                   value={translateAlertMessage(alert, displayLanguage)}
                 />
                 <DetailInfoRow fallback="I" label={detailCopy.issued} name="clock.fill" value={publishedAt ?? ''} />
-                {expiresAt ? (
+                {!showResidentLanguage && expiresAt ? (
                   <DetailInfoRow fallback="E" label={detailCopy.expires} name="clock.fill" value={expiresAt} />
                 ) : null}
                 <DetailInfoRow fallback="S" label={detailCopy.status} name="bell.fill">

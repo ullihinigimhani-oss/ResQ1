@@ -14,7 +14,7 @@ import {
   searchSchoolsByArea,
   updateAlert,
 } from '../services/alertService.js';
-import { sendAlertPushNotifications } from '../services/notificationService.js';
+import { dispatchPublishedAlertDeliveries } from '../services/alertDeliveryService.js';
 
 const AUTHORIZED_ALERT_ROLES = new Set(['admin', 'authority']);
 
@@ -66,7 +66,7 @@ function requireAlertManager(req: Request) {
 export async function listActiveAlerts(req: Request, res: Response) {
   try {
     const user = requireAuthenticatedUser(req);
-    const alerts = await getActiveAlerts(user.location);
+    const alerts = await getActiveAlerts(user.id, user.location);
 
     return res.status(200).json({
       success: true,
@@ -227,9 +227,7 @@ export async function createEmergencyAlert(req: Request, res: Response) {
     const user = requireAlertPublisher(req);
     const alert = await createAlert(user.id, req.body);
 
-    sendAlertPushNotifications(alert).catch((error) => {
-      console.error('Alert push notification dispatch failed:', error);
-    });
+    dispatchPublishedAlertDeliveries(alert);
 
     return res.status(201).json({
       success: true,

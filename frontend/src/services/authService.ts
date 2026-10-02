@@ -5,15 +5,18 @@ import { Platform } from 'react-native';
 import type {
   AuthSession,
   AuthUser,
+  ChangePasswordPayload,
   FieldErrors,
   ForgotPasswordPayload,
   LoginResidentPayload,
   RegisterResidentPayload,
   ResetPasswordPayload,
   UpdateProfilePayload,
+  VerifyPasswordPayload,
   VerifyResetOtpPayload,
   VerifyResetOtpResponse,
 } from '@/types/auth';
+import { normalizeRole } from '@/utils/format';
 
 type ApiAuthResponse = {
   success: boolean;
@@ -30,6 +33,19 @@ type ApiErrorBody = {
 const AUTH_TOKEN_KEY = 'resq1.auth.token';
 const AUTH_USER_KEY = 'resq1.auth.user';
 const BACKEND_PORT = '5000';
+
+function withCanonicalRole(user: AuthUser): AuthUser {
+  const normalizedRole = normalizeRole(user.role);
+  const canonicalRole: AuthUser['role'] | null = normalizedRole === 'community_member'
+    ? 'Community_Member'
+    : normalizedRole === 'resident' || normalizedRole === 'admin' || normalizedRole === 'authority'
+      ? normalizedRole
+      : null;
+
+  return canonicalRole && canonicalRole !== user.role
+    ? { ...user, role: canonicalRole }
+    : user;
+}
 
 function getExpoLanHost() {
   const hostUri = Constants.expoConfig?.hostUri;
@@ -233,7 +249,7 @@ export async function loginResident(payload: LoginResidentPayload): Promise<Auth
   }
 
   return {
-    user: response.user,
+    user: withCanonicalRole(response.user),
     token: response.token,
   };
 }
@@ -244,7 +260,7 @@ export async function updateProfile(token: string, payload: UpdateProfilePayload
     token,
   });
 
-  return response.user;
+  return withCanonicalRole(response.user);
 }
 
 export async function updateVolunteerStatus(
@@ -256,12 +272,14 @@ export async function updateVolunteerStatus(
     token,
   });
 
-  return response.user;
+  return withCanonicalRole(response.user);
 }
 
 export async function saveSession(session: AuthSession) {
+  const user = withCanonicalRole(session.user);
+
   await setStoredValue(AUTH_TOKEN_KEY, session.token);
-  await setStoredValue(AUTH_USER_KEY, JSON.stringify(session.user));
+  await setStoredValue(AUTH_USER_KEY, JSON.stringify(user));
 }
 
 export async function loadSession(): Promise<AuthSession | null> {
@@ -275,9 +293,11 @@ export async function loadSession(): Promise<AuthSession | null> {
   }
 
   try {
+    const user = withCanonicalRole(JSON.parse(userJson) as AuthUser);
+
     return {
       token,
-      user: JSON.parse(userJson) as AuthUser,
+      user,
     };
   } catch {
     await clearSession();
@@ -293,7 +313,7 @@ export async function updateStoredUser(user: AuthUser) {
     return;
   }
 
-  await setStoredValue(AUTH_USER_KEY, JSON.stringify(user));
+  await setStoredValue(AUTH_USER_KEY, JSON.stringify(withCanonicalRole(user)));
 }
 
 export async function clearSession() {
@@ -356,3 +376,68 @@ export async function verifyResetOtp(payload: VerifyResetOtpPayload) {
 export async function resetAccountPassword(payload: ResetPasswordPayload) {
   return postJson<{ success: boolean; message: string }>('/api/auth/reset-password', payload);
 }
+
+async function authenticatedRequest<T = { success: boolean; message: string }>(
+  path: string,
+  token: string,
+  options: { method?: 'GET' | 'POST' | 'PUT' | 'DELETE'; body?: unknown } = {},
+): Promise<T> {
+  let response: Response;
+  const url = `${API_BASE_URL}${path}`;
+
+  if (__DEV__) {
+    console.log(`Auth authenticated request: ${options.method || 'GET'} ${url}`);
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+  try {
+    response = await fetch(url, {
+      method: options.method || 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: options.body ? JSON.stringify(options.body) : undefined,
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (__DEV__) {
+      console.warn(`Auth request failed: ${url}`, error);
+    }
+    throw new AuthApiError(0, 'Unable to connect to the server. Please check your network connection.');
+  } finally {
+    clearTimeout(timeoutId);
+  }
+
+  const data = await parseJson(response);
+
+  if (!response.ok) {
+    throw new AuthApiError(
+      response.status,
+      data?.message || 'The request could not be completed.',
+      data?.errors,
+    );
+  }
+
+  return (data || { success: true, message: 'Success' }) as unknown as T;
+}
+
+export async function verifyCurrentPassword(token: string, payload: VerifyPasswordPayload) {
+  return authenticatedRequest<{ success: boolean; message: string }>('/api/auth/verify-password', token, {
+    method: 'POST',
+    body: payload,
+  });
+}
+
+export async function changeAccountPassword(token: string, payload: ChangePasswordPayload) {
+  return authenticatedRequest<{ success: boolean; message: string }>('/api/auth/change-password', token, {
+    method: 'PUT',
+    body: {
+      currentPassword: payload.currentPassword,
+      newPassword: payload.newPassword,
+    },
+  });
+}
+

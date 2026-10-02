@@ -7,6 +7,7 @@ import { sql } from '../config/database.js';
 import { sendPasswordResetOtpEmail } from './emailService.js';
 import type {
   AuthResult,
+  ChangePasswordInput,
   ForgotPasswordInput,
   LoginResidentInput,
   PreferredLanguage,
@@ -16,8 +17,10 @@ import type {
   UpdateProfileInput,
   UpdateVolunteerStatusInput,
   UserRow,
+  VerifyPasswordInput,
   VerifyResetOtpInput,
 } from '../types/auth.js';
+import { canonicalRole } from '../utils/roles.js';
 
 const PASSWORD_SALT_ROUNDS = 12;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -70,7 +73,11 @@ function normalizeEmail(value: unknown): string {
 }
 
 function formatTimestamp(value: Date | string): string {
-  return value instanceof Date ? value.toISOString() : String(value);
+  if (value instanceof Date) {
+    return new Date(value.getTime() - value.getTimezoneOffset() * 60_000).toISOString();
+  }
+
+  return String(value);
 }
 
 function toSafeUser(row: UserRow): SafeUser {
@@ -79,7 +86,7 @@ function toSafeUser(row: UserRow): SafeUser {
     fullName: row.full_name,
     email: row.email,
     phoneNumber: row.phone_number,
-    role: row.role,
+    role: canonicalRole(row.role) as UserRow['role'],
     location: row.location,
     preferredLanguage: row.preferred_language,
     isVolunteer: row.is_volunteer,
@@ -111,10 +118,9 @@ function validateRegistrationInput(input: RegisterResidentInput) {
     fieldErrors.email = 'Enter a valid email address.';
   }
 
-  if (!password) {
-    fieldErrors.password = 'Password is required.';
-  } else if (password.length < 8) {
-    fieldErrors.password = 'Password must be at least 8 characters.';
+  const passwordError = validateNewPassword(password);
+  if (passwordError) {
+    fieldErrors.password = passwordError;
   }
 
   if (!location) {
@@ -259,6 +265,7 @@ function validateProfileInput(input: UpdateProfileInput) {
   const phoneNumber = trimmedText(input.phoneNumber);
   const location = trimmedText(input.location);
   const preferredLanguage = trimmedText(input.preferredLanguage);
+  const isVolunteer = input.isVolunteer === true;
   const fieldErrors: Record<string, string> = {};
 
   if (!fullName) {
@@ -291,6 +298,7 @@ function validateProfileInput(input: UpdateProfileInput) {
     phoneNumber,
     location,
     preferredLanguage: preferredLanguage as PreferredLanguage,
+    isVolunteer,
   };
 }
 
@@ -731,6 +739,7 @@ export async function updateResidentProfile(
       phone_number = ${profile.phoneNumber || null},
       location = ${profile.location},
       preferred_language = ${profile.preferredLanguage},
+      is_volunteer = ${profile.isVolunteer},
       updated_at = CURRENT_TIMESTAMP
     WHERE id = ${userId}
     RETURNING id, full_name, email, phone_number, role, location, preferred_language, is_volunteer, volunteer_area_latitude, volunteer_area_longitude, is_volunteering_active, created_at, updated_at
@@ -772,3 +781,111 @@ export async function updateVolunteerStatus(
 
   return { user: toSafeUser(updatedUser) };
 }
+
+export async function verifyCurrentPassword(
+  userId: number,
+  input: VerifyPasswordInput,
+): Promise<{ verified: boolean; message: string }> {
+  const currentPassword = passwordText(input?.currentPassword);
+
+  if (!currentPassword) {
+    throw new AuthServiceError(400, 'Current password is required.', {
+      currentPassword: 'Current password is required.',
+    });
+  }
+
+  const rows = await sql`
+    SELECT id, password_hash
+    FROM users
+    WHERE id = ${userId}
+    LIMIT 1
+  `;
+  const user = rows[0] as { id: number; password_hash: string } | undefined;
+
+  if (!user || !user.password_hash) {
+    throw new AuthServiceError(404, 'Resident account was not found.');
+  }
+
+  const matches = await bcrypt.compare(currentPassword, user.password_hash);
+
+  if (!matches) {
+    throw new AuthServiceError(400, 'Current password is incorrect.', {
+      currentPassword: 'Current password is incorrect.',
+    });
+  }
+
+  return {
+    verified: true,
+    message: 'Current password verified successfully.',
+  };
+}
+
+export async function changeAccountPassword(
+  userId: number,
+  input: ChangePasswordInput,
+): Promise<{ success: boolean; message: string }> {
+  const currentPassword = passwordText(input?.currentPassword);
+  const newPassword = passwordText(input?.newPassword);
+  const fieldErrors: Record<string, string> = {};
+
+  if (!currentPassword) {
+    fieldErrors.currentPassword = 'Current password is required.';
+  }
+
+  const passwordError = validateNewPassword(newPassword);
+
+  if (passwordError) {
+    fieldErrors.newPassword = passwordError;
+  }
+
+  if (currentPassword && newPassword && currentPassword === newPassword) {
+    fieldErrors.newPassword = 'New password cannot be the same as your current password.';
+  }
+
+  if (Object.keys(fieldErrors).length > 0) {
+    throw new AuthServiceError(400, 'Please correct the highlighted fields.', fieldErrors);
+  }
+
+  const rows = await sql`
+    SELECT id, password_hash
+    FROM users
+    WHERE id = ${userId}
+    LIMIT 1
+  `;
+  const user = rows[0] as { id: number; password_hash: string } | undefined;
+
+  if (!user || !user.password_hash) {
+    throw new AuthServiceError(404, 'Resident account was not found.');
+  }
+
+  const matches = await bcrypt.compare(currentPassword, user.password_hash);
+
+  if (!matches) {
+    throw new AuthServiceError(400, 'Current password is incorrect.', {
+      currentPassword: 'Current password is incorrect.',
+    });
+  }
+
+  const passwordHash = await bcrypt.hash(newPassword, PASSWORD_SALT_ROUNDS);
+
+  await sql`
+    UPDATE users
+    SET
+      password_hash = ${passwordHash},
+      updated_at = CURRENT_TIMESTAMP
+    WHERE id = ${userId}
+  `;
+
+  // Invalidate any active password reset sessions for this user
+  await sql`
+    UPDATE password_reset_tokens
+    SET used = TRUE
+    WHERE user_id = ${userId}
+  `;
+
+  return {
+    success: true,
+    message: 'Password changed successfully. Please log in with your new password.',
+  };
+}
+

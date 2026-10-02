@@ -22,7 +22,7 @@ import {
   BackButton,
   StatusBanner,
 } from '@/components/common/auth-components';
-import MapView, { Marker, PROVIDER_GOOGLE } from '@/components/shelters/native-map';
+import OpenStreetMap from '@/components/shelters/openstreet-map';
 import { BrandColors } from '@/constants/brand';
 import { useAuth } from '@/context/auth-context';
 import { createShelter, isShelterApiError } from '@/services/shelterService';
@@ -320,20 +320,12 @@ export default function CreateShelterScreen() {
               <Text style={styles.helperText}>Tap on the map to set the shelter location or use your current location</Text>
               
               <View style={styles.mapContainer}>
-                <MapView
-                  provider={PROVIDER_GOOGLE}
+                <OpenStreetMap
+                  initialRegion={mapRegion}
+                  markers={selectedLocation ? [{ latitude: selectedLocation.latitude, longitude: selectedLocation.longitude, title: 'Shelter Location', color: '#0F766E' }] : []}
+                  onMapPress={handleMapPress}
                   style={styles.map}
-                  region={mapRegion}
-                  onPress={handleMapPress}>
-                  {selectedLocation && (
-                    <Marker
-                      coordinate={selectedLocation}
-                      title="Shelter Location"
-                      description="Selected shelter position"
-                      pinColor={BrandColors.success}
-                    />
-                  )}
-                </MapView>
+                />
                 
                 <Pressable style={styles.currentLocationButton} onPress={handleGetCurrentLocation}>
                   <Text style={styles.currentLocationButtonText}>Use Current Location</Text>
@@ -598,11 +590,15 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     backgroundColor: BrandColors.modalBackdrop,
+    bottom: 0,
     borderRadius: 8,
     justifyContent: 'center',
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
   },
   centerState: {
     alignItems: 'center',

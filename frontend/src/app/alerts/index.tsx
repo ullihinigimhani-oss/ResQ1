@@ -29,7 +29,7 @@ import {
   normalizeAlertArea,
   type AlertDisplayTheme,
 } from '@/utils/alert-display';
-import { formatDateTime, isAuthorityRole } from '@/utils/format';
+import { formatDateTime, formatDateTimeColomboShort as formatCompactDateTime, isAuthorityRole } from '@/utils/format';
 import {
   preferredLanguageLabels,
   preferredLanguageOrNull,
@@ -100,21 +100,6 @@ function compareAlertsBySeverity(left: Alert, right: Alert) {
   }
 
   return issuedTimestamp(right) - issuedTimestamp(left);
-}
-
-function formatCompactDateTime(value: string) {
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return date.toLocaleString(undefined, {
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    month: 'short',
-  });
 }
 
 function disasterTypeFilterFor(disasterType: string): DisasterTypeFilterValue {
@@ -857,6 +842,12 @@ function ResidentWarningAlertCard({
 
       <View style={styles.relevanceRiskRow}>
         <AreaRelevanceBadge displayTheme={displayTheme} label={copy.warning} />
+        {alert.isSubscribedArea ? (
+          <View style={styles.subscribedAreaBadge}>
+            <AppIcon fallback="A" name="location.fill" size={12} tintColor={colors.deepBlue} />
+            <Text style={styles.subscribedAreaBadgeText}>{copy.subscribedArea}</Text>
+          </View>
+        ) : null}
         <Text style={[styles.riskText, { color: theme.titleColor }]}>
           {copy.risk}: {translateRiskLevel(alert.riskLevel, selectedLanguage)}
         </Text>
@@ -1031,7 +1022,7 @@ function AuthorityAlertCard({
             <AppIcon fallback="E" name="pencil.fill" size={16} tintColor={colors.red} />
           </Pressable>
           <Pressable
-            accessibilityLabel="Cancel alert"
+            accessibilityLabel="Remove alert"
             accessibilityRole="button"
             disabled={cancelling}
             hitSlop={8}
@@ -1378,10 +1369,10 @@ function CancelAlertDialog({
       <View style={styles.modalBackdrop}>
         <View style={styles.cancelDialog}>
           <Text style={styles.cancelDialogEyebrow}>Authority Action</Text>
-          <Text style={styles.cancelDialogTitle}>Cancel Emergency Alert</Text>
+          <Text style={styles.cancelDialogTitle}>Remove Emergency Alert</Text>
           <Text style={styles.cancelDialogText}>
-            This alert will no longer be shown as active to residents, active alert counts, or current area risk
-            checks.
+            This alert will be removed from active alerts and will no longer be shown to residents or included in
+            current area risk checks.
           </Text>
 
           {alert ? (
@@ -1417,7 +1408,7 @@ function CancelAlertDialog({
                 pressed && !cancelling && styles.pressed,
               ]}>
               <Text style={styles.confirmCancelButtonText}>
-                {cancelling ? 'Cancelling...' : 'Cancel Alert'}
+                {cancelling ? 'Removing...' : 'Remove Alert'}
               </Text>
             </Pressable>
           </View>
@@ -1612,16 +1603,16 @@ export default function AlertsScreen() {
 
       setAlerts((currentAlerts) => currentAlerts.filter((alert) => alert.id !== cancelledAlert.id));
       setCancelTarget(null);
-      setNoticeMessage('Emergency alert cancelled successfully.');
+      setNoticeMessage('Emergency alert removed successfully.');
     } catch (error) {
       if (__DEV__ && !isAlertApiError(error)) {
-        console.warn('Unexpected alert cancellation error:', error);
+        console.warn('Unexpected alert removal error:', error);
       }
 
       setErrorMessage(
         isAlertApiError(error) && error.statusCode === 403
-          ? 'You are not authorized to cancel emergency alerts.'
-          : 'Unable to cancel this emergency alert. Check your connection and try again.',
+          ? 'You are not authorized to remove emergency alerts.'
+          : 'Unable to remove this emergency alert. Check your connection and try again.',
       );
     } finally {
       setCancellingAlertId(null);
@@ -2404,6 +2395,24 @@ const styles = StyleSheet.create({
   areaMatchBadgeText: {
     fontSize: 9,
     fontWeight: '700',
+    lineHeight: 12,
+  },
+  subscribedAreaBadge: {
+    alignItems: 'center',
+    backgroundColor: colors.lightBlue,
+    borderColor: colors.sky,
+    borderRadius: radius.xs,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 3,
+    minHeight: 26,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+  },
+  subscribedAreaBadgeText: {
+    color: colors.deepBlue,
+    fontSize: 9,
+    fontWeight: '900',
     lineHeight: 12,
   },
   riskText: {

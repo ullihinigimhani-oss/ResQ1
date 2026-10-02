@@ -268,8 +268,8 @@ export default function EditEmergencyContactScreen() {
                 </View>
                 <Switch
                   onValueChange={setIsPrimary}
-                  thumbColor={isPrimary ? '#ffffff' : '#f4f3f4'}
-                  trackColor={{ false: '#d1d5db', true: colors.navy }}
+                  thumbColor={isPrimary ? colors.onPrimary : colors.switchThumb}
+                  trackColor={{ false: colors.switchTrack, true: colors.primaryAction }}
                   value={isPrimary}
                 />
               </View>
@@ -332,8 +332,8 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   gridChipSelected: {
-    backgroundColor: colors.navy,
-    borderColor: colors.navy,
+    backgroundColor: colors.primaryAction,
+    borderColor: colors.primaryAction,
   },
   gridChipText: {
     color: colors.muted,
@@ -341,7 +341,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   gridChipSelectedText: {
-    color: '#ffffff',
+    color: colors.onPrimary,
   },
   switchRow: {
     alignItems: 'center',
@@ -370,7 +370,7 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   errorText: {
-    color: '#dc2626',
+    color: colors.dangerText,
     fontSize: 13,
     fontWeight: '600',
     marginTop: 4,

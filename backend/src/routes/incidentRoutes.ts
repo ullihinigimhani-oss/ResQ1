@@ -3,6 +3,7 @@ import { Router } from 'express';
 import {
   createIncidentReport,
   uploadIncidentPhoto,
+  uploadIncidentPhotoBase64,
   getMyIncidentReport,
   listAllIncidents,
   listNearbyIncidents,
@@ -23,6 +24,7 @@ router.use(authenticateRequest);
 
 router.post('/', createIncidentReport);
 router.post('/:id/photos', incidentPhotoUpload.single('photo'), uploadIncidentPhoto);
+router.post('/:id/photos/base64', uploadIncidentPhotoBase64);
 router.get('/:id/photos/:photoId', getIncidentPhoto);
 router.delete('/:id/photos/:photoId', deleteIncidentPhoto);
 router.get('/my', listMyIncidentReports);

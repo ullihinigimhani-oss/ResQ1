@@ -19,16 +19,16 @@ export function initials(fullName: string | null | undefined) {
 }
 
 export function formatRole(role: string) {
-  return role
-    .split(/\s+/)
+  return normalizeRole(role)
+    .split('_')
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
     .join(' ');
 }
 
-export function formatDateTime(value: string | null | undefined) {
+export function parseDateValue(value: string | null | undefined) {
   if (!value) {
-    return 'Not available';
+    return null;
   }
 
   const timestamp = value.trim();
@@ -36,17 +36,76 @@ export function formatDateTime(value: string | null | undefined) {
   const normalizedTimestamp = timestamp.replace(' ', 'T');
   const date = new Date(hasTimezone ? normalizedTimestamp : `${normalizedTimestamp}Z`);
 
-  if (Number.isNaN(date.getTime())) {
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+const COLOMBO_OFFSET_MS = (5 * 60 + 30) * 60 * 1000;
+const SHORT_MONTHS = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+];
+
+function renderSriLankaTime(date: Date) {
+  const colombo = new Date(date.getTime() + COLOMBO_OFFSET_MS);
+  const day = colombo.getUTCDate();
+  const month = SHORT_MONTHS[colombo.getUTCMonth()];
+  const year = colombo.getUTCFullYear();
+  const hours = colombo.getUTCHours();
+  const minutes = String(colombo.getUTCMinutes()).padStart(2, '0');
+  const period = hours >= 12 ? 'PM' : 'AM';
+  const hour12 = hours % 12 || 12;
+
+  return `${day} ${month} ${year}, ${hour12}:${minutes} ${period}`;
+}
+
+function sriLankaDateTime(value: string | null | undefined) {
+  if (!value) {
+    return 'Not available';
+  }
+
+  const date = parseDateValue(value);
+
+  return date ? renderSriLankaTime(date) : value;
+}
+
+export function formatDateTime(value: string | null | undefined) {
+  return sriLankaDateTime(value);
+}
+
+export function formatDateTimeColombo(value: string | null | undefined) {
+  return sriLankaDateTime(value);
+}
+
+export function formatDateTimeColomboShort(value: string | null | undefined) {
+  if (!value) {
+    return 'Not available';
+  }
+
+  const date = parseDateValue(value);
+
+  if (!date) {
     return value;
   }
 
-  return date.toLocaleString(undefined, {
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
+  const colombo = new Date(date.getTime() + COLOMBO_OFFSET_MS);
+  const day = colombo.getUTCDate();
+  const month = SHORT_MONTHS[colombo.getUTCMonth()];
+  const hours = colombo.getUTCHours();
+  const minutes = String(colombo.getUTCMinutes()).padStart(2, '0');
+  const period = hours >= 12 ? 'PM' : 'AM';
+  const hour12 = hours % 12 || 12;
+
+  return `${day} ${month}, ${hour12}:${minutes} ${period}`;
 }
 
 export function plural(value: number, singular: string, pluralValue: string) {
@@ -71,8 +130,24 @@ export function normalize(value: string | null | undefined) {
   return value?.trim().toLowerCase() ?? '';
 }
 
+export function normalizeRole(role: string | null | undefined) {
+  const normalizedRole = normalize(role).replace(/[\s-]+/g, '_');
+
+  return normalizedRole === 'commiunity_member' ? 'community_member' : normalizedRole;
+}
+
 export function isAuthorityRole(role: string | null | undefined) {
-  const normalizedRole = normalize(role);
+  const normalizedRole = normalizeRole(role);
 
   return normalizedRole === 'admin' || normalizedRole === 'authority';
+}
+
+export function isCommunityMemberRole(role: string | null | undefined) {
+  return normalizeRole(role) === 'community_member';
+}
+
+export function isResidentRole(role: string | null | undefined) {
+  const normalizedRole = normalizeRole(role);
+
+  return normalizedRole === 'resident' || normalizedRole === 'community_member';
 }

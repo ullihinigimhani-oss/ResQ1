@@ -2,12 +2,14 @@ import type { Request, Response } from 'express';
 
 import {
   AuthServiceError,
+  changeAccountPassword,
   loginResident,
   registerResident,
   requestPasswordReset,
   resetPassword,
   updateResidentProfile,
   updateVolunteerStatus as updateVolunteerStatusService,
+  verifyCurrentPassword,
   verifyResetOtp,
 } from '../services/authService.js';
 
@@ -138,3 +140,44 @@ export async function updateVolunteerStatus(req: Request, res: Response): Promis
     return sendErrorResponse(error, res);
   }
 }
+
+export async function verifyPassword(req: Request, res: Response) {
+  if (!req.authUser) {
+    return res.status(401).json({
+      success: false,
+      message: 'Authentication is required.',
+    });
+  }
+
+  try {
+    const result = await verifyCurrentPassword(req.authUser.id, req.body);
+
+    return res.status(200).json({
+      success: true,
+      message: result.message,
+    });
+  } catch (error) {
+    return sendErrorResponse(error, res);
+  }
+}
+
+export async function changePassword(req: Request, res: Response) {
+  if (!req.authUser) {
+    return res.status(401).json({
+      success: false,
+      message: 'Authentication is required.',
+    });
+  }
+
+  try {
+    const result = await changeAccountPassword(req.authUser.id, req.body);
+
+    return res.status(200).json({
+      success: true,
+      message: result.message,
+    });
+  } catch (error) {
+    return sendErrorResponse(error, res);
+  }
+}
+

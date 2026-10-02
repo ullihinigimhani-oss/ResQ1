@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import { useRouter, type Href } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -22,8 +22,14 @@ import {
   StatusBanner,
 } from '@/components/common/auth-components';
 import { BrandColors } from '@/constants/brand';
+import { radius, spacing } from '@/constants/design';
 import { isAuthApiError, registerResident } from '@/services/authService';
 import type { FieldErrors, PreferredLanguage, RegisterResidentPayload } from '@/types/auth';
+
+interface PasswordCriteria {
+  label: string;
+  met: boolean;
+}
 
 type RegistrationForm = Omit<RegisterResidentPayload, 'preferredLanguage'> & {
   confirmPassword: string;
@@ -69,6 +75,12 @@ function validateForm(form: RegistrationForm) {
     errors.password = 'Password is required.';
   } else if (payload.password.length < 8) {
     errors.password = 'Password must be at least 8 characters.';
+  } else if (!/[A-Z]/.test(payload.password)) {
+    errors.password = 'Password must include at least one uppercase letter.';
+  } else if (!/[a-z]/.test(payload.password)) {
+    errors.password = 'Password must include at least one lowercase letter.';
+  } else if (!/\d/.test(payload.password)) {
+    errors.password = 'Password must include at least one number.';
   }
 
   if (!form.confirmPassword) {
@@ -99,6 +111,19 @@ export default function RegisterScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors & { confirmPassword?: string }>({});
   const [message, setMessage] = useState<string | null>(null);
+
+  const criteria = useMemo<PasswordCriteria[]>(() => {
+    return [
+      { label: 'At least 8 characters', met: form.password.length >= 8 },
+      { label: 'At least one uppercase letter (A-Z)', met: /[A-Z]/.test(form.password) },
+      { label: 'At least one lowercase letter (a-z)', met: /[a-z]/.test(form.password) },
+      { label: 'At least one number (0-9)', met: /\d/.test(form.password) },
+    ];
+  }, [form.password]);
+
+  const passwordsMatch = useMemo(() => {
+    return Boolean(form.password && form.confirmPassword && form.password === form.confirmPassword);
+  }, [form.confirmPassword, form.password]);
 
   const updateField = (field: keyof RegistrationForm, value: string) => {
     setForm((current) => ({ ...current, [field]: value }));
@@ -202,24 +227,48 @@ export default function RegisterScreen() {
               error={fieldErrors.password}
               label="Password"
               onChangeText={(value) => updateField('password', value)}
-              placeholder="Minimum 8 characters"
+              placeholder="••••••••"
               textContentType="newPassword"
               value={form.password}
               visible={showPassword}
               onToggleVisible={() => setShowPassword((current) => !current)}
             />
+            <View style={styles.criteriaCard}>
+              <Text style={styles.criteriaHeading}>Password Requirements:</Text>
+              {criteria.map((item, index) => (
+                <View key={index} style={styles.criteriaItem}>
+                  <Text style={[styles.criteriaDot, item.met && styles.criteriaDotMet]}>
+                    {item.met ? '✓' : '○'}
+                  </Text>
+                  <Text style={[styles.criteriaLabel, item.met && styles.criteriaLabelMet]}>
+                    {item.label}
+                  </Text>
+                </View>
+              ))}
+            </View>
             <PasswordField
               autoCapitalize="none"
               autoComplete="new-password"
               error={fieldErrors.confirmPassword}
               label="Confirm Password"
               onChangeText={(value) => updateField('confirmPassword', value)}
-              placeholder="Re-enter password"
+              placeholder="••••••••"
               textContentType="newPassword"
               value={form.confirmPassword}
               visible={showConfirmPassword}
               onToggleVisible={() => setShowConfirmPassword((current) => !current)}
             />
+            {form.confirmPassword.length > 0 && (
+              <View style={styles.matchStatusRow}>
+                <Text
+                  style={[
+                    styles.matchStatusText,
+                    passwordsMatch ? styles.matchSuccessText : styles.matchErrorText,
+                  ]}>
+                  {passwordsMatch ? '✓ Passwords match' : '✗ Passwords do not match'}
+                </Text>
+              </View>
+            )}
             <AuthTextField
               autoCapitalize="words"
               error={fieldErrors.location}
@@ -231,22 +280,18 @@ export default function RegisterScreen() {
             />
             <View style={styles.volunteerSection}>
               <Text style={styles.volunteerText}>
-                If you can volunteer and act as emergency helper please tap this button.
+                I want to be an emergency volunteer
               </Text>
               <Pressable
                 onPress={() => setForm((current) => ({ ...current, isVolunteer: !current.isVolunteer }))}
                 style={({ pressed }) => [
-                  styles.volunteerButton,
-                  form.isVolunteer ? styles.volunteerButtonActive : styles.volunteerButtonInactive,
-                  pressed && styles.volunteerButtonPressed,
+                  styles.checkboxContainer,
+                  pressed && styles.checkboxPressed,
                 ]}>
-                <Text
-                  style={[
-                    styles.volunteerButtonText,
-                    form.isVolunteer ? styles.volunteerButtonTextActive : styles.volunteerButtonTextInactive,
-                  ]}>
-                  Emergency Volunteer
-                </Text>
+                <View style={[styles.checkbox, form.isVolunteer && styles.checkboxChecked]}>
+                  {form.isVolunteer && <Text style={styles.checkmark}>✓</Text>}
+                </View>
+                <Text style={styles.checkboxLabel}>Emergency Volunteer</Text>
               </Pressable>
             </View>
             <LanguageSelector
@@ -321,39 +366,99 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     lineHeight: 20,
-    marginBottom: 12,
+    marginBottom: 8,
   },
-  volunteerButton: {
-    borderRadius: 8,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+  checkboxContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 12,
+    paddingVertical: 8,
+  },
+  checkboxPressed: {
+    opacity: 0.7,
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 4,
     borderWidth: 2,
-  },
-  volunteerButtonInactive: {
-    backgroundColor: BrandColors.background,
     borderColor: BrandColors.muted,
+    backgroundColor: BrandColors.white,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  volunteerButtonActive: {
-    backgroundColor: '#8B0000',
-    borderColor: '#8B0000',
+  checkboxChecked: {
+    backgroundColor: BrandColors.emergencyDeep,
+    borderColor: BrandColors.emergencyDeep,
   },
-  volunteerButtonPressed: {
-    opacity: 0.8,
-  },
-  volunteerButtonText: {
+  checkmark: {
+    color: BrandColors.onPrimary,
     fontSize: 16,
     fontWeight: '700',
+    lineHeight: 20,
+  },
+  checkboxLabel: {
+    color: BrandColors.text,
+    fontSize: 16,
+    fontWeight: '600',
     lineHeight: 22,
-  },
-  volunteerButtonTextInactive: {
-    color: BrandColors.muted,
-  },
-  volunteerButtonTextActive: {
-    color: '#FFFFFF',
   },
   actions: {
     gap: 14,
     paddingBottom: 12,
+  },
+  criteriaCard: {
+    backgroundColor: BrandColors.controlSurface,
+    borderRadius: radius.md,
+    padding: spacing.sm,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: BrandColors.border,
+  },
+  criteriaHeading: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: BrandColors.muted,
+    marginBottom: 2,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  criteriaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  criteriaDot: {
+    fontSize: 13,
+    color: BrandColors.muted,
+    fontWeight: '800',
+    width: 16,
+    textAlign: 'center',
+  },
+  criteriaDotMet: {
+    color: BrandColors.success,
+  },
+  criteriaLabel: {
+    fontSize: 13,
+    color: BrandColors.muted,
+    fontWeight: '500',
+  },
+  criteriaLabelMet: {
+    color: BrandColors.text,
+    fontWeight: '600',
+  },
+  matchStatusRow: {
+    paddingHorizontal: 4,
+    marginTop: -4,
+  },
+  matchStatusText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  matchSuccessText: {
+    color: BrandColors.success,
+  },
+  matchErrorText: {
+    color: BrandColors.red,
   },
 });

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 
-import { createSOS, getActiveSOS, getUserSOSStatus, respondToSOS, getVolunteerAcceptedSOS, getActiveSOSForVolunteer } from '../controllers/sosController.js';
+import { createSOS, getActiveSOS, getUserSOSStatus, respondToSOS, getVolunteerAcceptedSOS, getActiveSOSForVolunteer, updateEvacuationStatus } from '../controllers/sosController.js';
 import { authenticateRequest } from '../middleware/authMiddleware.js';
 
 const router = Router();
@@ -11,5 +11,6 @@ router.get('/active-for-volunteer', authenticateRequest, getActiveSOSForVoluntee
 router.get('/my-status', authenticateRequest, getUserSOSStatus);
 router.get('/volunteer-accepted', authenticateRequest, getVolunteerAcceptedSOS);
 router.put('/:requestId/respond', authenticateRequest, respondToSOS);
+router.put('/:requestId/evacuation-status', authenticateRequest, updateEvacuationStatus);
 
 export default router;

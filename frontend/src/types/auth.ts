@@ -5,7 +5,7 @@ export interface AuthUser {
   fullName: string;
   email: string;
   phoneNumber: string | null;
-  role: 'resident' | 'admin' | 'authority';
+  role: 'resident' | 'Community_Member' | 'admin' | 'authority';
   location: string | null;
   preferredLanguage: string;
   isVolunteer: boolean;
@@ -37,6 +37,7 @@ export interface UpdateProfilePayload {
   phoneNumber?: string;
   location: string;
   preferredLanguage: PreferredLanguage;
+  isVolunteer?: boolean;
 }
 
 export interface AuthSession {
@@ -65,6 +66,16 @@ export interface VerifyResetOtpResponse {
   resetToken: string;
 }
 
+export interface VerifyPasswordPayload {
+  currentPassword: string;
+}
+
+export interface ChangePasswordPayload {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword?: string;
+}
+
 export type FieldErrors = Partial<
   Record<
     | keyof RegisterResidentPayload
@@ -72,7 +83,9 @@ export type FieldErrors = Partial<
     | keyof UpdateProfilePayload
     | keyof ForgotPasswordPayload
     | keyof VerifyResetOtpPayload
-    | keyof ResetPasswordPayload,
+    | keyof ResetPasswordPayload
+    | keyof VerifyPasswordPayload
+    | keyof ChangePasswordPayload,
     string
   >
 >;

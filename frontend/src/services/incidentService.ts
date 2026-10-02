@@ -1,4 +1,5 @@
 import { API_BASE_URL } from '@/services/authService';
+import * as FileSystem from 'expo-file-system/legacy';
 import { Platform } from 'react-native';
 import type {
   CreateIncidentPayload,
@@ -17,6 +18,8 @@ type ApiErrorBody = {
 };
 
 type ApiIncidentResponse = ApiErrorBody & {
+  alertGenerated?: boolean;
+  generatedAlertId?: number | null;
   success: boolean;
   message: string;
   incident?: Incident;
@@ -136,46 +139,69 @@ export async function uploadIncidentPhoto(
   photo: SelectedIncidentPhoto,
   token: string,
 ) {
-  const formData = new FormData();
+  const uploadMimeType = photo.mimeType === 'image/jpg' ? 'image/jpeg' : (photo.mimeType || 'image/jpeg');
 
-  if (photo.file) {
-    // Expo ImagePicker provides the browser File object only on web.
-    formData.append('photo', photo.file, photo.fileName);
-  } else if (Platform.OS === 'web') {
-    const blob = await (await fetch(photo.uri)).blob();
-    formData.append('photo', blob, photo.fileName);
-  } else {
-    // React Native accepts this file descriptor for Android and iOS uploads.
-    formData.append('photo', {
-      uri: photo.uri,
-      name: photo.fileName,
-      type: photo.mimeType,
-    } as unknown as Blob);
+  if (Platform.OS === 'web') {
+    const formData = new FormData();
+    const source = photo.file ?? (await (await fetch(photo.uri)).blob());
+    formData.append('photo', new Blob([source], { type: uploadMimeType }), photo.fileName);
+
+    let response: Response;
+
+    try {
+      response = await fetch(`${API_BASE_URL}/api/incidents/${incidentId}/photos`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+    } catch {
+      throw new IncidentApiError(0, 'Unable to upload photo evidence. Please check your connection.');
+    }
+
+    const data = await parseJson(response) as ApiIncidentPhotoResponse | null;
+
+    if (!response.ok) {
+      throw new IncidentApiError(response.status, data?.message || 'Unable to upload photo evidence.');
+    }
+
+    if (!data?.photo) {
+      throw new IncidentApiError(500, 'The server returned an unexpected upload response.');
+    }
+
+    return data.photo;
   }
 
-  let response: Response;
+  // React Native (Android/iOS): RN's FormData file descriptor does not reliably
+  // read content:// URIs on the New Architecture, so the file is read natively
+  // and uploaded as base64 JSON instead of a multipart body.
+  let base64: string;
 
   try {
-    response = await fetch(`${API_BASE_URL}/api/incidents/${incidentId}/photos`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
-      body: formData,
+    base64 = await FileSystem.readAsStringAsync(photo.uri, {
+      encoding: FileSystem.EncodingType.Base64,
     });
   } catch {
-    throw new IncidentApiError(0, 'Unable to upload photo evidence. Please check your connection.');
+    throw new IncidentApiError(0, 'Unable to read the photo evidence from this device.');
   }
 
-  const data = await parseJson(response) as ApiIncidentPhotoResponse | null;
+  const response = await incidentRequest<ApiIncidentPhotoResponse>(
+    `/api/incidents/${incidentId}/photos/base64`,
+    token,
+    {
+      method: 'POST',
+      body: {
+        base64,
+        filename: photo.fileName,
+        mimeType: uploadMimeType,
+      },
+    },
+  );
 
-  if (!response.ok) {
-    throw new IncidentApiError(response.status, data?.message || 'Unable to upload photo evidence.');
-  }
-
-  if (!data?.photo) {
+  if (!response.photo) {
     throw new IncidentApiError(500, 'The server returned an unexpected upload response.');
   }
 
-  return data.photo;
+  return response.photo;
 }
 
 export async function getMyIncidents(token: string) {
@@ -267,7 +293,12 @@ export async function updateIncidentStatus(incidentId: number, status: IncidentS
     throw new IncidentApiError(500, 'The server returned an unexpected response.');
   }
 
-  return response.incident;
+  return {
+    alertGenerated: Boolean(response.alertGenerated),
+    generatedAlertId: response.generatedAlertId ?? null,
+    incident: response.incident,
+    message: response.message,
+  };
 }
 
 type ApiGeocodeResponse = ApiErrorBody & {

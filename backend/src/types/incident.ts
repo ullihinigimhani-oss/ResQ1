@@ -1,4 +1,6 @@
-export type IncidentType = 'Flood' | 'Fire' | 'Landslide' | 'Cyclone' | 'Tsunami' | 'Other';
+export type IncidentType = 'Flood' | 'Fire' | 'Landslide' | 'Cyclone' | 'Other';
+
+export type IncidentSubmitterRole = 'resident' | 'authority';
 
 export type IncidentSeverity = 'Low' | 'Medium' | 'High' | 'Critical';
 
@@ -6,6 +8,7 @@ export type IncidentStatus = 'Reported' | 'Under Review' | 'Verified' | 'Rejecte
 
 export interface IncidentRow {
   id: number;
+  user_id: number;
   incident_type: IncidentType | string;
   title: string;
   description: string;
@@ -17,11 +20,13 @@ export interface IncidentRow {
   status: IncidentStatus | string;
   created_at: Date | string;
   updated_at: Date | string;
+  submitted_by_role?: IncidentSubmitterRole | string | null;
   distance_km?: number | string | null;
 }
 
 export interface Incident {
   id: number;
+  userId: number;
   incidentType: string;
   title: string;
   description: string;
@@ -33,6 +38,7 @@ export interface Incident {
   status: string;
   createdAt: string;
   updatedAt: string;
+  submittedByRole?: IncidentSubmitterRole;
   photos: IncidentPhoto[];
   distanceKm?: number;
 }

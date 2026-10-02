@@ -70,6 +70,7 @@ export interface Alert {
   createdAt: string;
   updatedAt: string;
   isRelevantToResident: boolean;
+  isSubscribedArea: boolean;
   schools: School[];
 }
 

@@ -16,7 +16,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { AlertStatusBadge, RiskBadge } from '@/components/alerts/alert-badges';
+import {
+  AlertStatusBadge,
+  RiskBadge,
+  alertStatusDisplayLabel,
+} from '@/components/alerts/alert-badges';
 import {
   AudienceSelector,
   SchoolTargetingSection,
@@ -695,7 +699,7 @@ export default function EditAlertScreen() {
                   </View>
                 </FormSection>
 
-                <FormSection helper="Use Resolved or Cancelled when this warning should leave the active alert list." title="Alert Status">
+                <FormSection helper="Use Resolved or Removed when this warning should leave the active alert list." title="Alert Status">
                   <View style={styles.fieldGroup}>
                     <Text style={styles.label}>Status</Text>
                     <View style={[styles.optionGrid, fieldErrors.status && styles.selectorError]}>
@@ -718,7 +722,7 @@ export default function EditAlertScreen() {
                                 styles.optionButtonText,
                                 selected && styles.optionButtonTextSelected,
                               ]}>
-                              {status}
+                              {alertStatusDisplayLabel(status)}
                             </Text>
                           </Pressable>
                         );
