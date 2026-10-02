@@ -21,13 +21,7 @@ import { getUserSOSStatus } from '@/services/sosService';
 import { formatRole, initials, isAuthorityRole } from '@/utils/format';
 import type { SOSRequestWithVolunteer } from '@/types/sos';
 
-let MapView: any, Circle: any, Marker: any;
-if (Platform.OS !== 'web') {
-  const nativeMap = require('@/components/shelters/native-map');
-  MapView = nativeMap.default;
-  Circle = nativeMap.Circle;
-  Marker = nativeMap.Marker;
-}
+import OpenStreetMap from '@/components/shelters/openstreet-map';
 
 function ActionRow({
   icon,
@@ -339,36 +333,27 @@ export default function ProfileScreen() {
             <Text style={styles.mapModalTitle}>Select Volunteer Area</Text>
             <Text style={styles.mapModalSubtitle}>Tap on the map to select your volunteer area</Text>
             <View style={styles.mapContainer}>
-              {Platform.OS !== 'web' && MapView ? (
-                <MapView
-                  style={styles.map}
+              {Platform.OS !== 'web' ? (
+                <OpenStreetMap
                   initialRegion={{
                     latitude: 6.9271,
                     longitude: 79.8612,
                     latitudeDelta: 0.0922,
                     longitudeDelta: 0.0421,
                   }}
-                  onPress={handleMapPress}>
-                  {selectedRegion && (
-                    <>
-                      <Circle
-                        center={{
-                          latitude: selectedRegion.latitude,
-                          longitude: selectedRegion.longitude,
-                        }}
-                        radius={8000}
-                        strokeColor="rgba(255, 0, 0, 0.5)"
-                        fillColor="rgba(255, 0, 0, 0.1)"
-                      />
-                      <Marker
-                        coordinate={{
-                          latitude: selectedRegion.latitude,
-                          longitude: selectedRegion.longitude,
-                        }}
-                      />
-                    </>
-                  )}
-                </MapView>
+                  markers={selectedRegion ? [{ latitude: selectedRegion.latitude, longitude: selectedRegion.longitude, title: 'Volunteer Area', color: '#ff0000' }] : []}
+                  circles={selectedRegion ? [{
+                    center: {
+                      latitude: selectedRegion.latitude,
+                      longitude: selectedRegion.longitude
+                    },
+                    radius: 8000,
+                    strokeColor: 'rgba(255, 0, 0, 0.5)',
+                    fillColor: 'rgba(255, 0, 0, 0.1)'
+                  }] : []}
+                  onMapPress={handleMapPress}
+                  style={styles.map}
+                />
               ) : (
                 <View style={styles.webMapPlaceholder}>
                   <Text style={styles.webMapPlaceholderText}>
@@ -504,6 +489,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'center',
   },
   volunteerNowButtonShining: {
     backgroundColor: colors.emergencyBright,
@@ -521,6 +509,8 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     lineHeight: 24,
+    textAlign: 'center',
+    flexWrap: 'nowrap',
   },
   mapModalOverlay: {
     backgroundColor: colors.modalBackdrop,

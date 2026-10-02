@@ -103,7 +103,7 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
   cancelButtonText: {
-    color: BrandColors.text,
+    color: BrandColors.onPrimary,
     fontSize: 16,
     fontWeight: '600',
     textAlign: 'center',

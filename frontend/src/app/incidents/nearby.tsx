@@ -3,7 +3,7 @@ import { Redirect, useRouter, type Href } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import MapView, { Circle, Marker, PROVIDER_GOOGLE } from '@/components/shelters/native-map';
+import OpenStreetMap from '@/components/shelters/openstreet-map';
 import {
   AppHeader,
   EmptyState,
@@ -24,10 +24,10 @@ const SEVERITY_ORDER: IncidentSeverity[] = ['Low', 'Medium', 'High', 'Critical']
 const RADIUS_OPTIONS = [2, 5, 10] as const;
 
 const severityPinColor: Record<IncidentSeverity, string> = {
-  Low: colors.blueBorder,
-  Medium: colors.warningBorderStrong,
-  High: colors.red,
-  Critical: colors.criticalBorder,
+  Low: '#0B74C4',
+  Medium: '#D69E2E',
+  High: '#D71920',
+  Critical: '#BE4455',
 };
 
 const severityAreaRadius: Record<IncidentSeverity, number> = {
@@ -59,9 +59,6 @@ export default function NearbyIncidentsScreen() {
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [locationStatus, setLocationStatus] = useState<'idle' | 'locating' | 'granted' | 'denied'>('idle');
   const [radiusKm, setRadiusKm] = useState<number | null>(null);
-  const mapRef = useRef<React.ElementRef<typeof MapView>>(null);
-  const mapReadyRef = useRef(false);
-  const fittedOnceRef = useRef(false);
   const pendingRadiusRef = useRef<number | null>(null);
 
   const locateUser = useCallback(async () => {
@@ -140,35 +137,6 @@ export default function NearbyIncidentsScreen() {
     () => incidents.filter((incident) => incident.latitude !== null && incident.longitude !== null),
     [incidents],
   );
-
-  const fitMapToIncidents = useCallback(() => {
-    if (!mapReadyRef.current || locatedIncidents.length === 0) {
-      return;
-    }
-
-    const points = locatedIncidents.map((incident) => ({
-      latitude: incident.latitude as number,
-      longitude: incident.longitude as number,
-    }));
-
-    if (userLocation) {
-      points.push(userLocation);
-    }
-
-    requestAnimationFrame(() => {
-      mapRef.current?.fitToCoordinates(points, {
-        animated: true,
-        edgePadding: { top: 80, right: 80, bottom: 80, left: 80 },
-      });
-    });
-  }, [locatedIncidents, userLocation]);
-
-  useEffect(() => {
-    if (mapReadyRef.current && !fittedOnceRef.current && (locatedIncidents.length > 0 || userLocation)) {
-      fittedOnceRef.current = true;
-      fitMapToIncidents();
-    }
-  }, [fitMapToIncidents, locatedIncidents.length, userLocation]);
 
   const filteredIncidents = useMemo(() => {
     const normalizedQuery = normalize(query);
@@ -293,64 +261,21 @@ export default function NearbyIncidentsScreen() {
             </View>
           ) : (
             <View style={styles.mapContainer}>
-              <MapView
-                provider={PROVIDER_GOOGLE}
-                ref={mapRef}
+              <OpenStreetMap
+                initialRegion={{
+                  latitude: userLocation?.latitude || 6.9271,
+                  longitude: userLocation?.longitude || 79.8612,
+                  latitudeDelta: 0.1,
+                  longitudeDelta: 0.1,
+                }}
+                markers={locatedIncidents.map((incident) => ({
+                  latitude: incident.latitude as number,
+                  longitude: incident.longitude as number,
+                  title: incident.title,
+                  color: severityPinColor[incident.severity]
+                }))}
                 style={styles.map}
-                onMapReady={() => {
-                  mapReadyRef.current = true;
-                  if (!fittedOnceRef.current && (locatedIncidents.length > 0 || userLocation)) {
-                    fittedOnceRef.current = true;
-                    fitMapToIncidents();
-                  }
-                }}>
-                {locatedIncidents.map((incident) => {
-                  const severityColor = severityPinColor[incident.severity];
-
-                  return (
-                    <Circle
-                      key={incident.id}
-                      center={{
-                        latitude: incident.latitude as number,
-                        longitude: incident.longitude as number,
-                      }}
-                      fillColor={withAlpha(severityColor)}
-                      radius={severityAreaRadius[incident.severity]}
-                      strokeColor={severityColor}
-                      strokeWidth={2}
-                    />
-                  );
-                })}
-                {locatedIncidents.map((incident) => {
-                  const severityColor = severityPinColor[incident.severity];
-
-                  return (
-                    <Marker
-                      key={`center-${incident.id}`}
-                      coordinate={{
-                        latitude: incident.latitude as number,
-                        longitude: incident.longitude as number,
-                      }}
-                      onPress={() => openIncident(incident)}
-                      stopPropagation
-                      tracksViewChanges={false}>
-                      <View style={styles.centerDotOuter}>
-                        <View style={[styles.centerDot, { backgroundColor: severityColor }]} />
-                      </View>
-                    </Marker>
-                  );
-                })}
-                {userLocation ? (
-                  <Marker
-                    coordinate={userLocation}
-                    title="You are here"
-                    tracksViewChanges={false}>
-                    <View style={styles.userDotOuter}>
-                      <View style={[styles.centerDot, { backgroundColor: colors.accentAction }]} />
-                    </View>
-                  </Marker>
-                ) : null}
-              </MapView>
+              />
             </View>
           )
         ) : null}

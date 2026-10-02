@@ -22,7 +22,7 @@ import {
   StatusBadge,
   StatusTimeline,
 } from '@/components/incidents/incident-badges';
-import MapView, { Marker, PROVIDER_GOOGLE } from '@/components/shelters/native-map';
+import OpenStreetMap from '@/components/shelters/openstreet-map';
 import { BrandColors } from '@/constants/brand';
 import { useAuth } from '@/context/auth-context';
 import { getIncidentById, isIncidentApiError, updateIncidentStatus } from '@/services/incidentService';
@@ -238,22 +238,23 @@ export default function IncidentDetailsScreen() {
                   </View>
                 ) : (
                   <View style={styles.mapContainer}>
-                    <MapView
-                      provider={PROVIDER_GOOGLE}
-                      style={styles.map}
+                    <OpenStreetMap
                       initialRegion={{
                         latitude: incidentLatitude,
                         longitude: incidentLongitude,
                         latitudeDelta: 0.05,
                         longitudeDelta: 0.05,
-                      }}>
-                      <Marker
-                        coordinate={{ latitude: incidentLatitude, longitude: incidentLongitude }}
-                        description={incident.location}
-                        pinColor={BrandColors.red}
-                        title="Incident Location"
-                      />
-                    </MapView>
+                      }}
+                      markers={[
+                        {
+                          latitude: incidentLatitude,
+                          longitude: incidentLongitude,
+                          title: 'Incident Location',
+                          color: '#D71920'
+                        }
+                      ]}
+                      style={styles.map}
+                    />
                   </View>
                 )
               ) : (
