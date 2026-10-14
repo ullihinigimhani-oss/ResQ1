@@ -1,4 +1,6 @@
-import Constants from 'expo-constants';
+import { API_BASE_URL } from '@/constants/api';
+
+export { API_BASE_URL } from '@/constants/api';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
@@ -32,7 +34,6 @@ type ApiErrorBody = {
 
 const AUTH_TOKEN_KEY = 'resq1.auth.token';
 const AUTH_USER_KEY = 'resq1.auth.user';
-const BACKEND_PORT = '5000';
 
 function withCanonicalRole(user: AuthUser): AuthUser {
   const normalizedRole = normalizeRole(user.role);
@@ -46,55 +47,6 @@ function withCanonicalRole(user: AuthUser): AuthUser {
     ? { ...user, role: canonicalRole }
     : user;
 }
-
-function getExpoLanHost() {
-  const hostUri = Constants.expoConfig?.hostUri;
-
-  if (!hostUri) {
-    return undefined;
-  }
-
-  const host = hostUri.replace(/^https?:\/\//, '').replace(/^exp:\/\//, '').split(':')[0];
-
-  if (host && host !== 'localhost' && host !== '127.0.0.1') {
-    return host;
-  }
-
-  return undefined;
-}
-
-function resolveDefaultApiBaseUrl() {
-  const lanHost = getExpoLanHost();
-
-  if (lanHost) {
-    return `http://${lanHost}:${BACKEND_PORT}`;
-  }
-
-  if (Platform.OS === 'android') {
-    const lanHost = getExpoLanHost();
-
-    if (lanHost && lanHost !== 'localhost' && lanHost !== '127.0.0.1') {
-      return `http://${lanHost}:${BACKEND_PORT}`;
-    }
-
-    return `http://10.0.2.2:${BACKEND_PORT}`;
-  }
-
-  if (Platform.OS === 'ios') {
-    const lanHost = getExpoLanHost();
-
-    if (lanHost && lanHost !== 'localhost' && lanHost !== '127.0.0.1') {
-      return `http://${lanHost}:${BACKEND_PORT}`;
-    }
-  }
-
-  return `http://localhost:${BACKEND_PORT}`;
-}
-
-export const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_BASE_URL?.trim() ||
-  (Constants.expoConfig?.extra?.apiBaseUrl as string | undefined)?.trim() ||
-  resolveDefaultApiBaseUrl();
 
 export class AuthApiError extends Error {
   constructor(
