@@ -1,0 +1,10 @@
+.expoLogoBackground {
+  background-image: linear-gradient(
+    180deg,
+    var(--resq1-splash-blue-top, #3c9ffe),
+    var(--resq1-splash-blue-bottom, #0274df)
+  );
+  border-radius: 40px;
+  width: 128px;
+  height: 128px;
+}
